@@ -1,0 +1,190 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${subject.subjectName} + ' - Classroom'">Subject Classroom</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/subject-classroom.css}">
+</head>
+<body>
+    <div class="teacher-layout">
+        <!-- Left sidebar -->
+        <div th:replace="teacher-nav :: teacherNav"></div>
+
+        <!-- Main content area -->
+        <div class="teacher-content-wrapper">
+    <div class="main-container">
+        <!-- Back Button + Page Header -->
+        <div class="mb-3">
+            <a th:href="@{/teacher/homepage}" class="btn btn-sm btn-outline-secondary mb-2">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+
+        <!-- Classroom Header -->
+        <div class="classroom-header">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div>
+                    <h4 class="fw-bold mb-1" style="color:#7a1022;">
+                        <i class="bi bi-book me-2"></i>
+                        <span th:text="${subject.subjectName}">Subject Name</span>
+                    </h4>
+                    <p class="text-muted small mb-2" th:if="${subject.description != null && !subject.description.isEmpty()}"
+                       th:text="${subject.description}">Subject Description</p>
+                    <div class="mt-2">
+                        <span class="stat-badge students">
+                            <i class="bi bi-people"></i>
+                            <span th:text="${#lists.size(enrolledStudents)}">0</span> Students
+                        </span>
+                        <span class="stat-badge submissions">
+                            <i class="bi bi-file-text"></i>
+                            <span th:text="${#lists.size(submissions)}">0</span> Submissions
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enrollModal">
+                        <i class="bi bi-person-plus me-1"></i> Enroll Students
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrolled Students Section -->
+        <div class="section-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="section-title mb-0" style="border-bottom:none; padding-bottom:0;">
+                    <i class="bi bi-people-fill"></i> Enrolled Students
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-primary"
+                            th:if="${!#lists.isEmpty(enrolledStudents) && !#lists.isEmpty(uploadedExams)}"
+                            data-bs-toggle="modal" data-bs-target="#distributeAllModal">
+                        <i class="bi bi-send-fill me-1"></i>Distribute to All
+                    </button>
+                </div>
+            </div>
+            <div style="height:1px; background:#eadfce; margin-bottom:1rem;"></div>
+
+            <div th:if="${#lists.isEmpty(enrolledStudents)}" class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <p class="mb-1 fw-semibold small">No students enrolled yet.</p>
+                <small class="text-muted">Click "Enroll Students" to add students to this classroom.</small>
+            </div>
+
+            <div th:if="${!#lists.isEmpty(enrolledStudents)}">
+                <!-- Floating bulk action popup -->
+                <div class="bulk-action-bar" id="bulkActionBar">
+                    <span class="bulk-label">
+                        <i class="bi bi-check2-square"></i>
+                        <span id="bulkCount">0</span> selected
+                    </span>
+                    <button type="button"
+                            class="btn btn-sm fw-semibold text-dark"
+                            style="background:#d4a32a; border:none; border-radius:50px; padding:0.35rem 1rem;"
+                            th:if="${!#lists.isEmpty(uploadedExams)}"
+                            data-bs-toggle="modal" data-bs-target="#distributeSelectedModal">
+                        <i class="bi bi-send-fill me-1"></i>Distribute to Selected
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-light"
+                            style="border-radius:50px; padding:0.3rem 0.85rem;"
+                            id="clearSelectionBtn">
+                        <i class="bi bi-x me-1"></i>Clear
+                    </button>
+                </div>
+
+                <!-- Student list -->
+                <div class="table-responsive">
+                    <table class="student-list-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px;">
+                                    <input type="checkbox" id="selectAllStudents" class="form-check-input">
+                                </th>
+                                <th>Student</th>
+                                <th>Email</th>
+                                <th>Enrolled</th>
+                                <th style="width:80px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="student : ${enrolledStudents}">
+                                <td>
+                                    <input type="checkbox" class="form-check-input student-checkbox"
+                                           th:value="${student.studentEmail}">
+                                </td>
+                                <td>
+                                    <span class="fw-semibold" th:text="${student.studentName}">Name</span>
+                                </td>
+                                <td class="text-muted" th:text="${student.studentEmail}">email</td>
+                                <td class="text-muted small"
+                                    th:text="${#temporals.format(student.enrolledAt, 'MMM dd, yyyy')}">Date</td>
+                                <td>
+                                    <form th:action="@{/teacher/remove-student}" method="post" style="display:inline;">
+                                        <input type="hidden" name="enrollmentId" th:value="${student.id}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Remove this student from the classroom?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Submissions Section -->
+        <div class="section-card">
+            <div class="section-title">
+                <i class="bi bi-file-earmark-text-fill"></i> Recent Exam Submissions
+            </div>
+            
+            <div th:if="${#lists.isEmpty(submissions)}" class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <p class="mb-1 fw-semibold small">No submissions yet.</p>
+                <small class="text-muted">Submissions from enrolled students will appear here.</small>
+            </div>
+            
+            <div th:if="${!#lists.isEmpty(submissions)}">
+                <div th:each="submission : ${submissions}" class="submission-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h6 class="mb-1" th:text="${submission.examName}">Exam Name</h6>
+                            <small class="text-muted">
+                                <i class="bi bi-person"></i> <span th:text="${submission.studentEmail}">Student</span>
+                            </small>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge" 
+                                  th:classappend="${submission.percentage >= 75 ? 'bg-success' : (submission.percentage >= 50 ? 'bg-warning' : 'bg-danger')}">
+                                <span th:text="${submission.score}">0</span>/<span th:text="${submission.totalQuestions}">0</span>
+                                (<span th:text="${#numbers.formatDecimal(submission.percentage, 1, 1)}">0</span>%)
+                            </span>
+                            <br>
+                            <small class="text-muted" th:text="${#temporals.format(submission.submittedAt, 'MMM dd, yyyy HH:mm')}">Date</small>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a th:href="@{/teacher/view-result/{id}(id=${submission.id})}" 
+                               class="btn btn-sm btn-primary me-1" title="View Result">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <a th:href="@{/teacher/performance-analytics/{id}(id=${submission.id})}" 
+                               class="btn btn-sm btn-success" title="Analytics">
+                                <i class="bi bi-graph-up"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+
+    <!-- Distribute to Selected Students Modal -->

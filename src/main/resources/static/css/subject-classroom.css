@@ -1,0 +1,236 @@
+/* Subject Classroom Styles — EAC Design System */
+
+.main-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.classroom-header {
+    background: #fff;
+    border: 1px solid #eadfce;
+    border-radius: 16px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.09);
+}
+
+.section-card {
+    background: #fff;
+    border: 1px solid #eadfce;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.09);
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #7a1022;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #eadfce;
+    margin-bottom: 1rem;
+}
+
+.student-card {
+    border: 1px solid #eadfce;
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.85rem;
+    background: #fdfaf6;
+    transition: box-shadow 0.2s;
+}
+
+.student-card:hover {
+    box-shadow: 0 4px 14px rgba(60, 36, 13, 0.1);
+}
+
+.submission-card {
+    border-left: 4px solid #7a1022;
+    background: #fdfaf6;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #eadfce;
+    border-left-width: 4px;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-right: 0.6rem;
+}
+
+.stat-badge.students {
+    background: #f3eaf5;
+    color: #7a1022;
+    border: 1px solid #e8d5ea;
+}
+
+.stat-badge.submissions {
+    background: #eaf5ef;
+    color: #267a4b;
+    border: 1px solid #c5e8d4;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2.5rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    display: block;
+    opacity: 0.35;
+}
+
+/* Student list table */
+.student-list-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.student-list-table thead th {
+    background: #f7f2ea;
+    color: #4c2a11;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid #eadfce;
+}
+.student-list-table tbody tr {
+    border-bottom: 1px solid #f0ebe2;
+    transition: background 0.15s;
+}
+.student-list-table tbody tr:last-child {
+    border-bottom: none;
+}
+.student-list-table tbody tr:hover {
+    background: #fdfaf6;
+}
+.student-list-table td {
+    padding: 0.7rem 0.85rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+/* Floating bulk action popup */
+.bulk-action-bar {
+    display: flex;
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    align-items: center;
+    gap: 0.75rem;
+    background: #1c1c1e;
+    color: #fff;
+    padding: 0.7rem 1.25rem;
+    border-radius: 50px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 1050;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.bulk-action-bar.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+.bulk-action-bar .bulk-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #d4a32a;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding-right: 0.65rem;
+    border-right: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Delete button always visible — override global .btn-outline-danger white-on-dark rule */
+.student-list-table .btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+.student-list-table .btn-outline-danger:hover {
+    background: #dc3545;
+    color: #fff;
+    border-color: #dc3545;
+}
+
+.student-panel {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06);
+    transition: box-shadow .2s;
+}
+
+.student-panel:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,.12);
+}
+
+.student-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .9rem 1.2rem;
+    background: #f8f9fa;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.student-panel-header:hover {
+    background: #f3f7ff;
+}
+
+.student-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: .95rem;
+    flex-shrink: 0;
+}
+
+.sub-inner-table th,
+.sub-inner-table td {
+    font-size: .82rem;
+    vertical-align: middle;
+}
+
+.sub-inner-table {
+    margin-bottom: 0;
+}
+
+.btn-xs {
+    --bs-btn-padding-y: .1rem;
+    --bs-btn-padding-x: .4rem;
+    --bs-btn-font-size: .75rem;
+}

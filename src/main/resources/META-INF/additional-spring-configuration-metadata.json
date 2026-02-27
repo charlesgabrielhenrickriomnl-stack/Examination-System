@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "app.base.url",
+      "type": "java.lang.String",
+      "description": "Base URL used by the application for generated links in emails and redirects."
+    }
+  ]
+}

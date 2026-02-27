@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Questions - ALGO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <!-- MathJax for equation rendering -->
+    <script th:inline="none">
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        .mq-card {
+            border: 1px solid var(--eac-border);
+            border-radius: 16px;
+            box-shadow: 0 12px 28px rgba(60, 36, 13, 0.09);
+            background: var(--eac-surface);
+            overflow: hidden;
+        }
+        .mq-header {
+            background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
+            color: #fff;
+            border-bottom: 2px solid #d4a32a;
+        }
+        .mq-section-header {
+            background: linear-gradient(135deg, #221f1f 0%, #3a2e2e 100%);
+            color: #fff;
+        }
+        .question-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+            background: #fdfdfd;
+        }
+        .question-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .difficulty-easy {
+            border-left-color: #28a745 !important;
+            background-color: #f0f9f4;
+        }
+        .difficulty-medium {
+            border-left-color: #ffc107 !important;
+            background-color: #fff9e6;
+        }
+        .difficulty-hard {
+            border-left-color: #dc3545 !important;
+            background-color: #fff0f0;
+        }
+        .question-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #6c757d;
+        }
+        .add-question-form {
+            background: #fff;
+            color: #212529;
+            border: 1px solid #eadfce;
+            border-radius: 16px;
+        }
+        .mq-help {
+            background: #f8f9fb;
+            border: 1px solid #e4e7ee;
+            border-radius: 10px;
+            padding: 0.75rem;
+            color: #495057;
+            font-size: 0.88rem;
+        }
+        .mq-help code {
+            color: #7a1022;
+            background: #f2e8eb;
+            border-radius: 6px;
+            padding: 0.05rem 0.35rem;
+        }
+        .mq-add-header {
+            border-bottom: 1px solid #eadfce;
+            background: #fcfaf7;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .question-media {
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+        .mq-edit {
+            color: #0d6efd !important;
+            border-color: #0d6efd !important;
+            background: #fff !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        .mq-edit:hover {
+            background: #0d6efd !important;
+            color: #fff !important;
+        }
+        .mq-delete {
+            color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            background: #fff !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        .mq-delete i,
+        .mq-edit i {
+            color: inherit !important;
+        }
+        .mq-delete:hover {
+            background: #dc3545 !important;
+            color: #fff !important;
+        }
+        #mathPreviewContainer {
+            display: none;
+            background: #fff;
+            border: 1px solid #dfe3ea;
+            color: #212529;
+            min-height: 48px;
+        }
+        .mq-search-input {
+            max-width: 320px;
+            border-radius: 999px;
+        }
+        .rich-editor {
+            min-height: 120px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            background: #fff;
+            overflow: auto;
+            line-height: 1.45;
+        }
+        .rich-editor:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+        }
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            background: #f8f9fb;
+            flex-wrap: wrap;
+        }
+        .editor-toolbar .btn {
+            padding: 0.2rem 0.45rem;
+        }
+        .editor-toolbar .btn.cmd-narrow {
+            min-width: 30px;
+            font-weight: 600;
+        }
+        .editor-toolbar .form-select,
+        .editor-toolbar .form-control {
+            width: auto;
+            min-width: 72px;
+            padding: 0.15rem 0.35rem;
+            font-size: 0.85rem;
+        }
+        .editor-toolbar .font-size-input {
+            width: 86px;
+            min-width: 86px;
+        }
+        .editor-toolbar .font-family-select {
+            width: 190px;
+            min-width: 190px;
+        }
+        .editor-toolbar .font-size-select {
+            width: 72px;
+            min-width: 72px;
+        }
+        .editor-toolbar .toolbar-color-picker {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .editor-toolbar .toolbar-divider {
+            width: 1px;
+            height: 22px;
+            background: #ced4da;
+            margin: 0 0.15rem;
+        }
+        .editor-block .rich-editor {
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            font-family: "Aptos", "Calibri", "Segoe UI", Arial, sans-serif;
+            font-size: 11pt;
+        }
+        .choice-input-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .choice-input-row .form-control {
+            flex: 1;
+        }
+        .choice-remove-btn {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            background: #fff;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        .choice-remove-btn i {
+            color: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .choice-remove-btn:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+        .question-actions {
+            min-width: 84px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            align-items: flex-start;
+        }
+        .question-main {
+            flex: 1;
+            min-width: 0;
+        }
+        .mq-meta-chip {
+            border: 1px solid #eadfce;
+            background: #fff8ef;
+            color: #5b2b0f;
+            border-radius: 999px;
+            padding: 0.35rem 0.65rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .question-media img,
+        .question-media video {
+            display: block;
+            width: min(100%, 560px);
+            max-height: clamp(220px, 45vh, 420px);
+            object-fit: contain;
+            border-radius: 10px;
+            border: 1px solid #e3d8c9;
+            background: #f8f9fb;
+            margin: 8px 0;
+        }
+
+        @media (max-width: 576px) {
+            .question-media img,
+            .question-media video {
+                width: 100%;
+                max-height: 260px;
+            }
+        }
+
+        .question-media sup,
+        .question-media sub {
+            font-size: 0.78em;
+            line-height: 0;
+            position: relative;
+            vertical-align: baseline;
+        }
+
+        .question-media sup {
+            top: -0.5em;
+        }
+
+        .question-media sub {
+            bottom: -0.2em;
+        }
+    </style>
+</head>
+<body class="homepage-page">
+
+<div class="teacher-layout">
+    <div th:replace="teacher-nav :: teacherNav"></div>
+
+    <!-- Main content area -->
+    <div class="teacher-content-wrapper">
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card mq-card">
+                <div class="card-header mq-header">
+                    <h4 class="mb-0"><i class="bi bi-file-earmark-text"></i> Exam Details</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Exam Name:</strong></p>
+                            <h5 class="text-primary" th:text="${exam.examName}">Midterm Exam</h5>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Subject:</strong></p>
+                            <h5><span class="badge bg-info" th:text="${exam.subject}">Mathematics</span></h5>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Type:</strong></p>
+                            <h5><span class="badge bg-secondary" th:text="${exam.activityType}">Exam</span></h5>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Total Questions:</strong></p>
+                            <h5><span class="badge bg-success" th:text="${#lists.size(exam.questions)}">100</span></h5>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="d-flex justify-content-end gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-download"></i> Export Exam with Answers
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" th:href="@{/teacher/export-exam-with-answers/pdf(examId=${exam.examId})}">
+                                        <i class="bi bi-file-earmark-pdf"></i> Export as PDF
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" th:href="@{/teacher/export-exam-with-answers/csv(examId=${exam.examId})}">
+                                        <i class="bi bi-file-earmark-spreadsheet"></i> Export as CSV
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" th:href="@{/teacher/export-exam-with-answers/docx(examId=${exam.examId})}">
+                                        <i class="bi bi-file-earmark-word"></i> Export as DOCX
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary"
+                                th:attr="data-return-url=${returnTo},data-processed-url=@{/teacher/processed-papers/{examId}(examId=${exam.examId})}"
+                                onclick="goBackSmart(this)">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Question Section -->
+    <div class="row mb-4" id="addQuestionSection">
+        <div class="col-md-12">
+            <div class="card add-question-form">
+                <div class="card-header border-0 mq-add-header">
+                    <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Question</h5>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/teacher/add-question}" method="post" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to submit?');">
+                        <input type="hidden" name="examId" th:value="${exam.examId}">
+                        <input type="hidden" name="returnTo" th:value="${returnTo}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Question Text *</label>
+                            <div class="editor-block">
+                                <div class="editor-toolbar" data-editor="#questionEditor">
+                                    <select class="form-select form-select-sm font-family-select" data-editor-font-family title="Font Family">
+                                        <option value="Aptos" selected>Aptos (Body)</option>
+                                        <option value="Arial">Arial</option>
+                                        <option value="Arial Black">Arial Black</option>
+                                        <option value="Calibri">Calibri</option>
+                                        <option value="Cambria">Cambria</option>
+                                        <option value="Candara">Candara</option>
+                                        <option value="Century Gothic">Century Gothic</option>
+                                        <option value="Comic Sans MS">Comic Sans MS</option>
+                                        <option value="Consolas">Consolas</option>
+                                        <option value="Courier New">Courier New</option>
+                                        <option value="Garamond">Garamond</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Helvetica">Helvetica</option>
+                                        <option value="Impact">Impact</option>
+                                        <option value="Lucida Console">Lucida Console</option>
+                                        <option value="Palatino Linotype">Palatino Linotype</option>
+                                        <option value="Segoe UI">Segoe UI</option>
+                                        <option value="Tahoma">Tahoma</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Trebuchet MS">Trebuchet MS</option>
+                                        <option value="Verdana">Verdana</option>
+                                    </select>
+                                    <select class="form-select form-select-sm font-size-select" data-editor-font-size title="Font Size">
+                                        <option value="8pt">8</option>
+                                        <option value="9pt">9</option>
+                                        <option value="10pt">10</option>
+                                        <option value="11pt" selected>11</option>
+                                        <option value="12pt">12</option>
+                                        <option value="14pt">14</option>
+                                        <option value="16pt">16</option>
+                                        <option value="18pt">18</option>
+                                        <option value="20pt">20</option>
+                                        <option value="24pt">24</option>
+                                        <option value="28pt">28</option>
+                                        <option value="32pt">32</option>
+                                        <option value="36pt">36</option>
+                                    </select>
+                                    <span class="toolbar-divider"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="bold" title="Bold"><i class="bi bi-type-bold"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="italic" title="Italic"><i class="bi bi-type-italic"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="underline" title="Underline"><i class="bi bi-type-underline"></i></button>
+                                    <span class="toolbar-divider"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="insertUnorderedList" title="Bulleted List"><i class="bi bi-list-ul"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="insertOrderedList" title="Numbered List"><i class="bi bi-list-ol"></i></button>
+                                    <span class="toolbar-divider"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-action="pick-text-color" title="Text Color"><i class="bi bi-fonts"></i></button>
+                                    <input type="color" class="toolbar-color-picker" data-editor-color title="Text Color" value="#1f2937">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-action="pick-highlight" title="Background/Highlight Color"><i class="bi bi-paint-bucket"></i></button>
+                                    <input type="color" class="toolbar-color-picker" data-editor-highlight title="Background/Highlight Color" value="#ffe08a">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="remove-bg" title="Remove Background"><i class="bi bi-eraser"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-dark" data-editor-cmd="clear" title="Clear Formatting"><i class="bi bi-eraser-fill"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="undo" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="redo" title="Redo"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                                <div class="rich-editor" id="questionEditor" contenteditable="true" oninput="updateMathPreview()"></div>
+                                <input type="hidden" name="questionText" id="questionTextInput">
+                            </div>
+                            <div class="mq-help mt-2">
+                                <div>For multiple choice questions, include all options (A, B, C, D, etc.) in the question text.</div>
+                                <div class="mt-1"><strong>Supported formats</strong></div>
+                                <div>• Images: <code>&lt;img src="URL" alt="description"&gt;</code></div>
+                                <div>• Videos: <code>&lt;video src="URL" controls&gt;&lt;/video&gt;</code></div>
+                                <div>• Or upload media using the file pickers below</div>
+                                <div>• Equations (inline): <code>$x^2 + y^2 = r^2$</code> or <code>\(x^2\)</code></div>
+                                <div>• Equations (block): <code>$$\frac{a}{b}$$</code> or <code>\[\int_0^\infty\]</code></div>
+                            </div>
+                            <!-- Live LaTeX preview -->
+                            <div id="mathPreviewContainer" class="mt-2 p-3 rounded">
+                                <small class="d-block mb-1 text-muted" style="font-size:.75rem;">⟨ LaTeX Preview ⟩</small>
+                                <div id="mathPreview"></div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Question Type *</label>
+                                <select class="form-select" id="addQuestionType" name="questionType" onchange="toggleAddQuestionTypeFields()" required>
+                                    <option value="MULTIPLE_CHOICE" selected>Multiple Choice</option>
+                                    <option value="OPEN_ENDED">Open-Ended (Teacher Graded)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="mcqChoicesContainer">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">Choices *</label>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addChoiceBtn">
+                                    <i class="bi bi-plus-circle"></i> Add Choice
+                                </button>
+                            </div>
+                            <div id="choicesInputs"></div>
+                            <textarea class="form-control d-none" name="choicesText" id="addChoicesText"></textarea>
+                            <small class="form-text text-muted">Add at least 2 choices for multiple choice questions.</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Media Type</label>
+                                <select class="form-select" id="addMediaType" onchange="toggleAddMediaTypeFields()">
+                                    <option value="NONE" selected>None</option>
+                                    <option value="IMAGE">Image</option>
+                                    <option value="VIDEO">Video</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3" id="addImageUploadContainer" style="display:none;">
+                                <label class="form-label fw-bold">Upload Image</label>
+                                <input type="file" class="form-control" name="questionImage" accept="image/*">
+                            </div>
+                            <div class="col-md-6 mb-3" id="addVideoUploadContainer" style="display:none;">
+                                <label class="form-label fw-bold">Upload Video</label>
+                                <input type="file" class="form-control" name="questionVideo" accept="video/*">
+                                <small class="form-text text-muted">Maximum video upload size: 500MB</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Correct Answer *</label>
+                                <input type="text" class="form-control" name="answer" id="addAnswerInput"
+                                       placeholder="e.g., A, B, C, D or full answer text" required>
+                                <small class="form-text text-muted" id="addAnswerHint">Enter the letter or full text of the correct answer</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Difficulty Level *</label>
+                                <select class="form-select" name="difficulty" required>
+                                    <option value="">Select Difficulty</option>
+                                    <option value="Easy">🟢 Easy</option>
+                                    <option value="Medium">🟡 Medium</option>
+                                    <option value="Hard">🔴 Hard</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-light w-100">
+                            Submit
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle"></i> <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Existing Questions List -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mq-card">
+                <div class="card-header mq-section-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-list-ol"></i> All Questions</h5>
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                        <input type="text" id="manageQuestionSearch" class="form-control form-control-sm mq-search-input"
+                               placeholder="🔎 Search question or answer...">
+                        <span class="badge bg-light text-dark" th:text="${#lists.size(exam.questions)} + ' Questions'">100 Questions</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(exam.questions)}" class="alert alert-info m-3">
+                        <i class="bi bi-info-circle"></i> No questions available yet. Add your first question above!
+                    </div>
+                    
+                    <div class="list-group list-group-flush">
+                        <div th:each="question, iterStat : ${exam.questions}" 
+                             class="list-group-item question-card"
+                             th:attr="data-question-search=${#strings.toLowerCase(question) + ' ' + #strings.toLowerCase(exam.answerKey[iterStat.index])}"
+                             th:classappend="${exam.difficulties[iterStat.index] == 'Easy'} ? 'difficulty-easy' : 
+                                            (${exam.difficulties[iterStat.index] == 'Medium'} ? 'difficulty-medium' : 'difficulty-hard')">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="question-actions">
+                                    <button class="btn btn-sm btn-outline-primary mq-edit" type="button"
+                                            data-bs-toggle="collapse"
+                                            th:attr="data-bs-target='#editQuestion' + ${iterStat.index}, aria-controls='editQuestion' + ${iterStat.index}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form th:action="@{/teacher/delete-question}" method="post" style="display: inline;"
+                                          onsubmit="return confirm('Are you sure you want to delete this question?');">
+                                        <input type="hidden" name="examId" th:value="${exam.examId}">
+                                        <input type="hidden" name="questionIndex" th:value="${iterStat.index}">
+                                        <input type="hidden" name="returnTo" th:value="${returnTo}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger mq-delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="question-main">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="question-number me-3" th:text="'#' + ${iterStat.count}">Q1</span>
+                                        <span class="badge" 
+                                              th:classappend="${exam.difficulties[iterStat.index] == 'Easy'} ? 'bg-success' : 
+                                                             (${exam.difficulties[iterStat.index] == 'Medium'} ? 'bg-warning' : 'bg-danger')"
+                                              th:text="${exam.difficulties[iterStat.index]}">Easy</span>
+                                        <span class="mq-meta-chip ms-2" th:if="${exam.answerKey[iterStat.index] != null}">
+                                            <i class="bi bi-key"></i> Answer:
+                                            <span th:text="${exam.answerKey[iterStat.index] == 'MANUAL_GRADE' ? 'Teacher Graded' : exam.answerKey[iterStat.index]}">A</span>
+                                        </span>
+                                    </div>
+                                    <div class="mb-0 question-media" th:utext="${questionDisplay[iterStat.index]}" style="white-space: pre-wrap;"></div>
+                                </div>
+                            </div>
+
+                            <div class="collapse mt-3" th:id="'editQuestion' + ${iterStat.index}">
+                                <div class="card card-body bg-light border">
+                                    <form th:action="@{/teacher/edit-question}" method="post" class="row g-2" enctype="multipart/form-data">
+                                        <input type="hidden" name="examId" th:value="${exam.examId}">
+                                        <input type="hidden" name="questionIndex" th:value="${iterStat.index}">
+                                        <input type="hidden" name="returnTo" th:value="${returnTo}">
+
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold mb-1">Question Text</label>
+                                            <div class="editor-block">
+                                                <div class="editor-toolbar">
+                                                    <select class="form-select form-select-sm font-family-select" data-editor-font-family title="Font Family">
+                                                        <option value="Aptos" selected>Aptos (Body)</option>
+                                                        <option value="Arial">Arial</option>
+                                                        <option value="Arial Black">Arial Black</option>
+                                                        <option value="Calibri">Calibri</option>
+                                                        <option value="Cambria">Cambria</option>
+                                                        <option value="Candara">Candara</option>
+                                                        <option value="Century Gothic">Century Gothic</option>
+                                                        <option value="Comic Sans MS">Comic Sans MS</option>
+                                                        <option value="Consolas">Consolas</option>
+                                                        <option value="Courier New">Courier New</option>
+                                                        <option value="Garamond">Garamond</option>
+                                                        <option value="Georgia">Georgia</option>
+                                                        <option value="Helvetica">Helvetica</option>
+                                                        <option value="Impact">Impact</option>
+                                                        <option value="Lucida Console">Lucida Console</option>
+                                                        <option value="Palatino Linotype">Palatino Linotype</option>
+                                                        <option value="Segoe UI">Segoe UI</option>
+                                                        <option value="Tahoma">Tahoma</option>
+                                                        <option value="Times New Roman">Times New Roman</option>
+                                                        <option value="Trebuchet MS">Trebuchet MS</option>
+                                                        <option value="Verdana">Verdana</option>
+                                                    </select>
+                                                    <select class="form-select form-select-sm font-size-select" data-editor-font-size title="Font Size">
+                                                        <option value="8pt">8</option>
+                                                        <option value="9pt">9</option>
+                                                        <option value="10pt">10</option>
+                                                        <option value="11pt" selected>11</option>
+                                                        <option value="12pt">12</option>
+                                                        <option value="14pt">14</option>
+                                                        <option value="16pt">16</option>
+                                                        <option value="18pt">18</option>
+                                                        <option value="20pt">20</option>
+                                                        <option value="24pt">24</option>
+                                                        <option value="28pt">28</option>
+                                                        <option value="32pt">32</option>
+                                                        <option value="36pt">36</option>
+                                                    </select>
+                                                    <span class="toolbar-divider"></span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="bold" title="Bold"><i class="bi bi-type-bold"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="italic" title="Italic"><i class="bi bi-type-italic"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="underline" title="Underline"><i class="bi bi-type-underline"></i></button>
+                                                    <span class="toolbar-divider"></span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="insertUnorderedList" title="Bulleted List"><i class="bi bi-list-ul"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="insertOrderedList" title="Numbered List"><i class="bi bi-list-ol"></i></button>
+                                                    <span class="toolbar-divider"></span>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-action="pick-text-color" title="Text Color"><i class="bi bi-fonts"></i></button>
+                                                    <input type="color" class="toolbar-color-picker" data-editor-color title="Text Color" value="#1f2937">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-action="pick-highlight" title="Background/Highlight Color"><i class="bi bi-paint-bucket"></i></button>
+                                                    <input type="color" class="toolbar-color-picker" data-editor-highlight title="Background/Highlight Color" value="#ffe08a">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="remove-bg" title="Remove Background"><i class="bi bi-eraser"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-dark" data-editor-cmd="clear" title="Clear Formatting"><i class="bi bi-eraser-fill"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="undo" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="redo" title="Redo"><i class="bi bi-arrow-clockwise"></i></button>
+                                                </div>
+                                                <div class="rich-editor rich-editor-edit" contenteditable="true" th:utext="${question}"></div>
+                                                <input type="hidden" name="questionText" class="edit-question-text-input">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Question Type</label>
+                                            <select class="form-select form-select-sm edit-question-type" name="questionType" onchange="toggleEditQuestionTypeFields(this)" required>
+                                                <option value="MULTIPLE_CHOICE" th:selected="${!#strings.startsWith(question, '[TEXT_INPUT]')}">Multiple Choice</option>
+                                                <option value="OPEN_ENDED" th:selected="${#strings.startsWith(question, '[TEXT_INPUT]')}">Open-Ended</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Answer</label>
+                                            <input type="text" class="form-control form-control-sm edit-answer-input" name="answer" required
+                                                   th:value="${exam.answerKey[iterStat.index]}">
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Difficulty</label>
+                                            <select class="form-select form-select-sm" name="difficulty" required>
+                                                <option value="Easy" th:selected="${exam.difficulties[iterStat.index] == 'Easy'}">Easy</option>
+                                                <option value="Medium" th:selected="${exam.difficulties[iterStat.index] == 'Medium'}">Medium</option>
+                                                <option value="Hard" th:selected="${exam.difficulties[iterStat.index] == 'Hard'}">Hard</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <button type="submit" class="btn btn-sm btn-primary w-100">
+                                                <i class="bi bi-check2-circle me-1"></i>Save Changes
+                                            </button>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold mb-1">Media Type</label>
+                                            <select class="form-select form-select-sm edit-media-type" onchange="toggleEditMediaTypeFields(this)">
+                                                <option value="NONE" selected>None</option>
+                                                <option value="IMAGE">Image</option>
+                                                <option value="VIDEO">Video</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-6 edit-image-upload" style="display:none;">
+                                            <label class="form-label small fw-semibold mb-1">Upload Image</label>
+                                            <input type="file" class="form-control form-control-sm" name="questionImage" accept="image/*">
+                                        </div>
+
+                                        <div class="col-md-6 edit-video-upload" style="display:none;">
+                                            <label class="form-label small fw-semibold mb-1">Upload Video</label>
+                                            <input type="file" class="form-control form-control-sm" name="questionVideo" accept="video/*">
+                                            <small class="form-text text-muted">Maximum video upload size: 500MB</small>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Auto-dismiss alerts after 5 seconds
+    setTimeout(function() {
+        var alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            var bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+
+    // Live LaTeX preview
+    let previewDebounce;
+    function goBackSmart(buttonEl) {
+        const returnUrl = buttonEl ? buttonEl.getAttribute('data-return-url') : null;
+        if (returnUrl) {
+            window.location.href = returnUrl;
+            return;
+        }
+        const directUrl = buttonEl ? buttonEl.getAttribute('data-processed-url') : null;
+        if (directUrl) {
+            window.location.href = directUrl;
+            return;
+        }
+        window.location.href = '/teacher/processed-papers';
+    }
+
+    function updateMathPreview() {
+        clearTimeout(previewDebounce);
+        previewDebounce = setTimeout(function() {
+            const editor = document.getElementById('questionEditor');
+            if (!editor) return;
+            const raw = editor.innerHTML || '';
+            const hasLatex = /\$|\\\(|\\\[|<math/i.test(raw);
+            const container = document.getElementById('mathPreviewContainer');
+            const preview = document.getElementById('mathPreview');
+            const plain = (editor.innerText || '').trim();
+            if (!hasLatex || !plain) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            preview.innerHTML = raw;
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetClear([preview]);
+                MathJax.typesetPromise([preview]).catch(err => console.warn('MathJax preview error:', err));
+            }
+        }, 400);
+    }
+
+    function toggleAddQuestionTypeFields() {
+        const typeSelect = document.getElementById('addQuestionType');
+        const choicesContainer = document.getElementById('mcqChoicesContainer');
+        const choicesText = document.getElementById('addChoicesText');
+        const answerInput = document.getElementById('addAnswerInput');
+        const answerHint = document.getElementById('addAnswerHint');
+
+        if (!typeSelect || !choicesContainer || !choicesText || !answerInput || !answerHint) return;
+
+        const isOpenEnded = typeSelect.value === 'OPEN_ENDED';
+        choicesContainer.style.display = isOpenEnded ? 'none' : '';
+        answerInput.required = !isOpenEnded;
+        answerInput.readOnly = isOpenEnded;
+        if (isOpenEnded) {
+            choicesText.value = '';
+            answerInput.value = '';
+            answerInput.placeholder = 'Not required for open-ended questions';
+            answerHint.textContent = 'Teacher will grade this question manually.';
+        } else {
+            answerInput.placeholder = 'e.g., A, B, C, D or full answer text';
+            answerHint.textContent = 'Enter the letter or full text of the correct answer';
+        }
+    }
+
+    function toggleAddMediaTypeFields() {
+        const mediaType = document.getElementById('addMediaType');
+        const imageWrap = document.getElementById('addImageUploadContainer');
+        const videoWrap = document.getElementById('addVideoUploadContainer');
+        if (!mediaType || !imageWrap || !videoWrap) return;
+
+        const imageInput = imageWrap.querySelector('input[name="questionImage"]');
+        const videoInput = videoWrap.querySelector('input[name="questionVideo"]');
+        imageWrap.style.display = mediaType.value === 'IMAGE' ? '' : 'none';
+        videoWrap.style.display = mediaType.value === 'VIDEO' ? '' : 'none';
+
+        if (mediaType.value !== 'IMAGE' && imageInput) {
+            imageInput.value = '';
+        }
+        if (mediaType.value !== 'VIDEO' && videoInput) {
+            videoInput.value = '';
+        }
+    }
+
+    function toggleEditQuestionTypeFields(selectEl) {
+        if (!selectEl) return;
+        const form = selectEl.closest('form');
+        if (!form) return;
+        const answerInput = form.querySelector('.edit-answer-input');
+        if (!answerInput) return;
+
+        const isOpenEnded = selectEl.value === 'OPEN_ENDED';
+        answerInput.required = !isOpenEnded;
+        answerInput.readOnly = isOpenEnded;
+        if (isOpenEnded) {
+            answerInput.value = '';
+            answerInput.placeholder = 'Teacher will grade this manually';
+        } else {
+            answerInput.placeholder = 'Correct answer';
+        }
+    }
+
+    function toggleEditMediaTypeFields(selectEl) {
+        if (!selectEl) return;
+        const form = selectEl.closest('form');
+        if (!form) return;
+
+        const imageWrap = form.querySelector('.edit-image-upload');
+        const videoWrap = form.querySelector('.edit-video-upload');
+        if (!imageWrap || !videoWrap) return;
+
+        const imageInput = imageWrap.querySelector('input[name="questionImage"]');
+        const videoInput = videoWrap.querySelector('input[name="questionVideo"]');
+        imageWrap.style.display = selectEl.value === 'IMAGE' ? '' : 'none';
+        videoWrap.style.display = selectEl.value === 'VIDEO' ? '' : 'none';
+
+        if (selectEl.value !== 'IMAGE' && imageInput) {
+            imageInput.value = '';
+        }
+        if (selectEl.value !== 'VIDEO' && videoInput) {
+            videoInput.value = '';
+        }
+    }
+
+    function syncAddChoicesText() {
+        const hidden = document.getElementById('addChoicesText');
+        if (!hidden) return;
+        const values = Array.from(document.querySelectorAll('.add-choice-input'))
+            .map(input => (input.value || '').trim())
+            .filter(Boolean);
+        hidden.value = values.join('\n');
+    }
+
+    function addChoiceInput(value = '') {
+        const container = document.getElementById('choicesInputs');
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'choice-input-row';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control add-choice-input';
+        input.placeholder = 'Enter choice';
+        input.value = value;
+        input.addEventListener('input', syncAddChoicesText);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn btn-sm choice-remove-btn';
+        removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeBtn.title = 'Remove Choice';
+        removeBtn.addEventListener('click', function () {
+            row.remove();
+            syncAddChoicesText();
+        });
+
+        row.appendChild(input);
+        row.appendChild(removeBtn);
+        container.appendChild(row);
+        syncAddChoicesText();
+    }
+
+    const manageQuestionSearch = document.getElementById('manageQuestionSearch');
+    if (manageQuestionSearch) {
+        manageQuestionSearch.addEventListener('input', function () {
+            const query = this.value.toLowerCase().trim();
+            document.querySelectorAll('.question-card').forEach(card => {
+                const key = (card.getAttribute('data-question-search') || '').toLowerCase();
+                card.style.display = (!query || key.includes(query)) ? '' : 'none';
+            });
+        });
+    }
+
+    const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
+    function validateVideoFileSize(inputEl) {
+        if (!inputEl || !inputEl.files || inputEl.files.length === 0) {
+            return true;
+        }
+        const file = inputEl.files[0];
+        if (file.size > MAX_VIDEO_SIZE_BYTES) {
+            alert('Video is too large. Maximum allowed size is 500MB.');
+            inputEl.value = '';
+            return false;
+        }
+        return true;
+    }
+
+    document.querySelectorAll('input[name="questionVideo"]').forEach(inputEl => {
+        inputEl.addEventListener('change', function () {
+            validateVideoFileSize(this);
+        });
+    });
+
+    document.querySelectorAll('form[action*="/teacher/add-question"], form[action*="/teacher/edit-question"]').forEach(formEl => {
+        formEl.addEventListener('submit', function (event) {
+            const videoInput = this.querySelector('input[name="questionVideo"]');
+            if (!validateVideoFileSize(videoInput)) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const addChoiceBtn = document.getElementById('addChoiceBtn');
+        const existingChoices = document.querySelectorAll('.add-choice-input').length;
+        if (existingChoices === 0) {
+            addChoiceInput('Choice A');
+            addChoiceInput('Choice B');
+            addChoiceInput('Choice C');
+            addChoiceInput('Choice D');
+        }
+        if (addChoiceBtn) {
+            addChoiceBtn.addEventListener('click', function () {
+                addChoiceInput('');
+            });
+        }
+
+        toggleAddQuestionTypeFields();
+        toggleAddMediaTypeFields();
+        document.querySelectorAll('.edit-question-type').forEach(selectEl => {
+            toggleEditQuestionTypeFields(selectEl);
+        });
+        document.querySelectorAll('.edit-media-type').forEach(selectEl => {
+            toggleEditMediaTypeFields(selectEl);
+        });
+
+        function getToolbarEditor(toolbarEl) {
+            if (!toolbarEl) return null;
+            const selector = toolbarEl.getAttribute('data-editor');
+            if (selector) {
+                return document.querySelector(selector);
+            }
+            const block = toolbarEl.closest('.editor-block');
+            return block ? block.querySelector('.rich-editor') : null;
+        }
+
+        const savedRanges = new WeakMap();
+
+        function saveSelection(editor) {
+            if (!editor) return;
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return;
+            const range = selection.getRangeAt(0);
+            if (!editor.contains(range.commonAncestorContainer)) return;
+            savedRanges.set(editor, range.cloneRange());
+        }
+
+        function restoreSelection(editor) {
+            if (!editor) return;
+            const saved = savedRanges.get(editor);
+            if (!saved) return;
+            const selection = window.getSelection();
+            if (!selection) return;
+            selection.removeAllRanges();
+            selection.addRange(saved);
+        }
+
+        function focusEditor(editor) {
+            if (!editor) return;
+            editor.focus();
+        }
+
+        function readStyleFromEditor(editor) {
+            if (!editor) {
+                return { family: 'Default', size: '--' };
+            }
+
+            let target = editor;
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (editor.contains(range.commonAncestorContainer)) {
+                    const node = range.startContainer;
+                    target = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                }
+            }
+
+            const computed = window.getComputedStyle(target);
+            const familyRaw = (computed.fontFamily || 'Default').split(',')[0].replace(/["']/g, '').trim();
+            const sizeRaw = parseFloat(computed.fontSize || '0');
+            return {
+                family: familyRaw || 'Default',
+                size: Number.isFinite(sizeRaw) && sizeRaw > 0 ? `${Math.round(sizeRaw)}px` : '--'
+            };
+        }
+
+        function updateToolbarStyleStatus(toolbar, editor) {
+            if (!toolbar || !editor) return;
+            const style = readStyleFromEditor(editor);
+            const fontSelect = toolbar.querySelector('[data-editor-font-family]');
+            const sizeSelect = toolbar.querySelector('[data-editor-font-size]');
+
+            if (fontSelect) {
+                const options = Array.from(fontSelect.options);
+                const found = options.find(opt => (opt.value || '').toLowerCase() === (style.family || '').toLowerCase());
+                if (found) {
+                    fontSelect.value = found.value;
+                }
+            }
+
+            if (sizeSelect) {
+                const sizeNumeric = parseInt(String(style.size || '').replace(/[^0-9]/g, ''), 10);
+                if (Number.isFinite(sizeNumeric)) {
+                    const matched = Array.from(sizeSelect.options).find(opt => parseInt(opt.textContent || '', 10) === sizeNumeric);
+                    if (matched) {
+                        sizeSelect.value = matched.value;
+                    }
+                }
+            }
+        }
+
+        function updateAllToolbarStatuses() {
+            document.querySelectorAll('.editor-toolbar').forEach(toolbar => {
+                const editor = getToolbarEditor(toolbar);
+                updateToolbarStyleStatus(toolbar, editor);
+            });
+        }
+
+        function applyEditorCommand(editor, command, value = null) {
+            if (!editor) return;
+            focusEditor(editor);
+            restoreSelection(editor);
+            document.execCommand('styleWithCSS', false, true);
+            if (value === null) {
+                document.execCommand(command, false);
+            } else {
+                document.execCommand(command, false, value);
+            }
+            saveSelection(editor);
+            if (editor.id === 'questionEditor') {
+                updateMathPreview();
+            }
+            updateAllToolbarStatuses();
+        }
+
+        function applyFontSize(editor, sizeValue) {
+            if (!editor || !sizeValue) return;
+            focusEditor(editor);
+            restoreSelection(editor);
+            document.execCommand('styleWithCSS', false, true);
+            document.execCommand('fontSize', false, '7');
+            editor.querySelectorAll('font[size="7"]').forEach(el => {
+                const span = document.createElement('span');
+                span.style.fontSize = sizeValue;
+                span.innerHTML = el.innerHTML;
+                el.replaceWith(span);
+            });
+            saveSelection(editor);
+            if (editor.id === 'questionEditor') {
+                updateMathPreview();
+            }
+            updateAllToolbarStatuses();
+        }
+
+        function applyFontFamily(editor, fontFamily) {
+            if (!editor || !fontFamily) return;
+            focusEditor(editor);
+            restoreSelection(editor);
+            document.execCommand('styleWithCSS', false, true);
+            document.execCommand('fontName', false, fontFamily);
+            saveSelection(editor);
+            if (editor.id === 'questionEditor') {
+                updateMathPreview();
+            }
+            updateAllToolbarStatuses();
+        }
+
+        document.querySelectorAll('.editor-toolbar [data-editor-font-family]').forEach(selectEl => {
+            selectEl.addEventListener('change', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                if (!this.value) return;
+                applyFontFamily(editor, this.value);
+            });
+        });
+
+        document.querySelectorAll('.rich-editor').forEach(editor => {
+            editor.addEventListener('mouseup', function () {
+                saveSelection(editor);
+                updateAllToolbarStatuses();
+            });
+            editor.addEventListener('keyup', function () {
+                saveSelection(editor);
+                updateAllToolbarStatuses();
+            });
+            editor.addEventListener('input', function () {
+                saveSelection(editor);
+                updateAllToolbarStatuses();
+            });
+            editor.addEventListener('focus', function () {
+                saveSelection(editor);
+                updateAllToolbarStatuses();
+            });
+        });
+
+        document.querySelectorAll('.editor-toolbar').forEach(toolbar => {
+            toolbar.addEventListener('mousedown', function (event) {
+                const editor = getToolbarEditor(toolbar);
+                saveSelection(editor);
+                if (event.target.closest('button')) {
+                    event.preventDefault();
+                }
+            });
+        });
+
+        document.addEventListener('selectionchange', function () {
+            updateAllToolbarStatuses();
+        });
+
+        document.querySelectorAll('.editor-toolbar [data-editor-cmd]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                if (!editor) return;
+
+                const cmd = this.getAttribute('data-editor-cmd');
+                if (cmd === 'clear') {
+                    applyEditorCommand(editor, 'removeFormat');
+                    return;
+                }
+                if (cmd === 'remove-bg') {
+                    applyEditorCommand(editor, 'hiliteColor', 'transparent');
+                    applyEditorCommand(editor, 'backColor', 'transparent');
+                    return;
+                }
+                applyEditorCommand(editor, cmd);
+            });
+        });
+
+        document.querySelectorAll('.editor-toolbar [data-editor-font-size]').forEach(selectEl => {
+            selectEl.addEventListener('change', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                if (!this.value) return;
+                applyFontSize(editor, this.value);
+            });
+        });
+
+        document.querySelectorAll('.editor-toolbar [data-editor-action="pick-text-color"]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const picker = toolbar ? toolbar.querySelector('[data-editor-color]') : null;
+                if (picker) picker.click();
+            });
+        });
+
+        document.querySelectorAll('.editor-toolbar [data-editor-action="pick-highlight"]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const picker = toolbar ? toolbar.querySelector('[data-editor-highlight]') : null;
+                if (picker) picker.click();
+            });
+        });
+
+        document.querySelectorAll('.editor-toolbar [data-editor-color]').forEach(inputEl => {
+            inputEl.addEventListener('input', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                applyEditorCommand(editor, 'foreColor', this.value);
+            });
+        });
+
+        document.querySelectorAll('.editor-toolbar [data-editor-highlight]').forEach(inputEl => {
+            inputEl.addEventListener('input', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                applyEditorCommand(editor, 'hiliteColor', this.value);
+            });
+        });
+
+        updateAllToolbarStatuses();
+
+        const addForm = document.querySelector('form[action*="/teacher/add-question"]');
+        if (addForm) {
+            addForm.addEventListener('submit', function (event) {
+                const editor = document.getElementById('questionEditor');
+                const input = document.getElementById('questionTextInput');
+                const typeSelect = document.getElementById('addQuestionType');
+                if (!editor || !input) return;
+
+                const plain = (editor.innerText || '').trim();
+                if (!plain) {
+                    event.preventDefault();
+                    alert('Question text is required.');
+                    return;
+                }
+
+                syncAddChoicesText();
+                if (typeSelect && typeSelect.value === 'MULTIPLE_CHOICE') {
+                    const choices = Array.from(document.querySelectorAll('.add-choice-input'))
+                        .map(choice => (choice.value || '').trim())
+                        .filter(Boolean);
+                    if (choices.length < 2) {
+                        event.preventDefault();
+                        alert('Add at least 2 choices for multiple choice questions.');
+                        return;
+                    }
+                }
+
+                input.value = editor.innerHTML;
+            });
+        }
+
+        document.querySelectorAll('form[action*="/teacher/edit-question"]').forEach(formEl => {
+            formEl.addEventListener('submit', function (event) {
+                const editor = this.querySelector('.rich-editor-edit');
+                const input = this.querySelector('.edit-question-text-input');
+                if (!editor || !input) return;
+
+                const plain = (editor.innerText || '').trim();
+                if (!plain) {
+                    event.preventDefault();
+                    alert('Question text is required.');
+                    return;
+                }
+
+                input.value = editor.innerHTML;
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,43 @@
+/* Student Results Page Styles */
+
+.results-card {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.score-panel,
+.analytics-panel {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.hidden { 
+    display: none; 
+}
+
+#chartSection { 
+    margin-top: 2rem; 
+}
+
+.performance-badge {
+    font-size: 1.2rem;
+    padding: 0.5rem 1rem;
+}
+
+#radarChartCanvas {
+    width: 100% !important;
+    max-height: 430px;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e7f1ff;
+}
+
+.answer-correct {
+    border-left: 4px solid #198754;
+}
+
+.answer-incorrect {
+    border-left: 4px solid #dc3545;
+}

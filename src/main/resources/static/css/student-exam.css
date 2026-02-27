@@ -1,0 +1,212 @@
+/* Student Exam Page Styles */
+
+.student-header {
+    background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 14px;
+    margin-bottom: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.12);
+}
+
+.question-card {
+    min-height: 400px;
+    transition: all 0.3s ease;
+    border: 1px solid var(--eac-border) !important;
+    border-radius: 14px !important;
+    background: #fffdfa;
+}
+
+.progress-indicator {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    background: #fff;
+    border: 1px solid var(--eac-border);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 6px 16px rgba(60, 36, 13, 0.08);
+}
+
+.choice-btn {
+    text-align: left;
+    margin-bottom: 0.75rem;
+    padding: 1rem;
+    border: 1px solid #e3dacb;
+    transition: all 0.2s;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.choice-btn:hover {
+    border-color: var(--eac-gold);
+    background-color: #fdf7ec;
+}
+
+.choice-btn.selected {
+    border-color: var(--eac-maroon);
+    background-color: #fff2f4;
+    box-shadow: 0 0 0 1px rgba(122, 16, 34, 0.08);
+}
+
+.navigation-btns {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    padding: 1rem;
+    border-top: 1px solid var(--eac-border);
+    box-shadow: 0 -8px 18px rgba(60, 36, 13, 0.08);
+    z-index: 1000;
+}
+
+.main-content {
+    padding-bottom: 100px;
+}
+
+.submitted-status-card {
+    background: #fff8f2;
+    border: 1px solid #f0d8b2;
+    border-left: 4px solid var(--eac-gold);
+    color: #5b4630;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.submitted-status-card i {
+    color: #9f7a1b;
+}
+
+.submitted-title {
+    font-weight: 700;
+    color: #6e4d20;
+    margin-bottom: 0.2rem;
+}
+
+.submitted-meta {
+    font-size: 0.9rem;
+}
+
+.auto-save-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    background: #28a745;
+    color: white;
+    font-size: 0.85rem;
+    display: none;
+    z-index: 1001;
+}
+
+.difficulty-easy {
+    background-color: #267a4b;
+    color: white;
+}
+
+.difficulty-medium {
+    background-color: #c28812;
+    color: #fff;
+}
+
+.difficulty-hard {
+    background-color: #b02a37;
+    color: white;
+}
+
+.timer-warning {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.deadline-info {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.violation-counter {
+    position: fixed;
+    top: 84px;
+    right: 16px;
+    padding: 0.35rem 0.6rem;
+    background: #fff8f8;
+    color: #7a1022;
+    border: 1px solid #f1c7cf;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    display: none;
+    z-index: 1001;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.cheating-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.cheating-modal-content {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 12px;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.cheating-modal-content h3 {
+    color: #dc3545;
+    margin-bottom: 0.6rem;
+    font-size: 1.05rem;
+}
+
+.cheating-modal-content .warning-icon {
+    font-size: 2rem;
+    color: #ffc107;
+}
+
+/* Responsive tweaks for exam layout */
+
+@media (max-width: 768px) {
+    .student-header {
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .progress-indicator {
+        padding: 0.75rem;
+    }
+
+    .question-card {
+        min-height: auto;
+    }
+
+    .navigation-btns {
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .choice-btn {
+        padding: 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .deadline-info {
+        font-size: 0.8rem;
+    }
+}

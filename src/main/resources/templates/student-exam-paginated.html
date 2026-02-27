@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Exam - ALGO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+    <link th:href="@{/css/student-exam.css}" rel="stylesheet">
+    <!-- MathJax for equation rendering -->
+    <script th:inline="none">
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .question-media img, .question-media video {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body class="homepage-page">
+    <!-- Auto-save indicator -->
+    <div id="autoSaveIndicator" class="auto-save-indicator">
+        ✓ Saved
+    </div>
+
+    <!-- Violation Counter -->
+    <div id="violationCounter" class="violation-counter">
+        <i class="bi bi-shield-exclamation me-1"></i>
+        <span>Focus alerts:</span> <span id="violationCount">0</span>/5
+    </div>
+
+    <!-- Cheating Warning Modal -->
+    <div id="cheatingModal" class="cheating-modal">
+        <div class="cheating-modal-content">
+            <h3><i class="bi bi-exclamation-circle me-1"></i>Stay on this exam page</h3>
+            <p id="cheatingMessage" class="mb-2">Please avoid switching tabs or opening restricted actions while answering.</p>
+            <p class="small text-muted mb-3">Alerts: <span id="modalViolationCount">0</span>/5</p>
+            <button class="btn btn-sm btn-primary" onclick="closeWarningModal()">OK</button>
+        </div>
+    </div>
+
+    <div class="container main-content py-4">
+        <!-- Student Header -->
+        <div class="student-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 class="mb-1" th:text="${userInfo.fullName}">Student Name</h4>
+                    <p class="mb-0 small" th:text="${userInfo.email}">student@email.com</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="badge bg-light text-dark fs-6" th:text="${examInfo.subject}">Mathematics</div>
+                    <div class="badge bg-warning text-dark fs-6 ms-1" th:text="${examInfo.activityType}">Exam</div>
+                    <div class="mt-2">
+                        <div class="deadline-info">
+                            <i class="bi bi-calendar-event"></i> Deadline: <span id="deadlineDisplay"></span>
+                        </div>
+                        <div class="mt-1">
+                            <span class="badge bg-danger fs-6" id="timerDisplay">Time: Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="submitted-status-card" th:if="${previouslySubmitted}">
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-check-circle-fill mt-1"></i>
+                <div>
+                    <div class="submitted-title">Already submitted</div>
+                    <div class="submitted-meta">
+                        You have already submitted this activity
+                        <strong th:text="${previousSubmissionCount}">1</strong>
+                        time<span th:if="${previousSubmissionCount > 1}">s</span>.
+                        <span th:if="${previousSubmittedAt != null}">
+                            Latest: <strong th:text="${#temporals.format(previousSubmittedAt, 'MMM dd, yyyy hh:mm a')}">Jan 01, 2026 01:00 PM</strong>.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="progress-indicator text-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-primary" id="progressText">Question 1 of 20</span>
+                <span id="difficultyBadge" class="badge difficulty-medium">Medium</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div id="progressBar" class="progress-bar" role="progressbar" style="width: 5%"></div>
+            </div>
+        </div>
+
+        <!-- Question Card -->
+        <div class="card question-card shadow-sm border-0 p-4">
+            <form id="examForm" th:action="@{/student/submit}" method="post">
+                <div id="questionContainer">
+                    <!-- Questions will be loaded here dynamically -->
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="navigation-btns">
+        <div class="container">
+            <div class="row">
+                <div class="col-4">
+                    <button id="backBtn" class="btn btn-outline-secondary w-100" disabled>
+                        ← Back
+                    </button>
+                </div>
+                <div class="col-4 text-center">
+                    <span id="questionNumber" class="d-inline-block mt-2 fw-bold">1 / 20</span>
+                </div>
+                <div class="col-4">
+                    <button id="nextBtn" class="btn btn-primary w-100">
+                        Next →
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load external JavaScript files -->
+    <script th:src="@{/js/student-exam.js}"></script>
+    <script th:src="@{/js/anti-cheating.js}"></script>
+    
+    <!-- Initialize exam with Thymeleaf data (minimal inline script) -->
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // Pass server data to external JS
+        window.startExam(
+            /*[[${exam}]]*/ [],
+            /*[[${difficulties}]]*/ [],
+            /*[[${examInfo}]]*/ {}
+        );
+        /*]]>*/
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${subject.subjectName} + ' - Distributed Exams'">Distributed Exams</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/subject-classroom.css}">
+</head>
+<body>
+<div class="teacher-layout">
+    <div th:replace="teacher-nav :: teacherNav"></div>
+
+    <div class="teacher-content-wrapper">
+        <div class="main-container">
+            <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <a th:href="@{/teacher/subject-classroom/{id}(id=${subject.id})}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Classroom
+                </a>
+                <span class="badge bg-light text-dark border" th:text="${distributedExamCount} + ' Distributed Quiz' + (${distributedExamCount != 1} ? 'es' : '')">0 Distributed Quizzes</span>
+            </div>
+
+            <div class="section-card">
+                <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                    <div class="section-title mb-0" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span th:text="${subject.subjectName} + ' - Distributed Exams'">Distributed Exams</span>
+                    </div>
+                    <input type="text" id="distributedExamsSearch" class="form-control form-control-sm"
+                           placeholder="🔎 Search quiz name, type, or deadline..." style="max-width:320px;">
+                </div>
+
+                <div th:if="${quizDistributionSummary == null || quizDistributionSummary.isEmpty()}" class="empty-state">
+                    <i class="bi bi-hourglass-split"></i>
+                    <p class="mb-1 fw-semibold small">No distributed exams yet.</p>
+                    <small class="text-muted">Once you distribute a quiz, it will appear here.</small>
+                </div>
+
+                <div th:if="${quizDistributionSummary != null && !quizDistributionSummary.isEmpty()}" class="table-responsive">
+                    <table class="student-list-table" id="distributedExamsTable">
+                        <thead>
+                        <tr>
+                            <th>Quiz</th>
+                            <th>Type</th>
+                            <th>Time Limit</th>
+                            <th>Deadline</th>
+                            <th>Assigned</th>
+                            <th>Submitted</th>
+                            <th>Not Submitted</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="quiz : ${quizDistributionSummary}"
+                            th:attr="data-search-key=${#strings.toLowerCase(quiz.examName) + ' ' + #strings.toLowerCase(quiz.activityType) + ' ' + #strings.toLowerCase(quiz.deadline)}">
+                            <td>
+                                <div class="fw-semibold" th:text="${quiz.examName}">Quiz Name</div>
+                                <small class="text-muted" th:text="${quiz.subject}">Subject</small>
+                            </td>
+                            <td>
+                                <span class="badge" th:classappend="${quiz.activityType == 'Exam' ? 'bg-danger' : 'bg-primary'}"
+                                      th:text="${quiz.activityType}">Type</span>
+                            </td>
+                            <td th:text="${quiz.timeLimit} + ' min'">0 min</td>
+                            <td th:text="${quiz.deadline}">Deadline</td>
+                            <td><span class="badge bg-secondary" th:text="${quiz.assignedCount}">0</span></td>
+                            <td><span class="badge bg-success" th:text="${quiz.submittedCount}">0</span></td>
+                            <td><span class="badge bg-warning text-dark" th:text="${quiz.notSubmittedCount}">0</span></td>
+                            <td>
+                                <span class="badge bg-success"
+                                      th:if="${quiz.assignedCount > 0 and quiz.submittedCount == quiz.assignedCount}">Completed</span>
+                                <span class="badge bg-primary"
+                                      th:if="${quiz.submittedCount > 0 and quiz.submittedCount < quiz.assignedCount}">Ongoing</span>
+                                <span class="badge bg-secondary"
+                                      th:if="${quiz.submittedCount == 0}">Waiting for submissions</span>
+                            </td>
+                            <td>
+                                <div class="d-inline-flex gap-2">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       th:href="@{/teacher/subject-classroom/{id}/distribution-students(id=${subject.id},filterExamName=${quiz.filterExamName},filterActivityType=${quiz.filterActivityType},filterTimeLimit=${quiz.filterTimeLimit},filterDeadline=${quiz.filterDeadline})}">
+                                        <i class="bi bi-people me-1"></i> View Students
+                                    </a>
+                                    <form th:action="@{/teacher/subject-classroom/{id}/distributed-exams/delete(id=${subject.id})}"
+                                          method="post"
+                                          class="d-inline"
+                                          onsubmit="return confirm('Delete this distributed quiz batch? This cannot be undone.');">
+                                        <input type="hidden" name="examName" th:value="${quiz.filterExamName}">
+                                        <input type="hidden" name="activityType" th:value="${quiz.filterActivityType}">
+                                        <input type="hidden" name="timeLimit" th:value="${quiz.filterTimeLimit}">
+                                        <input type="hidden" name="deadline" th:value="${quiz.filterDeadline}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash me-1"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('distributedExamsSearch');
+        if (!input) return;
+
+        input.addEventListener('input', function () {
+            const query = this.value.toLowerCase().trim();
+            document.querySelectorAll('#distributedExamsTable tbody tr').forEach(row => {
+                const key = row.getAttribute('data-search-key') || '';
+                row.style.display = (!query || key.includes(query)) ? '' : 'none';
+            });
+        });
+    });
+</script>
+</body>
+</html>

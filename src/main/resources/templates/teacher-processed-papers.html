@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processed Papers</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="homepage-page">
+<div class="teacher-layout">
+    <div th:replace="teacher-nav :: teacherNav"></div>
+
+    <div class="teacher-content-wrapper">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center mb-4 pt-2">
+                <div>
+                    <h4 class="fw-bold mb-0" style="color: var(--eac-maroon);">
+                        <i class="bi bi-journal-check me-2"></i>Processed Papers
+                    </h4>
+                    <p class="text-muted small mb-0">Teacher-only list of processed exams with subject and upload timestamp.</p>
+                </div>
+                <a th:href="@{/teacher/homepage}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                </a>
+            </div>
+
+            <div class="results-card p-3 mb-3">
+                <form method="get" th:action="@{/teacher/processed-papers}" class="row g-2 align-items-center">
+                    <div class="col-md-8">
+                        <input type="text" name="search" class="form-control"
+                               placeholder="Search by exam name, subject, question, or answer key..."
+                               th:value="${search}">
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search me-1"></i>Search
+                        </button>
+                    </div>
+                    <div class="col-md-2 text-md-end text-muted small">
+                        <strong th:text="${totalProcessed}">0</strong> paper(s)
+                    </div>
+                </form>
+            </div>
+
+            <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+            <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+            <div class="results-card" th:if="${processedExams != null && !processedExams.isEmpty()}">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Exam Name</th>
+                            <th>Subject</th>
+                            <th>Activity</th>
+                            <th>Questions</th>
+                            <th>Processed At</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="paper : ${processedExams}">
+                            <td class="fw-semibold" th:text="${paper.examName}">Exam</td>
+                            <td>
+                                <span class="badge bg-info text-dark" th:text="${paper.subject}">Subject</span>
+                            </td>
+                            <td th:text="${paper.activityType}">Exam</td>
+                            <td>
+                                <span class="badge bg-secondary" th:text="${#lists.size(paper.questions)} + ' questions'">0 questions</span>
+                            </td>
+                            <td>
+                                <small class="text-muted"
+                                       th:text="${paper.uploadedAt != null ? #temporals.format(paper.uploadedAt, 'MMM dd, yyyy hh:mm a') : '-'}">-</small>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a th:href="@{/teacher/processed-papers/{examId}(examId=${paper.examId})}"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye me-1"></i>View Questions
+                                    </a>
+                                    <form th:action="@{/teacher/processed-papers/{examId}/delete(examId=${paper.examId})}"
+                                          method="post"
+                                          onsubmit="return confirm('Delete this processed paper? This action cannot be undone.');"
+                                          class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="results-card p-5 text-center text-muted" th:if="${processedExams == null || processedExams.isEmpty()}">
+                <i class="bi bi-journal-x display-5 d-block mb-2"></i>
+                No processed papers found.
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

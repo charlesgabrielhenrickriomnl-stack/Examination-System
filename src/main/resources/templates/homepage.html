@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - ALGO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <!-- MathJax for equation rendering -->
+    <script th:inline="none">
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\(', '\)']],
+                displayMath: [['$$', '$$'], ['\[', '\]']],
+                processEscapes: true
+            },
+            options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body class="homepage-page">
+
+<div class="teacher-layout">
+    <div th:replace="teacher-nav :: teacherNav"></div>
+
+    <!-- Main content area -->
+    <div class="teacher-content-wrapper">
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card upload-card p-4 mb-4">
+                <div class="card-body text-center">
+                    <h3 class="card-title mb-4">Examination Management</h3>
+
+                    <form th:action="@{/teacher/process-exams-upload}" method="post" enctype="multipart/form-data" id="uploadForm">
+
+                        <div id="examSection" class="mb-4 text-start">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-info">Quiz Name <em class="fw-normal">Optional</em></label>
+                                <input class="form-control" type="text" name="quizName"
+                                       placeholder="e.g., Midterm Algebra Quiz" maxlength="120">
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-info">Subject Name *</label>
+                                    <select class="form-select" name="subject" id="subjectSelect" required>
+                                        <option value="">Select or type new subject</option>
+                                        <option th:each="subject : ${subjects}" 
+                                                th:value="${subject.subjectName}" 
+                                                th:text="${subject.subjectName}">
+                                        </option>
+                                        <option value="__new__">➕ Add New Subject</option>
+                                    </select>
+                                    <input class="form-control mt-2" type="text" id="newSubjectInput" 
+                                           placeholder="Enter new subject name" style="display: none;">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-info">Activity Type *</label>
+                                    <select class="form-select" name="activityType" required>
+                                        <option value="">Select Type</option>
+                                        <option value="Exam">Exam</option>
+                                        <option value="Assignment">Assignment</option>
+                                        <option value="Quiz">Quiz</option>
+                                        <option value="Practice Test">Practice Test</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <script>
+                                document.getElementById('subjectSelect').addEventListener('change', function() {
+                                    const newSubjectInput = document.getElementById('newSubjectInput');
+                                    const subjectSelect = document.getElementById('subjectSelect');
+                                    
+                                    if (this.value === '__new__') {
+                                        newSubjectInput.style.display = 'block';
+                                        newSubjectInput.required = true;
+                                        subjectSelect.removeAttribute('name');
+                                        newSubjectInput.setAttribute('name', 'subject');
+                                    } else {
+                                        newSubjectInput.style.display = 'none';
+                                        newSubjectInput.required = false;
+                                        newSubjectInput.removeAttribute('name');
+                                        subjectSelect.setAttribute('name', 'subject');
+                                    }
+                                });
+                            </script>
+                            
+                            <label class="form-label fw-bold text-primary">Select Test Questionnaire (PDF or CSV) *</label>
+                            <input class="form-control mb-3" type="file" name="examCreated" accept=".pdf,.csv" required>
+                            
+                            <label class="form-label fw-bold text-warning">Select Answer Key (PDF or CSV) - Optional</label>
+                            <input class="form-control" type="file" name="answerKeyPdf" accept=".pdf,.csv">
+                            <div class="form-text">
+                                <strong>Three Options:</strong><br>
+                                1. <strong>Single PDF</strong>: Questions with "Answer: ..." lines included<br>
+                                2. <strong>Two PDFs</strong>: Upload questions PDF + separate answer key PDF<br>
+                                3. <strong>CSV Format</strong>: Upload CSV file with columns: Question, ChoiceA, ChoiceB, ChoiceC, ChoiceD, Answer
+                                <hr class="my-2">
+                                <strong>📐 Mathematical Equations in PDF:</strong><br>
+                                • <strong>Inline math</strong>: wrap in <code>$...$</code> → e.g. <code>$x^2 + 3x = 0$</code><br>
+                                • <strong>Display math</strong>: wrap in <code>$$...$$</code> → e.g. <code>$$\frac{a}{b}=c$$</code><br>
+                                • <strong>Unicode symbols</strong> (², √, π, ≤, α, ∫, etc.) are <em>automatically converted</em> to LaTeX<br>
+                                • <strong>Tip</strong>: Type equations as plain text in your Word/Docs file using <code>$...$</code> before exporting to PDF
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary fw-bold">START PROCESSING</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/upload-logic.js}"></script>
+</body>
+</html>

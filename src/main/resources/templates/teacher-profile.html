@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Setting - ALGO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="homepage-page">
+
+<div class="teacher-layout">
+    <div th:replace="teacher-nav :: teacherNav"></div>
+
+    <div class="teacher-content-wrapper">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-10 col-lg-8">
+                    <div class="card upload-card profile-card">
+                        <div class="card-body p-4">
+                            <h3 class="mb-4 text-primary">
+                                Account Setting
+                            </h3>
+
+                            <div class="section-title">
+                                <i class="fa-solid fa-id-card me-2"></i>Profile Information
+                            </div>
+
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon"><i class="fa-solid fa-user"></i></div>
+                                <div class="profile-info-content">
+                                    <div class="profile-info-label">Name</div>
+                                    <div class="profile-info-value" th:text="${currentUserFullName ?: 'Teacher'}">Teacher</div>
+                                </div>
+                            </div>
+
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon"><i class="fa-solid fa-envelope"></i></div>
+                                <div class="profile-info-content">
+                                    <div class="profile-info-label">Email</div>
+                                    <div class="profile-info-value" th:text="${currentUserEmail ?: 'N/A'}">N/A</div>
+                                </div>
+                            </div>
+
+                            <div class="profile-info-item mb-4">
+                                <div class="profile-info-icon"><i class="fa-solid fa-user-tag"></i></div>
+                                <div class="profile-info-content">
+                                    <div class="profile-info-label">Role</div>
+                                    <div class="profile-info-value" th:text="${currentUserRole ?: 'TEACHER'}">TEACHER</div>
+                                </div>
+                            </div>
+
+                            <form th:action="@{/logout}" method="post" class="text-end">
+                                <button type="submit" class="btn btn-primary px-4">
+                                    <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-card {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-weight: 700;
+    color: #5e2c2c;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.profile-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee2d0;
+}
+
+.profile-info-icon {
+    color: #7a3f3f;
+    width: 1.25rem;
+    text-align: center;
+    line-height: 1.2;
+    margin-top: 0.15rem;
+}
+
+.profile-info-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-info-item:last-of-type {
+    border-bottom: 0;
+}
+
+.profile-info-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8a7d68;
+    margin-bottom: 0.2rem;
+}
+
+.profile-info-value {
+    font-size: 0.98rem;
+    color: #2a2a2a;
+    font-weight: 600;
+    word-break: break-word;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
