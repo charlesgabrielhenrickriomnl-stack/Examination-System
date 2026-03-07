@@ -175,9 +175,12 @@ public class AuthController {
         }
 
         User user = userService.findByEmail(principal.getName()).orElse(null);
-        String redirectTo = (user != null && user.getRole() == User.Role.TEACHER)
-            ? "redirect:/teacher/profile"
-            : "redirect:/student/profile";
+        String redirectTo = "redirect:/student/profile";
+        if (user != null && user.getRole() == User.Role.TEACHER) {
+            redirectTo = "redirect:/teacher/department-dashboard";
+        } else if (user != null && user.getRole() == User.Role.DEPARTMENT_ADMIN) {
+            redirectTo = "redirect:/department-admin/dashboard";
+        }
 
         String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
         String normalizedProgram = programName == null ? "" : programName.trim();

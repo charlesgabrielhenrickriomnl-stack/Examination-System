@@ -137,6 +137,7 @@ public class DepartmentAdminController {
 
     @PostMapping("/import-students")
     public String importStudents(@RequestParam("studentListFile") MultipartFile studentListFile,
+                                 @RequestParam(name = "departmentName", required = false) String departmentName,
                                  @RequestParam(name = "programName", required = false) String programName,
                                  Principal principal,
                                  RedirectAttributes redirectAttributes) {
@@ -147,15 +148,20 @@ public class DepartmentAdminController {
             return "redirect:/department-admin/dashboard";
         }
 
-        String departmentName = currentAdmin.getDepartmentName() == null ? "" : currentAdmin.getDepartmentName().trim();
-        if (departmentName.isBlank()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Department is not set for this admin account.");
+        String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
+        if (normalizedDepartment.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please select a department.");
+            return "redirect:/department-admin/dashboard";
+        }
+
+        if (!AcademicCatalog.isValidDepartment(normalizedDepartment)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please select a valid department.");
             return "redirect:/department-admin/dashboard";
         }
 
         String normalizedProgram = programName == null ? "" : programName.trim();
-        if (!AcademicCatalog.isValidProgram(departmentName, normalizedProgram)) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Please select a valid program for your department.");
+        if (!AcademicCatalog.isValidProgram(normalizedDepartment, normalizedProgram)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please select a valid program for the selected department.");
             return "redirect:/department-admin/dashboard";
         }
 
@@ -208,7 +214,7 @@ public class DepartmentAdminController {
                     student.setFullName(effectiveName);
                     student.setSchoolName(AcademicCatalog.SCHOOL_NAME);
                     student.setCampusName(AcademicCatalog.CAMPUS_NAME);
-                    student.setDepartmentName(departmentName);
+                    student.setDepartmentName(normalizedDepartment);
                     student.setProgramName(normalizedProgram);
                     student.setRole(User.Role.STUDENT);
                     student.setEnabled(true);
@@ -232,8 +238,8 @@ public class DepartmentAdminController {
                         student.setCampusName(AcademicCatalog.CAMPUS_NAME);
                         changed = true;
                     }
-                    if (!departmentName.equals(student.getDepartmentName())) {
-                        student.setDepartmentName(departmentName);
+                    if (!normalizedDepartment.equals(student.getDepartmentName())) {
+                        student.setDepartmentName(normalizedDepartment);
                         changed = true;
                     }
                     if (!normalizedProgram.equals(student.getProgramName() == null ? "" : student.getProgramName())) {
@@ -275,19 +281,20 @@ public class DepartmentAdminController {
 
     @GetMapping("/question-bank")
     public String questionBank(@RequestParam(name = "search", required = false) String search,
+                               @RequestParam(name = "departmentName", required = false) String departmentName,
                                @RequestParam(name = "page", defaultValue = "0") int page,
                                @RequestParam(name = "size", defaultValue = "15") int size,
                                Model model,
                                Principal principal) {
-        String adminEmail = principal != null ? principal.getName() : "";
-        User currentAdmin = adminEmail.isBlank() ? null : userRepository.findByEmail(adminEmail).orElse(null);
-        String departmentName = currentAdmin == null || currentAdmin.getDepartmentName() == null
-            ? ""
-            : currentAdmin.getDepartmentName().trim();
+        String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
+        final String selectedDepartment = (!normalizedDepartment.isBlank() && AcademicCatalog.isValidDepartment(normalizedDepartment))
+            ? normalizedDepartment
+            : "";
 
         List<String> teacherEmailsInDepartment = userRepository.findAll().stream()
             .filter(user -> user != null && user.getRole() == User.Role.TEACHER)
-            .filter(user -> departmentName.equalsIgnoreCase(user.getDepartmentName() == null ? "" : user.getDepartmentName().trim()))
+            .filter(user -> selectedDepartment.isBlank()
+                || selectedDepartment.equalsIgnoreCase(user.getDepartmentName() == null ? "" : user.getDepartmentName().trim()))
             .map(User::getEmail)
             .filter(value -> value != null && !value.isBlank())
             .distinct()
@@ -342,7 +349,8 @@ public class DepartmentAdminController {
         int to = Math.min(from + safeSize, total);
         List<Map<String, Object>> pagedRows = from < to ? allRows.subList(from, to) : new ArrayList<>();
 
-        model.addAttribute("departmentName", departmentName.isBlank() ? "Department not set" : departmentName);
+        model.addAttribute("departmentName", selectedDepartment.isBlank() ? "All departments" : selectedDepartment);
+        model.addAttribute("selectedDepartment", selectedDepartment);
         model.addAttribute("questionBankRows", pagedRows);
         model.addAttribute("search", search == null ? "" : search);
         model.addAttribute("page", safePage);

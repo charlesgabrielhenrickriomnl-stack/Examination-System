@@ -19,9 +19,6 @@
             <a class="teacher-nav-item" th:href="@{/department-admin/dashboard}" data-path="/department-admin/dashboard">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
-            <a class="teacher-nav-item" th:href="@{/department-admin/question-bank}" data-path="/department-admin/question-bank">
-                <i class="bi bi-book"></i> Question Bank
-            </a>
             <form th:action="@{/logout}" method="post" class="m-0">
                 <button type="submit" class="teacher-nav-item w-100 text-start border-0 bg-transparent">
                     <i class="bi bi-box-arrow-right"></i> Logout
@@ -49,7 +46,6 @@
 
                 const iconMap = {
                     'bi-speedometer2': 'fa-gauge-high',
-                    'bi-book': 'fa-book',
                     'bi-box-arrow-right': 'fa-right-from-bracket'
                 };
 
