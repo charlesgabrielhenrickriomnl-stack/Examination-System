@@ -20,6 +20,9 @@ public class SecurityConfig {
 
     @Autowired
     private CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
+
+    @Autowired
+    private CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
     
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -41,7 +44,7 @@ public class SecurityConfig {
                 .loginProcessingUrl("/perform-login")
                 .usernameParameter("username")
                 .passwordParameter("password")
-                .defaultSuccessUrl("/dashboard", true)
+                .successHandler(customAuthenticationSuccessHandler)
                 .failureHandler(customAuthenticationFailureHandler)
                 .permitAll()
             )

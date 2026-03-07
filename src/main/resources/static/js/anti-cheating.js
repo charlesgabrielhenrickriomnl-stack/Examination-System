@@ -193,21 +193,12 @@ function logViolation(type) {
 function showViolationMaxModal() {
     const modal = document.createElement('div');
     modal.id = 'violationMaxModal';
+    modal.className = 'violation-max-overlay';
     modal.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                    background: rgba(0,0,0,0.45); z-index: 99999; display: flex; 
-                    align-items: center; justify-content: center;">
-            <div style="background: #ffffff; color:#212529;
-                        padding: 28px; border-radius: 14px; text-align: center;
-                        max-width: 420px; box-shadow: 0 12px 28px rgba(0,0,0,0.25);">
-                <h4 style="margin: 0 0 12px; font-weight: 700; color:#7a1022;">Maximum alerts reached</h4>
-                <p style="margin: 0 0 14px;">You reached ${MAX_VIOLATIONS} alerts. The exam will be submitted automatically.</p>
-                <div>
-                    <div class="spinner-border text-danger" role="status" style="width: 2rem; height: 2rem;">
-                        <span class="visually-hidden">Submitting...</span>
-                    </div>
-                </div>
-            </div>
+        <div class="violation-max-card">
+            <h4>Maximum alerts reached</h4>
+            <p>You reached ${MAX_VIOLATIONS} alerts. The exam will be submitted automatically.</p>
+            <div class="violation-max-spinner" role="status" aria-label="Submitting"></div>
         </div>
     `;
     document.body.appendChild(modal);

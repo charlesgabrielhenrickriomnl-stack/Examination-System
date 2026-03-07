@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -24,17 +25,22 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.util.HtmlUtils;
 
 import com.exam.entity.DistributedExam;
 import com.exam.entity.EnrolledStudent;
 import com.exam.entity.ExamSubmission;
 import com.exam.entity.OriginalProcessedPaper;
 import com.exam.entity.Subject;
+import com.exam.entity.User;
 import com.exam.repository.DistributedExamRepository;
 import com.exam.repository.EnrolledStudentRepository;
 import com.exam.repository.ExamSubmissionRepository;
 import com.exam.repository.OriginalProcessedPaperRepository;
 import com.exam.repository.SubjectRepository;
+import com.exam.repository.UserRepository;
+import com.exam.service.FaceVerificationService;
+import com.exam.service.FaceVerificationSessionKeys;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -42,9 +48,12 @@ import jakarta.servlet.http.HttpSession;
 
 @Controller
 @RequestMapping("/student")
+@SuppressWarnings("all")
 public class StudentController {
     private static final DateTimeFormatter DEADLINE_DISPLAY_FORMAT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm");
     private static final Pattern QUESTION_PARAM_PATTERN = Pattern.compile("q\\d+");
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<\\/?[a-z][\\s\\S]*?>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ESCAPED_HTML_TAG_PATTERN = Pattern.compile("&lt;\\/?[a-z][\\s\\S]*?&gt;", Pattern.CASE_INSENSITIVE);
     private static final String ACTIVE_EXAM_SESSION_KEY = "ACTIVE_DISTRIBUTED_EXAM_ID";
 
     private final ExamSubmissionRepository examSubmissionRepository;
@@ -52,18 +61,24 @@ public class StudentController {
     private final SubjectRepository subjectRepository;
     private final DistributedExamRepository distributedExamRepository;
     private final OriginalProcessedPaperRepository originalProcessedPaperRepository;
+    private final UserRepository userRepository;
+    private final FaceVerificationService faceVerificationService;
     private final Gson gson = new Gson();
 
     public StudentController(ExamSubmissionRepository examSubmissionRepository,
                              EnrolledStudentRepository enrolledStudentRepository,
                              SubjectRepository subjectRepository,
                              DistributedExamRepository distributedExamRepository,
-                             OriginalProcessedPaperRepository originalProcessedPaperRepository) {
+                             OriginalProcessedPaperRepository originalProcessedPaperRepository,
+                             UserRepository userRepository,
+                             FaceVerificationService faceVerificationService) {
         this.examSubmissionRepository = examSubmissionRepository;
         this.enrolledStudentRepository = enrolledStudentRepository;
         this.subjectRepository = subjectRepository;
         this.distributedExamRepository = distributedExamRepository;
         this.originalProcessedPaperRepository = originalProcessedPaperRepository;
+        this.userRepository = userRepository;
+        this.faceVerificationService = faceVerificationService;
     }
 
     @GetMapping("/dashboard")
@@ -75,7 +90,6 @@ public class StudentController {
         }
 
         List<EnrolledStudent> enrollments = enrolledStudentRepository.findByStudentEmail(studentEmail);
-        List<Map<String, Object>> enrollmentCards = enrollments.stream().map(this::toEnrollmentCard).toList();
 
         List<ExamSubmission> allSubmissions = examSubmissionRepository.findByStudentEmail(studentEmail).stream()
             .sorted(Comparator.comparing(ExamSubmission::getSubmittedAt,
@@ -87,12 +101,7 @@ public class StudentController {
         model.addAttribute("studentEmail", studentEmail);
         model.addAttribute("hasSubjects", !subjectCards.isEmpty());
         model.addAttribute("subjectCards", subjectCards);
-        model.addAttribute("finalizedNotifications", allSubmissions.stream()
-            .filter(ExamSubmission::isGraded)
-            .limit(5)
-            .toList());
         model.addAttribute("fullName", studentEmail);
-        model.addAttribute("enrollments", enrollmentCards);
         model.addAttribute("allSubmissions", allSubmissions);
         model.addAttribute("recentSubmissions", allSubmissions.stream().limit(5).toList());
         model.addAttribute("totalAttempts", allSubmissions.size());
@@ -110,14 +119,7 @@ public class StudentController {
 
     @GetMapping("/all-attempts")
     public String allAttempts(Model model, Principal principal) {
-        String studentEmail = getStudentEmail(principal);
-        List<ExamSubmission> allSubmissions = examSubmissionRepository.findByStudentEmail(studentEmail).stream()
-            .sorted(Comparator.comparing(ExamSubmission::getSubmittedAt,
-                Comparator.nullsLast(Comparator.reverseOrder())))
-            .toList();
-        model.addAttribute("allSubmissions", allSubmissions);
-        model.addAttribute("hasSubmissions", !allSubmissions.isEmpty());
-        return "student-all-attempts";
+        return "redirect:/student/dashboard";
     }
 
     @GetMapping("/classroom/{id}")
@@ -134,6 +136,7 @@ public class StudentController {
         String subjectName = subject != null ? subject.getSubjectName() : enrollmentOpt.get().getSubjectName();
         String subjectDescription = subject != null ? subject.getDescription() : "";
         String teacherEmail = subject != null ? subject.getTeacherEmail() : enrollmentOpt.get().getTeacherEmail();
+        String teacherName = resolveTeacherDisplayName(teacherEmail);
 
         List<ExamSubmission> submissionsBySubject = examSubmissionRepository.findByStudentEmail(studentEmail).stream()
             .filter(sub -> sameText(sub.getSubject(), subjectName))
@@ -151,9 +154,10 @@ public class StudentController {
 
         model.addAttribute("subjectName", subjectName);
         model.addAttribute("subjectDescription", subjectDescription == null ? "" : subjectDescription);
-        model.addAttribute("teacherEmail", teacherEmail == null ? "" : teacherEmail);
+        model.addAttribute("teacherName", teacherName);
         model.addAttribute("pendingExams", pendingExams);
         model.addAttribute("hasHistory", !submissionsBySubject.isEmpty());
+        model.addAttribute("subjectSubmissions", submissionsBySubject);
         model.addAttribute("submissionCount", submissionsBySubject.size());
         return "student-classroom";
     }
@@ -172,7 +176,7 @@ public class StudentController {
     }
 
     @GetMapping("/take-exam/{distributedExamId}")
-    public String takeExam(@PathVariable Long distributedExamId, Model model, Principal principal, HttpSession session) {
+    public String takeExam(@PathVariable("distributedExamId") Long distributedExamId, Model model, Principal principal, HttpSession session) {
         String studentEmail = getStudentEmail(principal);
         Optional<DistributedExam> distributedOpt = distributedExamRepository.findById(distributedExamId);
         if (distributedOpt.isEmpty()) {
@@ -199,6 +203,13 @@ public class StudentController {
             return existingSubmission
                 .map(sub -> "redirect:/student/results/" + sub.getId())
                 .orElse("redirect:/student/dashboard");
+        }
+
+        if (faceVerificationService.isFeatureEnabled() && !isExamFaceVerified(session, distributedExam.getId())) {
+            session.setAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID, distributedExam.getId());
+            session.setAttribute(FaceVerificationSessionKeys.PENDING_FACE_REDIRECT_URL,
+                "/student/take-exam/" + distributedExam.getId());
+            return "redirect:/student/face-verification";
         }
 
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(distributedExam.getExamId());
@@ -389,7 +400,7 @@ public class StudentController {
     }
 
     @GetMapping("/results/{id}")
-    public String results(@PathVariable Long id, Model model, Principal principal) {
+    public String results(@PathVariable("id") Long id, Model model, Principal principal) {
         String studentEmail = getStudentEmail(principal);
         Optional<ExamSubmission> submissionOpt = examSubmissionRepository.findById(id);
         if (submissionOpt.isEmpty() || !sameText(submissionOpt.get().getStudentEmail(), studentEmail)) {
@@ -418,7 +429,7 @@ public class StudentController {
     }
 
     @GetMapping("/performance-analytics/{id}")
-    public String performanceAnalytics(@PathVariable Long id, Model model, Principal principal) {
+    public String performanceAnalytics(@PathVariable("id") Long id, Model model, Principal principal) {
         String studentEmail = getStudentEmail(principal);
         Optional<ExamSubmission> submissionOpt = examSubmissionRepository.findById(id);
         if (submissionOpt.isEmpty() || !sameText(submissionOpt.get().getStudentEmail(), studentEmail)) {
@@ -452,7 +463,7 @@ public class StudentController {
     }
 
     @GetMapping("/view-exam/{id}")
-    public String viewExam(@PathVariable Long id, Model model, Principal principal) {
+    public String viewExam(@PathVariable("id") Long id, Model model, Principal principal) {
         String studentEmail = getStudentEmail(principal);
         Optional<ExamSubmission> submissionOpt = examSubmissionRepository.findById(id);
         if (submissionOpt.isEmpty() || !sameText(submissionOpt.get().getStudentEmail(), studentEmail)) {
@@ -466,7 +477,7 @@ public class StudentController {
     }
 
     @GetMapping("/download-result/{id}")
-    public ResponseEntity<byte[]> downloadResult(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<byte[]> downloadResult(@PathVariable("id") Long id, Principal principal) {
         String studentEmail = getStudentEmail(principal);
         Optional<ExamSubmission> submissionOpt = examSubmissionRepository.findById(id);
         if (submissionOpt.isEmpty() || !sameText(submissionOpt.get().getStudentEmail(), studentEmail)) {
@@ -499,20 +510,20 @@ public class StudentController {
     @GetMapping("/profile")
     public String profile(Model model, Principal principal) {
         String studentEmail = getStudentEmail(principal);
+        List<ExamSubmission> allSubmissions = examSubmissionRepository.findByStudentEmail(studentEmail);
+        model.addAttribute("totalAttempts", allSubmissions.size());
+        double avgScore = allSubmissions.isEmpty() ? 0.0 : allSubmissions.stream().mapToDouble(ExamSubmission::getPercentage).average().orElse(0.0);
+        model.addAttribute("avgScore", String.format("%.1f", avgScore));
+        long passedCount = allSubmissions.stream().filter(sub -> sub.getPercentage() >= 60.0).count();
+        model.addAttribute("passedCount", passedCount);
+        double bestScore = allSubmissions.stream().mapToDouble(ExamSubmission::getPercentage).max().orElse(0.0);
+        model.addAttribute("bestScore", String.format("%.1f", bestScore));
         model.addAttribute("studentEmail", studentEmail);
         return "student-profile";
     }
 
     private String getStudentEmail(Principal principal) {
         return principal != null && principal.getName() != null ? principal.getName() : "student";
-    }
-
-    private Map<String, Object> toEnrollmentCard(EnrolledStudent item) {
-        Map<String, Object> card = new HashMap<>();
-        card.put("subjectId", item.getSubjectId());
-        card.put("subjectName", item.getSubjectName());
-        card.put("teacherEmail", item.getTeacherEmail());
-        return card;
     }
 
     private List<Map<String, Object>> buildSubjectCards(List<EnrolledStudent> enrollments,
@@ -528,47 +539,56 @@ public class StudentController {
             String subjectName = subject != null ? subject.getSubjectName() : enrollment.getSubjectName();
             String subjectDescription = subject != null ? subject.getDescription() : "";
             String teacherEmail = subject != null ? subject.getTeacherEmail() : enrollment.getTeacherEmail();
+            String teacherName = resolveTeacherDisplayName(teacherEmail);
 
-            List<Map<String, Object>> activities = new ArrayList<>();
+            String normalizedName = subjectName == null ? "" : subjectName.trim();
+            if (normalizedName.isBlank() || "subject".equalsIgnoreCase(normalizedName)) {
+                continue;
+            }
 
+            Map<String, Long> pendingByType = new LinkedHashMap<>();
             distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
                 .filter(item -> sameText(item.getSubject(), subjectName))
                 .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
                     Comparator.nullsLast(Comparator.reverseOrder())))
                 .forEach(item -> {
-                    boolean missed = isMissedExam(item);
-                    Map<String, Object> activity = new HashMap<>();
-                    activity.put("name", item.getExamName());
-                    activity.put("type", item.getActivityType() == null ? "Exam" : item.getActivityType());
-                    activity.put("status", missed ? "missed" : "pending");
-                    activity.put("color", missed ? "danger" : "warning");
-                    activity.put("questionCount", countQuestions(item.getExamId()));
-                    activity.put("timeLimit", item.getTimeLimit() == null ? 60 : item.getTimeLimit());
-                    activity.put("deadline", formatDeadline(item.getDeadline()));
-                    activities.add(activity);
+                    if (isMissedExam(item)) {
+                        return;
+                    }
+                    String type = (item.getActivityType() == null || item.getActivityType().isBlank())
+                        ? "Activity"
+                        : item.getActivityType().trim();
+                    pendingByType.merge(type, 1L, Long::sum);
                 });
 
-            allSubmissions.stream()
+            List<Map<String, Object>> pendingSummaries = new ArrayList<>();
+            long pendingCount = 0L;
+            for (Map.Entry<String, Long> entry : pendingByType.entrySet()) {
+                String type = entry.getKey();
+                long count = entry.getValue() == null ? 0L : entry.getValue();
+                if (count <= 0) {
+                    continue;
+                }
+                Map<String, Object> summary = new HashMap<>();
+                summary.put("label", "Pending " + type);
+                pendingCount += count;
+                summary.put("count", count);
+                pendingSummaries.add(summary);
+            }
+
+            long completedCount = allSubmissions.stream()
                 .filter(sub -> sameText(sub.getSubject(), subjectName))
-                .sorted(Comparator.comparing(ExamSubmission::getSubmittedAt,
-                    Comparator.nullsLast(Comparator.reverseOrder())))
-                .forEach(sub -> {
-                    Map<String, Object> activity = new HashMap<>();
-                    activity.put("name", sub.getExamName());
-                    activity.put("type", sub.getActivityType() == null ? "Exam" : sub.getActivityType());
-                    activity.put("status", "completed");
-                    activity.put("color", scoreColor(sub.getPercentage()));
-                    activity.put("submittedAt", sub.getSubmittedAt());
-                    activities.add(activity);
-                });
+                .count();
 
             Map<String, Object> card = new HashMap<>();
             card.put("id", enrollment.getSubjectId());
-            card.put("name", subjectName == null ? "Subject" : subjectName);
+            card.put("name", normalizedName);
             card.put("description", subjectDescription == null ? "" : subjectDescription);
+            card.put("teacherName", teacherName);
             card.put("teacherEmail", teacherEmail == null ? "" : teacherEmail);
-            card.put("activities", activities);
-            card.put("activityCount", activities.size());
+            card.put("pendingSummaries", pendingSummaries);
+            card.put("pendingCount", pendingCount);
+            card.put("completedCount", completedCount);
             cards.add(card);
         }
         return cards;
@@ -592,6 +612,23 @@ public class StudentController {
         return originalProcessedPaperRepository.findByExamId(examId)
             .map(paper -> parseQuestionsJson(paper.getOriginalQuestionsJson()).size())
             .orElse(0);
+    }
+
+    private String resolveTeacherDisplayName(String teacherEmail) {
+        if (teacherEmail == null || teacherEmail.isBlank()) {
+            return "Unknown Teacher";
+        }
+
+        String normalizedEmail = teacherEmail.trim();
+        Optional<User> teacherOpt = userRepository.findByEmail(normalizedEmail);
+        if (teacherOpt.isPresent() && teacherOpt.get().getFullName() != null && !teacherOpt.get().getFullName().isBlank()) {
+            return teacherOpt.get().getFullName().trim();
+        }
+
+        int atIndex = normalizedEmail.indexOf('@');
+        String fallback = atIndex > 0 ? normalizedEmail.substring(0, atIndex) : normalizedEmail;
+        fallback = fallback.replace('.', ' ').replace('_', ' ').replace('-', ' ').trim();
+        return fallback.isBlank() ? "Unknown Teacher" : fallback;
     }
 
     private String scoreColor(double percentage) {
@@ -655,7 +692,7 @@ public class StudentController {
     }
 
     private String resolveQuestionDisplay(Map<String, Object> questionRow, String difficulty, String answer) {
-        String rawText = String.valueOf(questionRow.getOrDefault("question", "")).trim();
+        String rawText = normalizeQuestionHtml(String.valueOf(questionRow.getOrDefault("question", "")));
         String cleaned = rawText.startsWith("[TEXT_INPUT]")
             ? "[TEXT_INPUT]" + rawText.substring("[TEXT_INPUT]".length()).trim()
             : rawText;
@@ -669,7 +706,7 @@ public class StudentController {
         if (choicesObj instanceof List<?> choiceList) {
             for (Object choice : choiceList) {
                 if (choice != null) {
-                    String normalized = String.valueOf(choice).trim();
+                    String normalized = normalizeQuestionHtml(String.valueOf(choice));
                     if (!normalized.isBlank()) {
                         choices.add(normalized);
                     }
@@ -677,7 +714,7 @@ public class StudentController {
             }
         }
 
-        String stem = String.valueOf(questionRow.getOrDefault("question_text", questionRow.getOrDefault("text", ""))).trim();
+        String stem = normalizeQuestionHtml(String.valueOf(questionRow.getOrDefault("question_text", questionRow.getOrDefault("text", ""))));
         if (stem.isBlank()) {
             stem = cleaned.replace("[TEXT_INPUT]", "").trim();
         }
@@ -700,6 +737,56 @@ public class StudentController {
             builder.append("\n").append(letter++).append(") ").append(choice);
         }
         return builder.toString();
+    }
+
+    private String normalizeQuestionHtml(String raw) {
+        if (raw == null) {
+            return "";
+        }
+
+        String value = raw.trim();
+        if (value.isBlank()) {
+            return "";
+        }
+
+        value = stripClipboardFragmentMarkers(value);
+
+        for (int pass = 0; pass < 4; pass++) {
+            boolean hasRawTags = HTML_TAG_PATTERN.matcher(value).find();
+            boolean hasEscapedTags = ESCAPED_HTML_TAG_PATTERN.matcher(value).find()
+                || value.contains("&lt;!--")
+                || value.contains("&quot;")
+                || value.contains("&amp;lt;")
+                || value.contains("&amp;quot;")
+                || value.contains("&#");
+            if (!hasEscapedTags) {
+                break;
+            }
+
+            String decoded = HtmlUtils.htmlUnescape(value);
+            if (decoded == null || decoded.equals(value)) {
+                break;
+            }
+
+            value = decoded;
+            value = stripClipboardFragmentMarkers(value);
+
+            if (hasRawTags && !ESCAPED_HTML_TAG_PATTERN.matcher(value).find() && !value.contains("&amp;lt;")) {
+                break;
+            }
+        }
+
+        return value.trim();
+    }
+
+    private String stripClipboardFragmentMarkers(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value
+            .replaceAll("(?i)<!--\\s*(StartFragment|EndFragment)\\s*-->", "")
+            .replaceAll("(?i)&lt;!--\\s*(StartFragment|EndFragment)\\s*--&gt;", "")
+            .trim();
     }
 
     private boolean looksLikePlaceholderQuestion(String value, String difficulty, String answer) {
@@ -802,14 +889,42 @@ public class StudentController {
         }
 
         Object rawActiveId = session.getAttribute(ACTIVE_EXAM_SESSION_KEY);
-        if (rawActiveId == null) {
-            return;
+        if (rawActiveId != null) {
+            Long activeId = parseLong(String.valueOf(rawActiveId));
+            if (activeId == null || distributedExamId == null || distributedExamId.equals(activeId)) {
+                session.removeAttribute(ACTIVE_EXAM_SESSION_KEY);
+            }
         }
 
-        Long activeId = parseLong(String.valueOf(rawActiveId));
-        if (activeId == null || distributedExamId == null || distributedExamId.equals(activeId)) {
-            session.removeAttribute(ACTIVE_EXAM_SESSION_KEY);
+        Long verifiedExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID));
+        if (distributedExamId != null && distributedExamId.equals(verifiedExamId)) {
+            session.removeAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID);
         }
+
+        Long pendingExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID));
+        if (distributedExamId != null && distributedExamId.equals(pendingExamId)) {
+            session.removeAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID);
+            session.removeAttribute(FaceVerificationSessionKeys.PENDING_FACE_REDIRECT_URL);
+        }
+    }
+
+    private boolean isExamFaceVerified(HttpSession session, Long distributedExamId) {
+        if (session == null || distributedExamId == null) {
+            return false;
+        }
+
+        Long verifiedExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID));
+        return distributedExamId.equals(verifiedExamId);
+    }
+
+    private Long parseSessionLong(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        return parseLong(String.valueOf(raw));
     }
 
     private boolean sameText(String left, String right) {

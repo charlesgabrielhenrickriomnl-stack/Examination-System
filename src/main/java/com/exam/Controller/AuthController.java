@@ -11,7 +11,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.exam.entity.User;
+import com.exam.service.FaceVerificationSessionKeys;
 import com.exam.service.UserService;
+
+import jakarta.servlet.http.HttpSession;
 
 @Controller
 public class AuthController {
@@ -25,12 +28,12 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String showLoginPage(@RequestParam(required = false) String error,
-                                @RequestParam(required = false) String errorField,
-                                @RequestParam(required = false) String errorMessage,
-                                @RequestParam(required = false) String username,
-                                @RequestParam(required = false) String logout,
-                                @RequestParam(required = false) String registered,
+    public String showLoginPage(@RequestParam(name = "error", required = false) String error,
+                                @RequestParam(name = "errorField", required = false) String errorField,
+                                @RequestParam(name = "errorMessage", required = false) String errorMessage,
+                                @RequestParam(name = "username", required = false) String username,
+                                @RequestParam(name = "logout", required = false) String logout,
+                                @RequestParam(name = "registered", required = false) String registered,
                                 Model model) {
         if (error != null) {
             model.addAttribute("error", true);
@@ -60,10 +63,10 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public String registerUser(@RequestParam String email,
-                               @RequestParam String password,
-                               @RequestParam String fullName,
-                               @RequestParam String role,
+    public String registerUser(@RequestParam("email") String email,
+                               @RequestParam("password") String password,
+                               @RequestParam("fullName") String fullName,
+                               @RequestParam("role") String role,
                                Model model) {
         String result = switch (role) {
             case "STUDENT" -> userService.registerStudent(email, password, fullName);
@@ -87,19 +90,23 @@ public class AuthController {
     }
 
     @GetMapping("/verify")
-    public String verifyEmail(@RequestParam String token) {
+    public String verifyEmail(@RequestParam("token") String token) {
         boolean verified = userService.verifyEmail(token);
         return verified ? "verification-success" : "verification-failure";
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(Principal principal) {
+    public String dashboard(Principal principal, HttpSession session) {
         if (principal != null) {
             User user = userService.findByEmail(principal.getName()).orElse(null);
             if (user != null && user.getRole() == User.Role.TEACHER) {
                 return "redirect:/teacher/homepage";
             }
             if (user != null && user.getRole() == User.Role.STUDENT) {
+                Object faceVerified = session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED);
+                if (!Boolean.TRUE.equals(faceVerified)) {
+                    return "redirect:/student/face-verification";
+                }
                 return "redirect:/student/dashboard";
             }
         }

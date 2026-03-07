@@ -27,6 +27,16 @@ public class User {
     private boolean enabled = false;
     
     private String verificationToken;
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String faceReferenceImageBase64;
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String faceReferenceDescriptorJson;
+
+    private LocalDateTime faceReferenceCreatedAt;
     
     private LocalDateTime createdAt;
     
@@ -64,6 +74,15 @@ public class User {
     
     public String getVerificationToken() { return verificationToken; }
     public void setVerificationToken(String token) { this.verificationToken = token; }
+
+    public String getFaceReferenceImageBase64() { return faceReferenceImageBase64; }
+    public void setFaceReferenceImageBase64(String faceReferenceImageBase64) { this.faceReferenceImageBase64 = faceReferenceImageBase64; }
+
+    public String getFaceReferenceDescriptorJson() { return faceReferenceDescriptorJson; }
+    public void setFaceReferenceDescriptorJson(String faceReferenceDescriptorJson) { this.faceReferenceDescriptorJson = faceReferenceDescriptorJson; }
+
+    public LocalDateTime getFaceReferenceCreatedAt() { return faceReferenceCreatedAt; }
+    public void setFaceReferenceCreatedAt(LocalDateTime faceReferenceCreatedAt) { this.faceReferenceCreatedAt = faceReferenceCreatedAt; }
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

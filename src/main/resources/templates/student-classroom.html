@@ -12,19 +12,22 @@
             background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
             color: #fff;
             border-radius: 14px;
-            padding: 2rem 2.5rem;
-            margin-bottom: 1.75rem;
+            padding: 2.35rem 2.8rem;
+            margin-bottom: 2.25rem;
         }
         .classroom-hero h2 { font-weight: 700; }
         .classroom-hero .meta-chip {
             display: inline-flex; align-items: center; gap: 0.35rem;
             background: rgba(255,255,255,0.15); border-radius: 30px;
-            padding: 0.2rem 0.75rem; font-size: 0.85rem;
+            padding: 0.35rem 0.95rem; font-size: 0.9rem;
         }
         .section-title {
             color: var(--eac-maroon); font-weight: 700;
             border-bottom: 2px solid var(--eac-gold);
-            padding-bottom: 0.4rem; margin-bottom: 1.25rem;
+            padding-bottom: 0.5rem; margin-bottom: 1.6rem;
+        }
+        .section-block {
+            margin-bottom: 3rem;
         }
         .exam-card {
             border: 1px solid var(--eac-border);
@@ -48,6 +51,15 @@
         .deadline-warning { color: #dc3545; font-size: 0.82rem; }
         .badge-score { font-size: 0.83rem; }
         .hist-thead { background: var(--eac-maroon); color: #fff; }
+        .table-spacious thead th,
+        .table-spacious tbody td {
+            padding: 0.9rem 1rem;
+            vertical-align: middle;
+        }
+        .empty-state {
+            padding-top: 3rem;
+            padding-bottom: 3rem;
+        }
         .submission-notification-card {
             border: 1px solid var(--eac-border);
             border-radius: 12px;
@@ -79,7 +91,7 @@
     <div th:replace="~{student-nav :: studentNav}"></div>
 
     <div class="teacher-content-wrapper">
-        <div class="container" style="max-width:1100px;">
+        <div class="container-fluid px-3 px-lg-4 px-xxl-5">
 
             <div class="mb-3">
                 <a th:href="@{/student/dashboard}" class="btn btn-sm btn-light">
@@ -95,10 +107,10 @@
                             <span th:text="${subjectName}">Subject Name</span>
                         </h2>
                         <p class="mb-3 opacity-75" th:text="${subjectDescription != null && !#strings.isEmpty(subjectDescription) ? subjectDescription : 'No description provided.'}">Description</p>
-                        <div class="d-flex flex-wrap gap-2">
+                        <div class="d-flex flex-wrap gap-3">
                             <span class="meta-chip">
                                 <i class="bi bi-person"></i>
-                                <span th:text="${teacherEmail}">teacher@email.com</span>
+                                <span th:text="'TEACHER: ' + ${teacherName}">TEACHER: Name</span>
                             </span>
                             <span class="meta-chip">
                                 <i class="bi bi-file-earmark-text"></i>
@@ -109,10 +121,10 @@
                 </div>
             </div>
 
-            <div class="mb-4">
+            <div class="section-block">
                 <h5 class="section-title"><i class="bi bi-hourglass-split me-2"></i>Available Exams</h5>
 
-                <div th:if="${#lists.isEmpty(pendingExams)}" class="text-center py-4">
+                <div th:if="${#lists.isEmpty(pendingExams)}" class="text-center empty-state">
                     <div class="card upload-card p-4">
                         <i class="bi bi-calendar-x" style="font-size: 3rem; color: #ccc;"></i>
                         <h6 class="mt-3 text-muted">No Exam Available</h6>
@@ -154,10 +166,10 @@
                 </div>
             </div>
 
-            <div class="mb-5">
-                <h5 class="section-title"><i class="bi bi-clock-history me-2"></i>Exam History</h5>
+            <div class="section-block">
+                <h5 class="section-title"><i class="bi bi-clock-history me-2"></i>Recent Exam Attempts</h5>
 
-                <div th:if="${!hasHistory}" class="text-center py-4">
+                <div th:if="${!hasHistory}" class="text-center empty-state">
                     <div class="card upload-card p-4">
                         <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
                         <h6 class="mt-3 text-muted">No Submissions Yet</h6>
@@ -165,13 +177,71 @@
                     </div>
                 </div>
 
-                <div th:if="${hasHistory}" class="submission-notification-card shadow-sm text-center">
-                    <div class="notif-wrap">
-                        <span class="notif-dot" th:text="${submissionCount}">0</span>
-                        <div class="text-start">
-                            <div class="fw-semibold text-danger">Submitted exams</div>
-                            <small class="text-muted">Use dashboard history to view full details.</small>
+                <div th:if="${hasHistory}" class="card upload-card shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-spacious mb-0">
+                                <thead class="hist-thead">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Exam Name</th>
+                                        <th>Subject</th>
+                                        <th>Type</th>
+                                        <th>Submitted</th>
+                                        <th>Score</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="submission, iterStat : ${subjectSubmissions}">
+                                        <td class="text-muted small" th:text="${iterStat.count}">1</td>
+                                        <td>
+                                            <i class="bi bi-file-earmark-text me-2 text-primary"></i>
+                                            <strong th:text="${submission.examName}">Exam Name</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary" th:text="${submission.subject}">Subject</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge"
+                                                  th:classappend="${submission.activityType == 'Assignment' ? 'bg-success' : (submission.activityType == 'Practical Exam' ? 'bg-warning text-dark' : 'bg-primary')}"
+                                                  th:text="${submission.activityType != null ? submission.activityType : 'Exam'}">Exam</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <i class="bi bi-calendar-check me-1"></i>
+                                                <span th:text="${submission.submittedAt != null ? #temporals.format(submission.submittedAt, 'MMM dd, yyyy HH:mm') : 'N/A'}">Date</span>
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-score"
+                                                  th:classappend="${submission.percentage >= 75 ? 'bg-success' : (submission.percentage >= 50 ? 'bg-warning text-dark' : 'bg-danger')}">
+                                                <span th:text="${submission.score}">0</span>/<span th:text="${submission.totalQuestions}">0</span>
+                                                (<span th:text="${#numbers.formatDecimal(submission.percentage, 1, 1)}">0</span>%)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a th:href="@{/student/results/{id}(id=${submission.id})}"
+                                                   class="btn btn-outline-primary" title="View Results">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                                <a th:href="@{/student/performance-analytics/{id}(id=${submission.id})}"
+                                                   class="btn btn-outline-success" title="Analytics">
+                                                    <i class="bi bi-graph-up"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
+                    </div>
+                    <div class="card-footer bg-light text-center">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Showing <strong th:text="${#lists.size(subjectSubmissions)}">0</strong> submission(s)
+                        </small>
                     </div>
                 </div>
             </div>

@@ -135,6 +135,22 @@
             max-width: 320px;
             border-radius: 999px;
         }
+        .mq-submit-alert {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: min(92vw, 720px);
+            margin: 0;
+            z-index: 3000;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+            border-width: 1px;
+        }
+        .mq-submit-alert .btn-close {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.85rem;
+        }
         .rich-editor {
             min-height: 120px;
             border: 1px solid #ced4da;
@@ -607,9 +623,10 @@
                             <input type="hidden" name="answer" id="addAnswerInput">
 
                             <div class="col-md-6 mb-3" id="openEndedHintContainer" style="display:none;">
-                                <label class="form-label fw-bold">Correct Answer</label>
-                                <div class="form-control text-muted" style="background:#f8fafc;">Manual checking by professor</div>
-                                <small class="form-text text-muted">Teacher will grade this question manually.</small>
+                                <label class="form-label fw-bold">Reference Answer (Optional)</label>
+                                <input type="text" class="form-control" id="addOpenEndedAnswerInput"
+                                       placeholder="Sample expected answer (optional)">
+                                <small class="form-text text-muted">Leave empty to keep manual-only grading.</small>
                             </div>
                             
                             <div class="col-md-6 mb-3">
@@ -633,12 +650,12 @@
     </div>
 
     <!-- Success/Error Messages -->
-    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mq-submit-alert" role="alert">
         <i class="bi bi-check-circle"></i> <span th:text="${successMessage}"></span>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     
-    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mq-submit-alert" role="alert">
         <i class="bi bi-exclamation-triangle"></i> <span th:text="${errorMessage}"></span>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
@@ -775,9 +792,9 @@
                                         </div>
 
                                         <div class="col-md-4">
-                                            <label class="form-label small fw-semibold mb-1">Answer</label>
-                                            <input type="text" class="form-control form-control-sm edit-answer-input" name="answer" required
-                                                   th:value="${exam.answerKey[iterStat.index]}">
+                                            <label class="form-label small fw-semibold mb-1">Answer / Reference</label>
+                                            <input type="text" class="form-control form-control-sm edit-answer-input" name="answer"
+                                                   th:value="${exam.answerKey[iterStat.index] == 'MANUAL_GRADE' ? '' : exam.answerKey[iterStat.index]}">
                                         </div>
 
                                         <div class="col-md-4">
@@ -881,6 +898,7 @@
         const choicesContainer = document.getElementById('mcqChoicesContainer');
         const choicesText = document.getElementById('addChoicesText');
         const answerInput = document.getElementById('addAnswerInput');
+        const openEndedAnswerInput = document.getElementById('addOpenEndedAnswerInput');
         const answerHint = document.getElementById('addAnswerHint');
         const openEndedHint = document.getElementById('openEndedHintContainer');
 
@@ -891,7 +909,8 @@
         openEndedHint.style.display = isOpenEnded ? '' : 'none';
         if (isOpenEnded) {
             choicesText.value = '';
-            answerInput.value = 'MANUAL_GRADE';
+            const referenceAnswer = openEndedAnswerInput ? (openEndedAnswerInput.value || '').trim() : '';
+            answerInput.value = referenceAnswer || 'MANUAL_GRADE';
             document.querySelectorAll('#choicesInputs .choice-input-row').forEach(row => {
                 row.classList.remove('is-correct-choice');
                 const btn = row.querySelector('.choice-correct-btn');
@@ -900,7 +919,7 @@
                     btn.setAttribute('aria-pressed', 'false');
                 }
             });
-            answerHint.innerHTML = '<i class="bi bi-check-circle me-1"></i>Open-ended questions are graded manually by professor.';
+            answerHint.innerHTML = '<i class="bi bi-check-circle me-1"></i>Open-ended questions are graded manually (optional reference answer supported).';
         } else {
             answerHint.innerHTML = '<i class="bi bi-check-circle me-1"></i>Check one choice as the correct answer.';
             syncAddChoicesText();
@@ -935,10 +954,12 @@
 
         const isOpenEnded = selectEl.value === 'OPEN_ENDED';
         answerInput.required = !isOpenEnded;
-        answerInput.readOnly = isOpenEnded;
+        answerInput.readOnly = false;
         if (isOpenEnded) {
-            answerInput.value = '';
-            answerInput.placeholder = 'Teacher will grade this manually';
+            if ((answerInput.value || '').trim().toUpperCase() === 'MANUAL_GRADE') {
+                answerInput.value = '';
+            }
+            answerInput.placeholder = 'Reference answer (optional)';
         } else {
             answerInput.placeholder = 'Correct answer';
         }
@@ -969,6 +990,7 @@
     function syncAddChoicesText() {
         const hidden = document.getElementById('addChoicesText');
         const answerInput = document.getElementById('addAnswerInput');
+        const openEndedAnswerInput = document.getElementById('addOpenEndedAnswerInput');
         if (!hidden) return;
 
         const rows = Array.from(document.querySelectorAll('#choicesInputs .choice-input-row'));
@@ -985,7 +1007,8 @@
             const selectedInput = selectedRow ? selectedRow.querySelector('.add-choice-input') : null;
             const selectedValue = selectedInput ? (selectedInput.value || '').trim() : '';
             const isOpenEnded = document.getElementById('addQuestionType')?.value === 'OPEN_ENDED';
-            answerInput.value = isOpenEnded ? 'MANUAL_GRADE' : selectedValue;
+            const referenceAnswer = openEndedAnswerInput ? (openEndedAnswerInput.value || '').trim() : '';
+            answerInput.value = isOpenEnded ? (referenceAnswer || 'MANUAL_GRADE') : selectedValue;
         }
     }
 
@@ -1096,6 +1119,11 @@
             });
         }
 
+        const addOpenEndedAnswerInput = document.getElementById('addOpenEndedAnswerInput');
+        if (addOpenEndedAnswerInput) {
+            addOpenEndedAnswerInput.addEventListener('input', syncAddChoicesText);
+        }
+
         toggleAddQuestionTypeFields();
         toggleAddMediaTypeFields();
         document.querySelectorAll('.edit-question-type').forEach(selectEl => {
@@ -1116,6 +1144,7 @@
         }
 
         const savedRanges = new WeakMap();
+        const DEFAULT_FONT_SIZE = '11pt';
 
         function saveSelection(editor) {
             if (!editor) return;
@@ -1180,12 +1209,25 @@
             }
 
             if (sizeSelect) {
-                const sizeNumeric = parseInt(String(style.size || '').replace(/[^0-9]/g, ''), 10);
-                if (Number.isFinite(sizeNumeric)) {
-                    const matched = Array.from(sizeSelect.options).find(opt => parseInt(opt.textContent || '', 10) === sizeNumeric);
-                    if (matched) {
-                        sizeSelect.value = matched.value;
+                const sizePx = parseFloat(String(style.size || '').replace(/[^0-9.]/g, ''));
+                if (Number.isFinite(sizePx) && sizePx > 0) {
+                    const sizePt = sizePx * (72 / 96);
+                    let closest = null;
+                    let minDiff = Number.POSITIVE_INFINITY;
+                    Array.from(sizeSelect.options).forEach(opt => {
+                        const optPt = parseFloat(String(opt.value || '').replace(/[^0-9.]/g, ''));
+                        if (!Number.isFinite(optPt)) return;
+                        const diff = Math.abs(optPt - sizePt);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closest = opt;
+                        }
+                    });
+                    if (closest) {
+                        sizeSelect.value = closest.value;
                     }
+                } else if (sizeSelect.value !== DEFAULT_FONT_SIZE) {
+                    sizeSelect.value = DEFAULT_FONT_SIZE;
                 }
             }
         }
@@ -1218,42 +1260,103 @@
             if (!editor || !sizeValue) return;
             focusEditor(editor);
             restoreSelection(editor);
-            document.execCommand('styleWithCSS', false, true);
+            document.execCommand('styleWithCSS', false, false);
             document.execCommand('fontSize', false, '7');
-            editor.querySelectorAll('font[size="7"]').forEach(el => {
+
+            editor.querySelectorAll('font[size]').forEach(el => {
+                if (el.getAttribute('size') !== '7') return;
                 const span = document.createElement('span');
                 span.style.fontSize = sizeValue;
                 span.innerHTML = el.innerHTML;
                 el.replaceWith(span);
             });
+
+            editor.querySelectorAll('[style]').forEach(el => {
+                const raw = String(el.style.fontSize || '').trim().toLowerCase();
+                if (!raw) return;
+                if (raw === 'xx-small' || raw === 'x-small' || raw === 'small' || raw === 'medium'
+                    || raw === 'large' || raw === 'x-large' || raw === 'xx-large' || raw === 'xxx-large'
+                    || raw === '-webkit-xxx-large' || raw === '-webkit-xx-large') {
+                    el.style.fontSize = sizeValue;
+                }
+            });
+
             saveSelection(editor);
             if (editor.id === 'questionEditor') {
                 updateMathPreview();
             }
             updateAllToolbarStatuses();
+            focusEditor(editor);
+            restoreSelection(editor);
+            saveSelection(editor);
         }
 
         function applyFontFamily(editor, fontFamily) {
             if (!editor || !fontFamily) return;
             focusEditor(editor);
             restoreSelection(editor);
-            document.execCommand('styleWithCSS', false, true);
-            document.execCommand('fontName', false, fontFamily);
+            document.execCommand('styleWithCSS', false, false);
+            document.execCommand('fontName', false, `"${fontFamily}"`);
+
+            editor.querySelectorAll('font[face]').forEach(el => {
+                const span = document.createElement('span');
+                span.style.fontFamily = fontFamily;
+                span.innerHTML = el.innerHTML;
+                el.replaceWith(span);
+            });
+
             saveSelection(editor);
             if (editor.id === 'questionEditor') {
                 updateMathPreview();
             }
             updateAllToolbarStatuses();
+            focusEditor(editor);
+            restoreSelection(editor);
+            saveSelection(editor);
         }
 
         function sanitizePastedHtml(rawHtml) {
             if (!rawHtml) return '';
 
+            let sourceHtml = String(rawHtml || '');
+            for (let pass = 0; pass < 4; pass++) {
+                const hasEntityEncoding = /&(lt|gt|quot|amp|#\d+|#x[0-9a-f]+);/i.test(sourceHtml);
+                if (!hasEntityEncoding) {
+                    break;
+                }
+                const decoder = document.createElement('textarea');
+                decoder.innerHTML = sourceHtml;
+                const decoded = decoder.value;
+                if (decoded === sourceHtml) {
+                    break;
+                }
+                sourceHtml = decoded;
+            }
+
+            sourceHtml = sourceHtml
+                .replace(/<!--\s*(StartFragment|EndFragment)\s*-->/gi, '')
+                .replace(/&lt;!--\s*(StartFragment|EndFragment)\s*--&gt;/gi, '');
+
             const parser = new DOMParser();
-            const doc = parser.parseFromString(rawHtml, 'text/html');
+            const doc = parser.parseFromString(sourceHtml, 'text/html');
             if (!doc || !doc.body) return '';
 
             doc.body.querySelectorAll('script, style, meta, link, iframe, object, embed').forEach(el => el.remove());
+
+            const removeFragmentComments = (root) => {
+                const walker = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
+                const comments = [];
+                while (walker.nextNode()) {
+                    comments.push(walker.currentNode);
+                }
+                comments.forEach(commentNode => {
+                    const content = (commentNode.nodeValue || '').trim().toLowerCase();
+                    if (content === 'startfragment' || content === 'endfragment') {
+                        commentNode.parentNode && commentNode.parentNode.removeChild(commentNode);
+                    }
+                });
+            };
+            removeFragmentComments(doc.body);
 
             doc.body.querySelectorAll('mark').forEach(markEl => {
                 const span = doc.createElement('span');
@@ -1299,7 +1402,7 @@
                 }
             });
 
-            return doc.body.innerHTML;
+            return (doc.body.innerHTML || '').trim();
         }
 
         function insertEditorContent(editor, htmlContent, plainTextFallback) {
@@ -1321,6 +1424,16 @@
         }
 
         document.querySelectorAll('.editor-toolbar [data-editor-font-family]').forEach(selectEl => {
+            selectEl.addEventListener('mousedown', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                saveSelection(editor);
+            });
+            selectEl.addEventListener('focus', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                saveSelection(editor);
+            });
             selectEl.addEventListener('change', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
@@ -1391,6 +1504,16 @@
         });
 
         document.querySelectorAll('.editor-toolbar [data-editor-font-size]').forEach(selectEl => {
+            selectEl.addEventListener('mousedown', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                saveSelection(editor);
+            });
+            selectEl.addEventListener('focus', function () {
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                saveSelection(editor);
+            });
             selectEl.addEventListener('change', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
@@ -1468,7 +1591,9 @@
                 } else {
                     const answerInput = document.getElementById('addAnswerInput');
                     if (answerInput) {
-                        answerInput.value = 'MANUAL_GRADE';
+                        const openEndedAnswerInput = document.getElementById('addOpenEndedAnswerInput');
+                        const referenceAnswer = openEndedAnswerInput ? (openEndedAnswerInput.value || '').trim() : '';
+                        answerInput.value = referenceAnswer || 'MANUAL_GRADE';
                     }
                 }
 

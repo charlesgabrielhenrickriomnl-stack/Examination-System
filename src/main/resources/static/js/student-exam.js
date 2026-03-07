@@ -21,6 +21,168 @@ let isExamActive = true;
 let isSubmitting = false;
 let isNavigationLocked = false;
 
+function decodeHtmlEntities(value) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = String(value || '');
+    return textarea.value;
+}
+
+function normalizeQuestionMarkup(value) {
+    let normalized = String(value || '').trim();
+    if (!normalized) {
+        return '';
+    }
+
+    normalized = normalized
+        .replace(/<!--\s*(StartFragment|EndFragment)\s*-->/gi, '')
+        .replace(/&lt;!--\s*(StartFragment|EndFragment)\s*--&gt;/gi, '');
+
+    for (let pass = 0; pass < 4; pass++) {
+        const hasEntityEncoding = /&(lt|gt|quot|amp|#\d+|#x[0-9a-f]+);/i.test(normalized);
+        if (!hasEntityEncoding) {
+            break;
+        }
+        const decoded = decodeHtmlEntities(normalized);
+        if (decoded === normalized) {
+            break;
+        }
+        normalized = decoded
+            .replace(/<!--\s*(StartFragment|EndFragment)\s*-->/gi, '')
+            .replace(/&lt;!--\s*(StartFragment|EndFragment)\s*--&gt;/gi, '');
+    }
+
+    return normalized.trim();
+}
+
+function sanitizeQuestionHtml(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(String(html || ''), 'text/html');
+    if (!doc || !doc.body) {
+        return '';
+    }
+
+    doc.body.querySelectorAll('script, style, iframe, object, embed, meta, link').forEach(el => el.remove());
+    doc.body.querySelectorAll('*').forEach(el => {
+        Array.from(el.attributes).forEach(attr => {
+            const attrName = (attr.name || '').toLowerCase();
+            const attrValue = String(attr.value || '');
+            if (attrName.startsWith('on')) {
+                el.removeAttribute(attr.name);
+            }
+            if ((attrName === 'href' || attrName === 'src') && /^\s*javascript:/i.test(attrValue)) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
+
+    return doc.body.innerHTML;
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function toPlainQuestionText(value) {
+    return String(value || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/\s*(p|div|li|tr|h[1-6])\s*>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\u00A0/g, ' ')
+        .replace(/\r/g, '\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{2,}/g, '\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+
+function parseChoiceLine(line) {
+    const match = String(line || '').match(/^\s*(?:\(?([A-H])\)|([A-H])[.)])\s*(.+)$/i);
+    if (!match) {
+        return null;
+    }
+    const text = (match[3] || '').trim();
+    if (!text) {
+        return null;
+    }
+    return {
+        label: (match[1] || match[2] || '').toUpperCase(),
+        text
+    };
+}
+
+function extractQuestionParts(rawQuestion) {
+    const plain = toPlainQuestionText(rawQuestion);
+    if (!plain) {
+        return { stem: '', choices: [] };
+    }
+
+    const lines = plain.split(/\n+/).map(line => line.trim()).filter(Boolean);
+    if (lines.length > 1) {
+        const lineChoices = lines.slice(1)
+            .map(parseChoiceLine)
+            .filter(Boolean);
+        if (lineChoices.length >= 2) {
+            return {
+                stem: lines[0],
+                choices: lineChoices
+            };
+        }
+    }
+
+    const markerPattern = /(?:\(\s*([A-H])\s*\)|\b([A-H])[.)])\s*/gi;
+    const markers = [];
+    let match;
+    while ((match = markerPattern.exec(plain)) !== null) {
+        markers.push({
+            index: match.index,
+            endIndex: markerPattern.lastIndex,
+            label: (match[1] || match[2] || '').toUpperCase()
+        });
+    }
+
+    if (markers.length < 2) {
+        return {
+            stem: lines[0] || plain,
+            choices: []
+        };
+    }
+
+    const stem = plain.slice(0, markers[0].index).trim();
+    const parsedChoices = [];
+    for (let index = 0; index < markers.length; index++) {
+        const current = markers[index];
+        const next = markers[index + 1];
+        const chunk = plain.slice(current.endIndex, next ? next.index : plain.length)
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!chunk) {
+            continue;
+        }
+        parsedChoices.push({
+            label: current.label,
+            text: chunk
+        });
+    }
+
+    if (parsedChoices.length < 2) {
+        return {
+            stem: lines[0] || plain,
+            choices: []
+        };
+    }
+
+    return {
+        stem: stem || (lines[0] || plain),
+        choices: parsedChoices
+    };
+}
+
 /**
  * Initialize the exam from Thymeleaf data
  */
@@ -134,7 +296,7 @@ function showSaveIndicator() {
  * Display current question
  */
 function displayQuestion() {
-    let question = exam[currentPage];
+    let question = normalizeQuestionMarkup(exam[currentPage]);
     const questionNumber = currentPage + 1;
     
     // Remove [TEXT_INPUT] prefix if present
@@ -187,9 +349,10 @@ function displayQuestion() {
     let html = `<h5 class="mb-4">Question ${questionNumber}</h5>`;
     
     if (isTextInput) {
+        const safeQuestionHtml = sanitizeQuestionHtml(question);
         // Text-input question (prefix hidden from student)
         html += `
-            <p class="lead mb-2">${question}</p>
+            <p class="lead mb-2">${safeQuestionHtml}</p>
             ${imagesHtml}
             <div class="form-group">
                 <label class="form-label fw-bold">Your Answer:</label>
@@ -202,25 +365,30 @@ function displayQuestion() {
         `;
     } else {
         // Multiple-choice question
-        const lines = question.split('\n');
-        const questionText = lines[0];
-        const choices = lines.slice(1).filter(line => line.trim());
+        const parsedQuestion = extractQuestionParts(question);
+        const questionText = parsedQuestion.stem || '';
+        const choices = parsedQuestion.choices;
+        const safeQuestionHtml = sanitizeQuestionHtml(questionText);
         
         html += `
-            <p class="lead mb-2">${questionText}</p>
+            <p class="lead mb-2">${safeQuestionHtml}</p>
             ${imagesHtml}
             <div class="choices">
         `;
         
         choices.forEach((choice, idx) => {
-            const choiceLetter = choice.split(')')[0].trim();
-            const choiceText = choice.substring(choice.indexOf(')') + 1).trim();
+            const choiceLetter = choice.label || String.fromCharCode(65 + idx);
+            const choiceText = String(choice.text || '').trim();
+            if (!choiceText) {
+                return;
+            }
             const isSelected = answers['q' + questionNumber] === choiceText;
+            const encodedChoice = encodeURIComponent(choiceText);
             
             html += `
                 <button type="button" class="btn choice-btn w-100 ${isSelected ? 'selected' : ''}" 
-                        onclick="selectAnswer(${questionNumber}, '${choiceText.replace(/'/g, "\\'")}', this)">
-                    <strong>${choiceLetter})</strong> ${choiceText}
+                        onclick="selectAnswerEncoded(${questionNumber}, '${encodedChoice}', this)">
+                    <strong>${escapeHtml(choiceLetter)})</strong> ${escapeHtml(choiceText)}
                 </button>
             `;
         });
@@ -271,6 +439,11 @@ function selectAnswer(questionNum, answer, button) {
     // Save answer
     answers['q' + questionNum] = answer;
     autoSave();
+}
+
+function selectAnswerEncoded(questionNum, encodedAnswer, button) {
+    const decodedAnswer = decodeURIComponent(encodedAnswer || '');
+    selectAnswer(questionNum, decodedAnswer, button);
 }
 
 /**
@@ -517,46 +690,30 @@ function autoSubmitExam() {
  * Show Time's Up modal
  */
 function showTimesUpModal() {
+    if (document.getElementById('timesUpModal')) {
+        return;
+    }
+
     const modal = document.createElement('div');
     modal.id = 'timesUpModal';
     modal.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                    background: rgba(0,0,0,0.9); z-index: 99999; display: flex; 
-                    align-items: center; justify-content: center;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        padding: 60px; border-radius: 20px; text-align: center; 
-                        max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-                        animation: slideIn 0.5s ease-out;">
-                <div style="font-size: 80px; margin-bottom: 20px;">⏰</div>
-                <h1 style="color: white; font-size: 48px; margin: 20px 0; 
-                           font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                    TIME'S UP!
-                </h1>
-                <p style="color: #f0f0f0; font-size: 20px; margin: 20px 0;">
+        <div class="times-up-modal">
+            <div class="times-up-card">
+                <div class="times-up-icon"><i class="bi bi-alarm"></i></div>
+                <h5 class="times-up-title mb-2">Time is up</h5>
+                <p class="text-muted mb-2">
                     Your exam time has expired.
                 </p>
-                <p style="color: #ffd700; font-size: 18px; font-weight: bold;">
+                <p class="small text-muted mb-3">
                     Submitting your answers automatically...
                 </p>
-                <div style="margin-top: 30px;">
-                    <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;">
+                <div>
+                    <div class="spinner-border text-secondary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
             </div>
         </div>
-        <style>
-            @keyframes slideIn {
-                from {
-                    transform: translateY(-100px);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
-            }
-        </style>
     `;
     document.body.appendChild(modal);
 }

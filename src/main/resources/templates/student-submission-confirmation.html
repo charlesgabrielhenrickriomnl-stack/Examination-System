@@ -2,55 +2,159 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exam Submitted - ALGO</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .check-icon {
-            font-size: 5rem;
-            color: #28a745;
-            animation: scaleIn 0.5s ease-in-out;
+        .submission-shell {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0.5rem 0 2rem;
         }
-        @keyframes scaleIn {
-            from { transform: scale(0); }
-            to { transform: scale(1); }
+
+        .submission-hero {
+            background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
+            color: #fff;
+            border-radius: 14px;
+            padding: 1.4rem 1.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .submission-card {
+            border: 1px solid var(--eac-border);
+            border-radius: 14px;
+            background: #fffdfa;
+            padding: 1.35rem;
+        }
+
+        .submission-check {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            margin: 0 auto 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #fff;
+            background: linear-gradient(145deg, #1f8f4f 0%, #2ea760 100%);
+        }
+
+        .submission-title {
+            color: var(--eac-maroon);
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .submission-note {
+            border: 1px solid #d8ecfa;
+            background: #ecf8ff;
+            border-radius: 10px;
+            padding: 0.9rem;
+            color: #125e82;
+            margin-bottom: 0.8rem;
+        }
+
+        .submission-note-warning {
+            border-color: #f2e2b8;
+            background: #fff8e7;
+            color: #7a5a00;
+        }
+
+        .submission-summary {
+            border: 1px solid var(--eac-border);
+            border-radius: 10px;
+            background: #fff;
+            padding: 0.8rem 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .submission-summary .label {
+            color: #6b6b6b;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .submission-summary .value {
+            color: #272727;
+            font-weight: 600;
+        }
+
+        .submission-actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+        }
+
+        .thank-you {
+            text-align: center;
+            margin-top: 0.8rem;
+            color: #6f6f6f;
+            font-size: 0.88rem;
         }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card shadow-sm border-0 p-5 text-center">
-                    <div class="check-icon mb-4">✓</div>
-                    <h2 class="fw-bold mb-4">Exam Submitted Successfully!</h2>
-                    
-                    <div class="alert alert-info">
-                        <h5 class="alert-heading">📋 What's Next?</h5>
-                        <p class="mb-0">
-                            Your exam has been submitted and is being reviewed by your teacher. 
-                            Your results will be available once your teacher releases them.
-                        </p>
-                    </div>
-                    
-                    <div class="alert alert-warning mt-3">
-                        <p class="mb-0">
-                            <strong>⏳ Pending Review</strong><br>
-                            Please check back later or wait for notification from your teacher.
-                        </p>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <a href="/student/dashboard" class="btn btn-primary btn-lg px-5">
-                            Back to Dashboard
-                        </a>
-                    </div>
-                    
-                    <p class="text-muted mt-4 small">
-                        Thank you for your submission. Good luck! 🍀
-                    </p>
+<body class="homepage-page">
+<div class="teacher-layout">
+    <div th:replace="~{student-nav :: studentNav}"></div>
+
+    <div class="teacher-content-wrapper">
+        <div class="container submission-shell">
+            <div class="submission-hero">
+                <h4 class="mb-1"><i class="bi bi-file-earmark-check me-2"></i>Submission Complete</h4>
+                <p class="mb-0 small opacity-75">Your answers are saved and sent for review.</p>
+            </div>
+
+            <div class="submission-card">
+                <div class="submission-check">
+                    <i class="bi bi-check-lg"></i>
                 </div>
+                <h2 class="submission-title">Exam Submitted Successfully</h2>
+
+                <div class="submission-summary">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="label">Exam Name</div>
+                            <div class="value" th:text="${submission.examName != null ? submission.examName : 'N/A'}">Exam</div>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <div class="label">Subject</div>
+                            <div class="value" th:text="${submission.subject != null ? submission.subject : 'N/A'}">Subject</div>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <div class="label">Type</div>
+                            <div class="value" th:text="${submission.activityType != null ? submission.activityType : 'Activity'}">Type</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="submission-note">
+                    <div class="fw-semibold mb-1"><i class="bi bi-info-circle me-1"></i>What's next</div>
+                    <div>Your exam is submitted and will be reviewed by your teacher. Results appear after release.</div>
+                </div>
+
+                <div class="submission-note submission-note-warning">
+                    <div class="fw-semibold mb-1"><i class="bi bi-hourglass-split me-1"></i>Pending review</div>
+                    <div>Please check back later or wait for teacher notification.</div>
+                </div>
+
+                <div class="submission-actions">
+                    <a href="/student/dashboard" class="btn btn-primary px-4">
+                        <i class="bi bi-house me-1"></i>Back to Dashboard
+                    </a>
+                </div>
+
+                <div class="thank-you">Thank you for your submission.</div>
             </div>
         </div>
     </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

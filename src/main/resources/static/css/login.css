@@ -41,6 +41,8 @@ body::before {
     flex-direction: column;
     width: 60%;
     max-width: 650px;
+    position: relative;
+    overflow: hidden;
     background-color: #ffffff;
     border-radius: 12px;
     padding: 30px 28px 22px 28px;
@@ -71,11 +73,20 @@ body::before {
 
 .right-panel {
     width: 45%;
-    padding: 24px 8px 10px 24px;
+    padding: 24px 0 0 20px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     text-align: right;
+    position: relative;
+}
+
+.content,
+.footer-panel,
+.login-contact-bar,
+.right-panel > :not(.login-page-president) {
+    position: relative;
+    z-index: 1;
 }
 
 /* Header styling similar to the reference right panel text */
@@ -130,6 +141,30 @@ body::before {
     color: #555555;
     margin-top: 12px;
     text-align: right;
+}
+
+.login-page-president {
+    position: absolute;
+    right: -116px;
+    bottom: -178px;
+    width: 520px;
+    max-width: calc(100% + 240px);
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    z-index: 0;
+    opacity: 1;
+    pointer-events: none;
+}
+
+.login-page-president img {
+    width: 100%;
+    max-width: none;
+    max-height: 740px;
+    height: auto;
+    object-fit: contain;
+    object-position: right bottom;
+    display: block;
 }
 
 /* Form layout & controls – adapted from the reference design */
@@ -239,6 +274,18 @@ body::before {
     margin-right: 6px;
 }
 
+.auth-corner-seal {
+    position: fixed;
+    right: 20px;
+    bottom: 16px;
+    width: 138px;
+    height: auto;
+    opacity: 0.92;
+    z-index: 10;
+    pointer-events: none;
+    user-select: none;
+}
+
 /* Alerts spacing and centering inside the login panel */
 .login-panel .alert {
     max-width: 340px;
@@ -296,6 +343,27 @@ body::before {
 
     .right-panel {
         text-align: left;
+    }
+
+    .auth-corner-seal {
+        width: 104px;
+        right: 12px;
+        bottom: 12px;
+    }
+
+    .login-page-president {
+        position: static;
+        justify-content: center;
+        margin-top: 10px;
+        align-items: center;
+        width: 100%;
+        opacity: 1;
+    }
+
+    .login-page-president img {
+        width: min(100%, 240px);
+        max-width: 240px;
+        max-height: 290px;
     }
 
     .login-contact-bar {

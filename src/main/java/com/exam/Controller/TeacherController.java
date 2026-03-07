@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.HtmlUtils;
 
 import com.exam.entity.DistributedExam;
 import com.exam.entity.EnrolledStudent;
@@ -47,6 +48,7 @@ import com.google.gson.reflect.TypeToken;
 
 @Controller
 @RequestMapping("/teacher")
+@SuppressWarnings("all")
 public class TeacherController {
     @Autowired
     private com.exam.repository.DistributedExamRepository distributedExamRepository;
@@ -61,6 +63,12 @@ public class TeacherController {
 
     private static final Pattern ANSWER_KEY_PATTERN =
         Pattern.compile("(?m)^\\s*(\\d+)\\s*[\\).:-]?\\s*([A-D]|[^\\r\\n]+)\\s*$");
+
+    private static final Pattern HTML_TAG_PATTERN =
+        Pattern.compile("<\\/?[a-z][\\s\\S]*?>", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern ESCAPED_HTML_TAG_PATTERN =
+        Pattern.compile("&lt;\\/?[a-z][\\s\\S]*?&gt;", Pattern.CASE_INSENSITIVE);
 
     private final Gson gson = new Gson();
 
@@ -119,7 +127,7 @@ public class TeacherController {
     }
 
     @GetMapping("/processed-papers")
-    public String processedPapers(@RequestParam(required = false) String search, Model model, Principal principal) {
+    public String processedPapers(@RequestParam(name = "search", required = false) String search, Model model, Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
         List<OriginalProcessedPaper> papers = teacherEmail.isBlank()
             ? new ArrayList<>()
@@ -130,8 +138,11 @@ public class TeacherController {
 
         for (OriginalProcessedPaper paper : papers) {
             List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
-            String combinedText = normalize(paper.getExamName()) + " " + normalize(paper.getSubject()) + " "
-                + normalize(paper.getOriginalQuestionsJson()) + " " + normalize(paper.getAnswerKeyJson());
+            if (normalizeQuestionRowsInPlace(questions)) {
+                paper.setOriginalQuestionsJson(gson.toJson(questions));
+                originalProcessedPaperRepository.save(paper);
+            }
+            String combinedText = normalize(paper.getExamName());
 
             if (!normalizedSearch.isEmpty() && !combinedText.contains(normalizedSearch)) {
                 continue;
@@ -202,8 +213,8 @@ public class TeacherController {
     }
 
     @GetMapping("/processed-papers/{examId}")
-    public String processedPaperDetail(@PathVariable String examId,
-                                       @RequestParam(required = false) String questionSearch,
+    public String processedPaperDetail(@PathVariable("examId") String examId,
+                                       @RequestParam(name = "questionSearch", required = false) String questionSearch,
                                        Model model,
                                        Principal principal) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -218,6 +229,10 @@ public class TeacherController {
         }
 
         List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
+        if (normalizeQuestionRowsInPlace(questions)) {
+            paper.setOriginalQuestionsJson(gson.toJson(questions));
+            originalProcessedPaperRepository.save(paper);
+        }
         Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
         Map<String, String> difficulties = parseSimpleMapJson(paper.getDifficultiesJson());
         String normalizedSearch = normalize(questionSearch);
@@ -230,19 +245,20 @@ public class TeacherController {
             String answerText = answerKey.getOrDefault(number, "Not Set");
             String difficulty = difficulties.getOrDefault(number, "Medium");
             String questionText = resolveQuestionDisplay(question, difficulty, answerText);
+            String questionPreview = toPlainQuestionText(questionText);
 
-            if (questionText == null || questionText.isBlank()) {
+            if (questionPreview.isBlank()) {
                 continue;
             }
 
-            String searchable = normalize(questionText) + " " + normalize(answerText);
+            String searchable = normalize(questionPreview) + " " + normalize(answerText);
             if (!normalizedSearch.isEmpty() && !searchable.contains(normalizedSearch)) {
                 continue;
             }
 
             Map<String, Object> row = new HashMap<>();
             row.put("number", displayNumber++);
-            row.put("question", questionText);
+            row.put("question", questionPreview);
             row.put("answer", answerText);
             row.put("difficulty", difficulty);
             questionRows.add(row);
@@ -262,7 +278,7 @@ public class TeacherController {
     }
 
     @PostMapping("/processed-papers/{examId}/delete")
-    public String deleteProcessedPaper(@PathVariable String examId,
+    public String deleteProcessedPaper(@PathVariable("examId") String examId,
                                        Principal principal,
                                        RedirectAttributes redirectAttributes) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -283,7 +299,7 @@ public class TeacherController {
     }
 
     @PostMapping("/processed-papers/{examId}/repair-questions")
-    public String repairProcessedPaperQuestions(@PathVariable String examId,
+    public String repairProcessedPaperQuestions(@PathVariable("examId") String examId,
                                                 Principal principal,
                                                 RedirectAttributes redirectAttributes) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -332,8 +348,8 @@ public class TeacherController {
     }
 
     @GetMapping("/manage-questions/{examId}")
-    public String manageQuestions(@PathVariable String examId,
-                                  @RequestParam(required = false) String returnTo,
+    public String manageQuestions(@PathVariable("examId") String examId,
+                                  @RequestParam(name = "returnTo", required = false) String returnTo,
                                   Model model,
                                   Principal principal) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -348,6 +364,10 @@ public class TeacherController {
         }
 
         List<Map<String, Object>> questionRows = parseQuestionsJson(paper.getOriginalQuestionsJson());
+        if (normalizeQuestionRowsInPlace(questionRows)) {
+            paper.setOriginalQuestionsJson(gson.toJson(questionRows));
+            originalProcessedPaperRepository.save(paper);
+        }
         Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
         Map<String, String> difficultiesMap = parseSimpleMapJson(paper.getDifficultiesJson());
 
@@ -385,13 +405,13 @@ public class TeacherController {
     }
 
     @PostMapping("/add-question")
-    public String addQuestion(@RequestParam String examId,
-                              @RequestParam String questionText,
-                              @RequestParam(required = false) String questionType,
-                              @RequestParam(required = false) String choicesText,
-                              @RequestParam(required = false) String answer,
-                              @RequestParam String difficulty,
-                              @RequestParam(required = false) String returnTo,
+    public String addQuestion(@RequestParam("examId") String examId,
+                              @RequestParam("questionText") String questionText,
+                              @RequestParam(name = "questionType", required = false) String questionType,
+                              @RequestParam(name = "choicesText", required = false) String choicesText,
+                              @RequestParam(name = "answer", required = false) String answer,
+                              @RequestParam("difficulty") String difficulty,
+                              @RequestParam(name = "returnTo", required = false) String returnTo,
                               Principal principal,
                               RedirectAttributes redirectAttributes) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -411,7 +431,7 @@ public class TeacherController {
         Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
 
         Map<String, Object> newQuestion = new HashMap<>();
-        String normalizedQuestion = questionText == null ? "" : questionText.trim();
+        String normalizedQuestion = normalizeQuestionHtml(questionText);
         boolean openEnded = "OPEN_ENDED".equalsIgnoreCase(questionType);
 
         if (openEnded && !normalizedQuestion.startsWith("[TEXT_INPUT]")) {
@@ -435,7 +455,10 @@ public class TeacherController {
         String key = String.valueOf(newNumber);
         questions.add(newQuestion);
         difficulties.put(key, normalizeMathSymbols(difficulty).isBlank() ? "Medium" : normalizeMathSymbols(difficulty));
-        answerKey.put(key, openEnded ? "MANUAL_GRADE" : normalizeMathSymbols(answer));
+        String normalizedAnswer = normalizeMathSymbols(answer);
+        answerKey.put(key, openEnded
+            ? (normalizedAnswer.isBlank() ? "MANUAL_GRADE" : normalizedAnswer)
+            : normalizedAnswer);
 
         paper.setOriginalQuestionsJson(gson.toJson(questions));
         paper.setDifficultiesJson(gson.toJson(difficulties));
@@ -447,13 +470,13 @@ public class TeacherController {
     }
 
     @PostMapping("/edit-question")
-    public String editQuestion(@RequestParam String examId,
-                               @RequestParam Integer questionIndex,
-                               @RequestParam String questionText,
-                               @RequestParam(required = false) String questionType,
-                               @RequestParam(required = false) String answer,
-                               @RequestParam String difficulty,
-                               @RequestParam(required = false) String returnTo,
+    public String editQuestion(@RequestParam("examId") String examId,
+                               @RequestParam("questionIndex") Integer questionIndex,
+                               @RequestParam("questionText") String questionText,
+                               @RequestParam(name = "questionType", required = false) String questionType,
+                               @RequestParam(name = "answer", required = false) String answer,
+                               @RequestParam("difficulty") String difficulty,
+                               @RequestParam(name = "returnTo", required = false) String returnTo,
                                Principal principal,
                                RedirectAttributes redirectAttributes) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -478,7 +501,7 @@ public class TeacherController {
         Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
 
         boolean openEnded = "OPEN_ENDED".equalsIgnoreCase(questionType);
-        String normalizedQuestion = questionText == null ? "" : questionText.trim();
+        String normalizedQuestion = normalizeQuestionHtml(questionText);
         if (openEnded && !normalizedQuestion.startsWith("[TEXT_INPUT]")) {
             normalizedQuestion = "[TEXT_INPUT]" + normalizedQuestion;
         }
@@ -488,7 +511,10 @@ public class TeacherController {
 
         String key = String.valueOf(questionIndex + 1);
         difficulties.put(key, normalizeMathSymbols(difficulty).isBlank() ? "Medium" : normalizeMathSymbols(difficulty));
-        answerKey.put(key, openEnded ? "MANUAL_GRADE" : normalizeMathSymbols(answer));
+        String normalizedAnswer = normalizeMathSymbols(answer);
+        answerKey.put(key, openEnded
+            ? (normalizedAnswer.isBlank() ? "MANUAL_GRADE" : normalizedAnswer)
+            : normalizedAnswer);
 
         paper.setOriginalQuestionsJson(gson.toJson(questions));
         paper.setDifficultiesJson(gson.toJson(difficulties));
@@ -500,9 +526,9 @@ public class TeacherController {
     }
 
     @PostMapping("/delete-question")
-    public String deleteQuestion(@RequestParam String examId,
-                                 @RequestParam Integer questionIndex,
-                                 @RequestParam(required = false) String returnTo,
+    public String deleteQuestion(@RequestParam("examId") String examId,
+                                 @RequestParam("questionIndex") Integer questionIndex,
+                                 @RequestParam(name = "returnTo", required = false) String returnTo,
                                  Principal principal,
                                  RedirectAttributes redirectAttributes) {
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
@@ -537,7 +563,7 @@ public class TeacherController {
     }
 
     @GetMapping("/subject-classroom/{id}")
-    public String subjectClassroom(@PathVariable Long id, Model model, Principal principal) {
+    public String subjectClassroom(@PathVariable("id") Long id, Model model, Principal principal) {
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
             return "redirect:/teacher/subjects";
@@ -606,7 +632,7 @@ public class TeacherController {
     }
 
     @GetMapping("/subject-classroom/{id}/distributed-exams")
-    public String subjectDistributedExams(@PathVariable Long id, Model model, Principal principal) {
+    public String subjectDistributedExams(@PathVariable("id") Long id, Model model, Principal principal) {
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
             return "redirect:/teacher/subjects";
@@ -631,11 +657,11 @@ public class TeacherController {
     }
 
     @PostMapping("/subject-classroom/{id}/distributed-exams/delete")
-    public String deleteDistributedExamBatch(@PathVariable Long id,
-                                             @RequestParam String examName,
-                                             @RequestParam String activityType,
-                                             @RequestParam Integer timeLimit,
-                                             @RequestParam(required = false) String deadline,
+    public String deleteDistributedExamBatch(@PathVariable("id") Long id,
+                                             @RequestParam("examName") String examName,
+                                             @RequestParam("activityType") String activityType,
+                                             @RequestParam("timeLimit") Integer timeLimit,
+                                             @RequestParam(name = "deadline", required = false) String deadline,
                                              Principal principal,
                                              RedirectAttributes redirectAttributes) {
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
@@ -697,14 +723,14 @@ public class TeacherController {
     }
 
     @PostMapping("/distribute-selected")
-    public String distributeSelected(@RequestParam Long subjectId,
-                                     @RequestParam String examId,
-                                     @RequestParam Integer questionCount,
-                                     @RequestParam Integer timeLimit,
-                                     @RequestParam Integer easyPercent,
-                                     @RequestParam Integer mediumPercent,
-                                     @RequestParam Integer hardPercent,
-                                     @RequestParam(required = false) String deadline,
+    public String distributeSelected(@RequestParam("subjectId") Long subjectId,
+                                     @RequestParam("examId") String examId,
+                                     @RequestParam("questionCount") Integer questionCount,
+                                     @RequestParam("timeLimit") Integer timeLimit,
+                                     @RequestParam("easyPercent") Integer easyPercent,
+                                     @RequestParam("mediumPercent") Integer mediumPercent,
+                                     @RequestParam("hardPercent") Integer hardPercent,
+                                     @RequestParam(name = "deadline", required = false) String deadline,
                                      @RequestParam(required = false, name = "selectedStudents") List<String> selectedStudents,
                                      Principal principal,
                                      RedirectAttributes redirectAttributes) {
@@ -809,7 +835,7 @@ public class TeacherController {
     }
 
     @GetMapping("/subject-classroom/{id}/enrolled-students")
-    public String subjectEnrolledStudents(@PathVariable Long id, Model model, Principal principal) {
+    public String subjectEnrolledStudents(@PathVariable("id") Long id, Model model, Principal principal) {
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
             return "redirect:/teacher/subjects";
@@ -829,11 +855,11 @@ public class TeacherController {
     }
 
     @GetMapping("/subject-classroom/{id}/distribution-students")
-    public String subjectDistributionStudents(@PathVariable Long id,
-                                             @RequestParam(required = false) String filterExamName,
-                                             @RequestParam(required = false) String filterActivityType,
-                                             @RequestParam(required = false) Integer filterTimeLimit,
-                                             @RequestParam(required = false) String filterDeadline,
+    public String subjectDistributionStudents(@PathVariable("id") Long id,
+                                             @RequestParam(name = "filterExamName", required = false) String filterExamName,
+                                             @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
+                                             @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
+                                             @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
                                              Model model,
                                              Principal principal) {
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
@@ -1197,6 +1223,7 @@ public class TeacherController {
                 if (looksLikePlaceholderQuestion(questionText, null, null)) {
                     questionText = pickBestQuestionCandidate(columns, questionColumn, answerColumn);
                 }
+                questionText = normalizeQuestionHtml(questionText);
                 if (questionText.isBlank()) {
                     continue;
                 }
@@ -1207,7 +1234,7 @@ public class TeacherController {
                     if (index == null || index < 0 || index >= columns.size()) {
                         continue;
                     }
-                    String choiceValue = normalizeMathSymbols(columns.get(index));
+                    String choiceValue = normalizeQuestionHtml(normalizeMathSymbols(columns.get(index)));
                     if (!choiceValue.isBlank()) {
                         choices.add(choiceValue);
                     }
@@ -1215,7 +1242,7 @@ public class TeacherController {
                 question.put("choices", choices);
 
                 if (answerColumn >= 0 && answerColumn < columns.size()) {
-                    question.put("answer", normalizeMathSymbols(columns.get(answerColumn)));
+                    question.put("answer", normalizeQuestionHtml(normalizeMathSymbols(columns.get(answerColumn))));
                 }
 
                 if (difficultyColumn >= 0 && difficultyColumn < columns.size()) {
@@ -1238,6 +1265,7 @@ public class TeacherController {
             Matcher matcher = NUMBERED_QUESTION_PATTERN.matcher(text);
             while (matcher.find()) {
                 String questionText = matcher.group(2) == null ? "" : matcher.group(2).trim();
+                questionText = normalizeQuestionHtml(questionText);
                 if (questionText.isEmpty()) {
                     continue;
                 }
@@ -1398,32 +1426,32 @@ public class TeacherController {
                                             String difficulty,
                                             String answer,
                                             boolean allowAnswerFallback) {
-        String rawText = String.valueOf(questionRow.getOrDefault("question", "")).trim();
+        String rawText = normalizeQuestionHtml(String.valueOf(questionRow.getOrDefault("question", "")));
         String cleaned = rawText.startsWith("[TEXT_INPUT]") ? rawText.substring("[TEXT_INPUT]".length()).trim() : rawText;
         List<String> candidates = new ArrayList<>();
         candidates.add(cleaned);
 
         Object questionTextField = questionRow.get("question_text");
         if (questionTextField != null) {
-            candidates.add(String.valueOf(questionTextField).trim());
+            candidates.add(normalizeQuestionHtml(String.valueOf(questionTextField)));
         }
         Object questionTextCamel = questionRow.get("questionText");
         if (questionTextCamel != null) {
-            candidates.add(String.valueOf(questionTextCamel).trim());
+            candidates.add(normalizeQuestionHtml(String.valueOf(questionTextCamel)));
         }
         Object textField = questionRow.get("text");
         if (textField != null) {
-            candidates.add(String.valueOf(textField).trim());
+            candidates.add(normalizeQuestionHtml(String.valueOf(textField)));
         }
 
         Object choicesObj = questionRow.get("choices");
         if (choicesObj instanceof List<?> choices) {
             for (Object choice : choices) {
-                candidates.add(String.valueOf(choice).trim());
+                candidates.add(normalizeQuestionHtml(String.valueOf(choice)));
             }
         } else if (choicesObj instanceof String choicesText) {
             for (String part : choicesText.split("\\r?\\n|,")) {
-                candidates.add(part.trim());
+                candidates.add(normalizeQuestionHtml(part));
             }
         }
 
@@ -1435,7 +1463,7 @@ public class TeacherController {
             }
             Object value = entry.getValue();
             if (value != null) {
-                candidates.add(String.valueOf(value).trim());
+                candidates.add(normalizeQuestionHtml(String.valueOf(value)));
             }
         }
 
@@ -1447,7 +1475,7 @@ public class TeacherController {
         }
 
         if (!bestCandidate.isBlank()) {
-            return bestCandidate;
+            return normalizeQuestionHtml(bestCandidate);
         }
 
         if (allowAnswerFallback && answer != null) {
@@ -1458,6 +1486,143 @@ public class TeacherController {
         }
 
         return "";
+    }
+
+    private String normalizeQuestionHtml(String raw) {
+        if (raw == null) {
+            return "";
+        }
+
+        String value = raw.trim();
+        if (value.isBlank()) {
+            return "";
+        }
+
+        value = stripClipboardFragmentMarkers(value);
+
+        for (int pass = 0; pass < 4; pass++) {
+            boolean hasRawTags = HTML_TAG_PATTERN.matcher(value).find();
+            boolean hasEscapedTags = ESCAPED_HTML_TAG_PATTERN.matcher(value).find()
+                || value.contains("&lt;!--")
+                || value.contains("&quot;")
+                || value.contains("&amp;lt;")
+                || value.contains("&amp;quot;")
+                || value.contains("&#");
+            if (!hasEscapedTags) {
+                break;
+            }
+
+            String decoded = HtmlUtils.htmlUnescape(value);
+            if (decoded == null || decoded.equals(value)) {
+                break;
+            }
+
+            value = decoded;
+            value = stripClipboardFragmentMarkers(value);
+
+            if (hasRawTags && !ESCAPED_HTML_TAG_PATTERN.matcher(value).find() && !value.contains("&amp;lt;")) {
+                break;
+            }
+        }
+
+        return value.trim();
+    }
+
+    private boolean normalizeQuestionRowsInPlace(List<Map<String, Object>> questionRows) {
+        if (questionRows == null || questionRows.isEmpty()) {
+            return false;
+        }
+
+        boolean changed = false;
+        for (Map<String, Object> row : questionRows) {
+            if (row == null || row.isEmpty()) {
+                continue;
+            }
+
+            changed |= normalizeQuestionField(row, "question");
+            changed |= normalizeQuestionField(row, "question_text");
+            changed |= normalizeQuestionField(row, "questionText");
+            changed |= normalizeQuestionField(row, "text");
+
+            Object choicesObj = row.get("choices");
+            if (choicesObj instanceof List<?> list) {
+                List<String> normalizedChoices = new ArrayList<>();
+                boolean listChanged = false;
+                for (Object item : list) {
+                    String rawChoice = item == null ? "" : String.valueOf(item);
+                    String normalizedChoice = normalizeQuestionHtml(rawChoice);
+                    normalizedChoices.add(normalizedChoice);
+                    if (!rawChoice.equals(normalizedChoice)) {
+                        listChanged = true;
+                    }
+                }
+                if (listChanged) {
+                    row.put("choices", normalizedChoices);
+                    changed = true;
+                }
+            } else if (choicesObj instanceof String choicesText) {
+                String normalizedChoicesText = normalizeQuestionHtml(choicesText);
+                if (!choicesText.equals(normalizedChoicesText)) {
+                    row.put("choices", normalizedChoicesText);
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    }
+
+    private boolean normalizeQuestionField(Map<String, Object> row, String key) {
+        Object rawObj = row.get(key);
+        if (rawObj == null) {
+            return false;
+        }
+
+        String raw = String.valueOf(rawObj);
+        String normalized = normalizeQuestionHtml(raw);
+        if (raw.equals(normalized)) {
+            return false;
+        }
+
+        row.put(key, normalized);
+        return true;
+    }
+
+    private String stripClipboardFragmentMarkers(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value
+            .replaceAll("(?i)<!--\\s*(StartFragment|EndFragment)\\s*-->", "")
+            .replaceAll("(?i)&lt;!--\\s*(StartFragment|EndFragment)\\s*--&gt;", "")
+            .trim();
+    }
+
+    private String toPlainQuestionText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        String normalized = normalizeQuestionHtml(value);
+        if (normalized.isBlank()) {
+            return "";
+        }
+
+        String withBreaks = normalized
+            .replaceAll("(?i)<br\\s*/?>", "\n")
+            .replaceAll("(?i)</p\\s*>", "\n")
+            .replaceAll("(?i)</div\\s*>", "\n")
+            .replaceAll("(?i)</li\\s*>", "\n");
+
+        String noTags = withBreaks.replaceAll("(?is)<[^>]+>", "");
+        String decoded = HtmlUtils.htmlUnescape(noTags)
+            .replace('\u00A0', ' ');
+
+        return decoded
+            .replaceAll("[\\t\\x0B\\f\\r]+", " ")
+            .replaceAll(" *\\n *", "\n")
+            .replaceAll("\\n{3,}", "\n\n")
+            .trim();
     }
 
     private boolean looksLikePlaceholderQuestion(String value, String difficulty, String answer) {
@@ -1474,10 +1639,10 @@ public class TeacherController {
             return true;
         }
 
-        if (List.of("id", "no", "number", "question", "questions", "answer", "answers", "difficulty")
-            .contains(normalized)) {
-            return true;
-        }
+        if (List.of("id", " no", "number", "question", "questions", "answer", "answers", "difficulty")
+                .contains(normalized)) {
+                return true;
+            }
 
         if (List.of("type", "mc", "open", "multiple choice", "open ended", "question_text", "correct_answer")
             .contains(normalized)) {
