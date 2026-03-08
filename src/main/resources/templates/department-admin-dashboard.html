@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .department-card {
+            border: 1px solid var(--eac-border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+        .department-card:hover {
+            box-shadow: 0 8px 24px rgba(122,16,34,0.13);
+        }
+        .department-card-header {
+            background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
+            color: #fff;
+            padding: 0.85rem 1rem;
+        }
+        .department-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }
+    </style>
+</head>
+<body class="homepage-page">
+<div class="teacher-layout">
+    <div th:replace="~{department-admin-nav :: departmentAdminNav}"></div>
+
+    <div class="teacher-content-wrapper">
+        <div class="container py-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h3 class="fw-bold mb-1" style="color:#7a1022;">
+                        <i class="bi bi-shield-check me-2"></i>Department Admin Dashboard
+                    </h3>
+                    <p class="text-muted mb-0" th:text="${departmentName}">Department</p>
+                </div>
+            </div>
+
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <span th:text="${successMessage}">Success</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <span th:text="${errorMessage}">Error</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="h3 mb-1" th:text="${departmentTeacherCount}">0</div>
+                            <div class="text-muted small">Teachers</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="h3 mb-1" th:text="${departmentSubjectCount}">0</div>
+                            <div class="text-muted small">Subjects</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="h3 mb-1" th:text="${departmentQuestionCount}">0</div>
+                            <div class="text-muted small">Question Bank Items</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header fw-semibold">Department Subjects</div>
+                <div class="card-body p-0">
+                    <div th:if="${departmentSubjects == null || departmentSubjects.isEmpty()}" class="p-3">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6 col-xl-4"
+                                 th:each="department,departmentStat : ${departmentOptions}"
+                                 th:with="programs=${programOptionsByDepartment[department]}">
+                                <div class="card department-card h-100">
+                                    <div class="department-card-header fw-semibold">
+                                        <i class="bi bi-building me-1"></i>
+                                        <span th:text="${department}">Department</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="small text-muted mb-2">
+                                            <span th:text="${programs != null ? #lists.size(programs) : 0}">0</span>
+                                            <span> program(s)</span>
+                                        </div>
+                                        <div class="small text-muted" th:if="${programs == null || programs.isEmpty()}">No programs configured.</div>
+                                        <div class="small" th:if="${programs != null && !programs.isEmpty()}">
+                                            <span class="badge bg-light text-dark border me-1 mb-1"
+                                                  th:each="program,programStat : ${programs}"
+                                                  th:if="${programStat.index < 3}"
+                                                  th:text="${program}">Program</span>
+                                            <span class="text-muted" th:if="${#lists.size(programs) > 3}"
+                                                  th:text="${'+ ' + (#lists.size(programs) - 3) + ' more'}">+ more</span>
+                                        </div>
+
+                                        <div class="department-card-actions">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    data-bs-toggle="collapse"
+                                                    th:attr="data-bs-target=${'#departmentPrograms' + departmentStat.index},aria-controls=${'departmentPrograms' + departmentStat.index}">
+                                                <i class="bi bi-eye me-1"></i>View Programs
+                                            </button>
+                                            <a class="btn btn-sm btn-outline-secondary"
+                                               th:href="@{/department-admin/question-bank(page=0,size=15,departmentName=${department})}">
+                                                <i class="bi bi-book me-1"></i>View Question Bank
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary department-import-btn"
+                                                    th:attr="data-department=${department}">
+                                                <i class="bi bi-upload me-1"></i>Import Students
+                                            </button>
+                                        </div>
+
+                                        <div class="collapse mt-2" th:id="${'departmentPrograms' + departmentStat.index}">
+                                            <div class="small text-muted" th:if="${programs == null || programs.isEmpty()}">No programs configured.</div>
+                                            <ul class="small mb-0 ps-3" th:if="${programs != null && !programs.isEmpty()}">
+                                                <li th:each="program : ${programs}" th:text="${program}">Program</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div th:if="${departmentSubjects != null && !departmentSubjects.isEmpty()}" class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Subject</th>
+                                <th>Description</th>
+                                <th>Teacher</th>
+                                <th>Department</th>
+                                <th>Program</th>
+                                <th class="text-end">Teacher Subject Count</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="subject : ${departmentSubjects}">
+                                <td class="fw-semibold" th:text="${subject.subjectName}">Subject</td>
+                                <td th:text="${subject.description != null && !#strings.isEmpty(subject.description) ? subject.description : '-'}">-</td>
+                                <td th:text="${subject.teacherEmail}">teacher@example.com</td>
+                                <td th:text="${teacherProfilesByEmail[#strings.toLowerCase(subject.teacherEmail)] != null ? teacherProfilesByEmail[#strings.toLowerCase(subject.teacherEmail)].departmentName : '-'}">-</td>
+                                <td th:text="${teacherProfilesByEmail[#strings.toLowerCase(subject.teacherEmail)] != null ? (teacherProfilesByEmail[#strings.toLowerCase(subject.teacherEmail)].programName != null && !#strings.isEmpty(teacherProfilesByEmail[#strings.toLowerCase(subject.teacherEmail)].programName) ? teacherProfilesByEmail[#strings.toLowerCase(subject.teacherEmail)].programName : '-') : '-'}">-</td>
+                                <td class="text-end"
+                                    th:text="${subjectCountsByTeacher[#strings.toLowerCase(subject.teacherEmail)] != null ? subjectCountsByTeacher[#strings.toLowerCase(subject.teacherEmail)] : 0}">0</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header fw-semibold">Department Question Bank</div>
+                <div class="card-body p-0">
+                    <div th:if="${departmentQuestionBankRows == null || departmentQuestionBankRows.isEmpty()}" class="p-3 text-muted small">
+                        No question bank items found for this department.
+                    </div>
+                    <div th:if="${departmentQuestionBankRows != null && !departmentQuestionBankRows.isEmpty()}" class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Question</th>
+                                <th>Subject</th>
+                                <th>Teacher</th>
+                                <th>Action</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="item : ${departmentQuestionBankRows}">
+                                <td class="fw-semibold" th:text="${item.questionPreview}">Question preview</td>
+                                <td th:text="${item.subject}">Subject</td>
+                                <td th:text="${item.sourceTeacherEmail}">teacher@example.com</td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       th:href="@{/department-admin/question-bank(page=0,size=15)}">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 border-top text-end" th:if="${departmentQuestionCount > 0}">
+                        <a class="btn btn-primary btn-sm" th:href="@{/department-admin/question-bank(page=0,size=15)}">
+                            Next Page: Full Question Bank
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="importStudentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Import Students per Department</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form th:action="@{/department-admin/import-students}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select class="form-select" id="adminImportDepartment" name="departmentName" required>
+                            <option value="">Select Department</option>
+                            <option th:each="department : ${departmentOptions}"
+                                    th:value="${department}"
+                                    th:text="${department}"
+                                    th:selected="${department == currentUserDepartment}"></option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Program</label>
+                        <select class="form-select" id="adminImportProgram" name="programName">
+                            <option value="">Select Program</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Student List CSV</label>
+                        <input type="file" class="form-control" name="studentListFile" accept=".csv" required>
+                    </div>
+                    <small class="text-muted d-block mb-3">Format: Full Name, Email, Password(optional). If password is empty, default is Student123!.</small>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload me-1"></i> Import Students
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    (function () {
+        const programsByDepartment = /*[[${programOptionsByDepartment}]]*/ {};
+        const currentDepartment = /*[[${currentUserDepartment}]]*/ '';
+        const departmentSelect = document.getElementById('adminImportDepartment');
+        const programSelect = document.getElementById('adminImportProgram');
+        if (!departmentSelect || !programSelect) {
+            return;
+        }
+
+        function syncPrograms() {
+            const selectedDepartment = departmentSelect.value || currentDepartment || '';
+            const departmentPrograms = programsByDepartment[selectedDepartment] || [];
+
+            programSelect.innerHTML = '<option value="">Select Program</option>';
+            departmentPrograms.forEach(program => {
+                const option = document.createElement('option');
+                option.value = program;
+                option.textContent = program;
+                programSelect.appendChild(option);
+            });
+            programSelect.required = departmentPrograms.length > 0;
+        }
+
+        departmentSelect.addEventListener('change', syncPrograms);
+        syncPrograms();
+
+        const importButtons = document.querySelectorAll('.department-import-btn');
+        const importModal = document.getElementById('importStudentsModal');
+        importButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const department = this.getAttribute('data-department') || '';
+                if (department) {
+                    departmentSelect.value = department;
+                    syncPrograms();
+                }
+
+                if (importModal && window.bootstrap && window.bootstrap.Modal) {
+                    const modal = window.bootstrap.Modal.getOrCreateInstance(importModal);
+                    modal.show();
+                }
+            });
+        });
+    })();
+</script>
+</body>
+</html>

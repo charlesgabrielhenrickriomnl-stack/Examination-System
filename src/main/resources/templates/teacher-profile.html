@@ -11,7 +11,7 @@
 <body class="homepage-page">
 
 <div class="teacher-layout">
-    <div th:replace="teacher-nav :: teacherNav"></div>
+    <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="container">
@@ -19,6 +19,9 @@
                 <div class="col-12 col-md-10 col-lg-8">
                     <div class="card upload-card profile-card">
                         <div class="card-body p-4"> 
+
+                            <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+                            <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
                             <div class="profile-info-item">
                                 <div class="profile-info-icon"><i class="fa-solid fa-user"></i></div>
@@ -41,6 +44,22 @@
                                 <div class="profile-info-content">
                                     <div class="profile-info-label">Role</div>
                                     <div class="profile-info-value" th:text="${currentUserRole ?: 'TEACHER'}">TEACHER</div>
+                                </div>
+                            </div>
+
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon"><i class="fa-solid fa-school"></i></div>
+                                <div class="profile-info-content">
+                                    <div class="profile-info-label">School</div>
+                                    <div class="profile-info-value" th:text="${currentUserSchool ?: 'Emilio Aguinaldo College'}">Emilio Aguinaldo College</div>
+                                </div>
+                            </div>
+
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon"><i class="fa-solid fa-location-dot"></i></div>
+                                <div class="profile-info-content">
+                                    <div class="profile-info-label">Campus</div>
+                                    <div class="profile-info-value" th:text="${currentUserCampus ?: 'Manila'}">Manila</div>
                                 </div>
                             </div>
 
