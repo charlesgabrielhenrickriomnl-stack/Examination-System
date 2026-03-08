@@ -1375,7 +1375,6 @@ public class TeacherController {
         }
 
         List<Map<String, Object>> selectedQuestions = buildQuestionSubset(questions, selectedIndexes);
-        Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
         Map<String, String> selectedDifficulties = buildSelectedMapSubset(selectedIndexes, difficultiesMap, "Medium");
         Map<String, String> selectedAnswerKey = buildSelectedMapSubset(selectedIndexes, answerKeyMap, "");
         String distributedQuestionsJson = gson.toJson(selectedQuestions);
