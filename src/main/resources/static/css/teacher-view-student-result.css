@@ -1,0 +1,97 @@
+.detail-info-table td {
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid #f0ebe2;
+            vertical-align: middle;
+        }
+        .detail-info-table tr:last-child td {
+            border-bottom: none;
+        }
+        .detail-info-table td:first-child {
+            font-weight: 600;
+            color: #4c2a11;
+            width: 38%;
+            white-space: nowrap;
+        }
+        .score-panel {
+            background: linear-gradient(135deg, #7a1022 0%, #5f0d1a 100%);
+            border-radius: 14px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            color: #fff;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+        .score-panel .score-number {
+            font-size: 3.2rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #fff;
+        }
+        .score-panel .score-pct {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f7df9a;
+        }
+        .answer-item {
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+            margin-bottom: 0.85rem;
+            transition: box-shadow 0.2s;
+        }
+        .answer-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+        }
+        .answer-item.correct-answer {
+            border-left: 4px solid #267a4b;
+            background: #f3faf6;
+        }
+        .answer-item.incorrect-answer {
+            border-left: 4px solid #b02a37;
+            background: #fdf4f5;
+        }
+        .answer-text {
+            margin: 4px 0 0;
+            padding: 7px 10px;
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .feedback-block {
+            background: #fffaf2;
+            border-left: 4px solid #d4a32a;
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+        }
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #7a1022;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #eadfce;
+            margin-bottom: 1rem;
+        }
+        .analytics-metric {
+            background: #faf8f4;
+            border: 1px solid #eadfce;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+        .analytics-metric .metric-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #4c2a11;
+            margin-bottom: 0.5rem;
+        }
+        .progress {
+            border-radius: 8px;
+            background-color: #e9ecef;
+        }

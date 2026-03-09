@@ -1,0 +1,293 @@
+.processed-papers-page .teacher-content-wrapper {
+            padding-top: clamp(2rem, 3vw, 2.6rem);
+        }
+
+        .processed-papers-shell {
+            font-family: 'Manrope', 'Instrument Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-left: clamp(0.75rem, 1.6vw, 1.75rem);
+            padding-right: clamp(0.75rem, 1.6vw, 1.75rem);
+            max-width: 1500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .processed-papers-head {
+            border: 1px solid #e4d4c2;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(250, 243, 233, 0.95));
+            box-shadow: 0 10px 26px rgba(84, 55, 28, 0.12);
+            padding: 0.88rem 1rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .processed-head-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.85rem 1rem;
+            flex-wrap: wrap;
+        }
+
+        .processed-head-copy {
+            min-width: 0;
+            flex: 1 1 560px;
+        }
+
+        .processed-papers-title {
+            margin: 0;
+            color: #7a1022;
+            font-family: 'Archivo Black', 'Manrope', sans-serif;
+            font-size: clamp(1.28rem, 1.04rem + 0.85vw, 1.9rem);
+            line-height: 1.1;
+            letter-spacing: 0.02em;
+        }
+
+        .processed-papers-title i {
+            font-size: 0.95em;
+            color: #9f1f33;
+        }
+
+        .processed-papers-note {
+            color: #65584d;
+            font-size: 0.88rem;
+            margin: 0;
+        }
+
+        .processed-back-btn {
+            border-radius: 10px;
+            border-color: #d3bea6;
+            color: #6f4f2f;
+            background: #fff9f2;
+            font-weight: 600;
+            padding: 0.4rem 0.75rem;
+        }
+
+        .processed-back-btn:hover,
+        .processed-back-btn:focus {
+            color: #7a1022;
+            border-color: #7a1022;
+            background: #fff;
+        }
+
+        .processed-search-card {
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            padding: 0;
+            margin-top: 0.72rem;
+            margin-bottom: 0;
+            padding-top: 0.72rem;
+            border-top: 1px solid #eadfce;
+        }
+
+        .processed-search-form {
+            margin: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.72rem 1rem;
+            align-items: center;
+        }
+
+        .processed-search-main {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px;
+            gap: 0.72rem;
+            align-items: center;
+            max-width: 1080px;
+            justify-self: start;
+        }
+
+        .processed-search-group .input-group-text {
+            border-radius: 10px 0 0 10px;
+            background: #fff;
+            border-color: #decdbb;
+            color: #7a1022;
+        }
+
+        .processed-search-input {
+            border-radius: 0 10px 10px 0;
+            border-left: 0;
+            border-color: #decdbb;
+            font-size: 0.92rem;
+            min-height: 40px;
+        }
+
+        .processed-search-input:focus {
+            border-color: #d9a225;
+            box-shadow: 0 0 0 3px rgba(217, 162, 37, 0.17);
+        }
+
+        .processed-search-btn {
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #8f1228 0%, #6f0e20 100%);
+            color: #fff;
+            font-weight: 700;
+            min-height: 42px;
+            letter-spacing: 0.01em;
+        }
+
+        .processed-search-btn:hover,
+        .processed-search-btn:focus {
+            color: #ffd95f;
+            background: linear-gradient(135deg, #7a1022 0%, #5f0d1a 100%);
+        }
+
+        .processed-count {
+            font-size: 0.85rem;
+            color: #65584d !important;
+            font-weight: 600;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            white-space: nowrap;
+        }
+
+        .processed-table-card {
+            border: 1px solid #e4d4c2;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 22px rgba(84, 55, 28, 0.09);
+            background: #fff;
+        }
+
+        .processed-table {
+            margin: 0;
+        }
+
+        .processed-table thead th {
+            background: #f3eadf;
+            color: #4f3318;
+            border-bottom: 1px solid #dfceba;
+            font-size: 0.92rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+        .processed-table tbody td {
+            border-color: #efe3d4;
+            color: #473a2f;
+            vertical-align: middle;
+        }
+
+        .processed-table tbody tr:hover {
+            background: #fff9f2;
+        }
+
+        .processed-subject-badge {
+            background: #2f88b5;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.74rem;
+            border-radius: 7px;
+            padding: 0.27rem 0.45rem;
+        }
+
+        .processed-question-badge {
+            background: #6d7680;
+            color: #fff;
+            font-weight: 700;
+            border-radius: 7px;
+            padding: 0.27rem 0.45rem;
+            font-size: 0.74rem;
+        }
+
+        .processed-action-btn {
+            min-height: 40px;
+            padding: 0.5rem 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            border: none;
+        }
+
+        .processed-view-btn {
+            background: linear-gradient(135deg, #8f1228 0%, #6f0e20 100%);
+            color: #fff;
+        }
+
+        .processed-view-btn:hover,
+        .processed-view-btn:focus {
+            color: #ffd95f;
+            background: linear-gradient(135deg, #7a1022 0%, #5f0d1a 100%);
+        }
+
+        .processed-delete-btn {
+            background: linear-gradient(135deg, #e64558 0%, #c83042 100%);
+            color: #fff;
+        }
+
+        .processed-delete-btn:hover,
+        .processed-delete-btn:focus {
+            color: #fff;
+            background: linear-gradient(135deg, #cf3446 0%, #ad2434 100%);
+        }
+
+        .processed-empty-state {
+            border-radius: 14px;
+            border: 1px dashed #d8c8b7;
+            background: linear-gradient(180deg, #fff 0%, #fffaf5 100%);
+        }
+
+        @media (max-width: 992px) {
+            .processed-papers-head {
+                padding: 0.78rem 0.82rem;
+            }
+
+            .processed-back-btn {
+                width: auto;
+            }
+
+            .processed-search-card {
+                margin-top: 0.65rem;
+                padding-top: 0.65rem;
+            }
+
+            .processed-search-form {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+
+            .processed-search-main {
+                grid-template-columns: minmax(0, 1fr) 190px;
+                max-width: 100%;
+            }
+
+            .processed-count {
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .processed-head-top {
+                gap: 0.72rem;
+            }
+
+            .processed-back-btn {
+                width: 100%;
+            }
+
+            .processed-search-main {
+                grid-template-columns: 1fr;
+            }
+
+            .processed-search-btn {
+                width: 100%;
+            }
+
+            .processed-action-btn {
+                width: 100%;
+            }
+
+            .processed-table thead th,
+            .processed-table tbody td {
+                font-size: 0.86rem;
+            }
+        }

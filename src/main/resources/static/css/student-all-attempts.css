@@ -1,0 +1,6 @@
+.section-title {
+            color: var(--eac-maroon); font-weight: 700;
+            border-bottom: 2px solid var(--eac-gold);
+            padding-bottom: 0.4rem; margin-bottom: 1.25rem;
+        }
+        .badge-score { font-size: 0.85rem; }

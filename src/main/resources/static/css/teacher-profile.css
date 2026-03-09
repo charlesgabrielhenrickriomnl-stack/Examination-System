@@ -1,0 +1,55 @@
+.teacher-account-page .teacher-content-wrapper {
+    padding-top: clamp(2rem, 3vw, 2.6rem);
+}
+
+.profile-card {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-weight: 700;
+    color: #5e2c2c;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.profile-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee2d0;
+}
+
+.profile-info-icon {
+    color: #7a3f3f;
+    width: 1.25rem;
+    text-align: center;
+    line-height: 1.2;
+    margin-top: 0.15rem;
+}
+
+.profile-info-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-info-item:last-of-type {
+    border-bottom: 0;
+}
+
+.profile-info-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8a7d68;
+    margin-bottom: 0.2rem;
+}
+
+.profile-info-value {
+    font-size: 0.98rem;
+    color: #2a2a2a;
+    font-weight: 600;
+    word-break: break-word;
+}

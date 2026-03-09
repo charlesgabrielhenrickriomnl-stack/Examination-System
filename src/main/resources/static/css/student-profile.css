@@ -1,0 +1,276 @@
+.profile-page {
+            font-family: 'Manrope', 'Instrument Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .profile-shell {
+            max-width: 1240px;
+            margin: 0 auto;
+        }
+
+        .profile-stage {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(250, 243, 233, 0.95));
+            border: 1px solid rgba(221, 206, 189, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 46px rgba(84, 55, 28, 0.16);
+            padding: 0.95rem;
+        }
+
+        .profile-hero {
+            background:
+                radial-gradient(circle at 92% 14%, rgba(232, 178, 46, 0.24) 0%, rgba(232, 178, 46, 0) 42%),
+                linear-gradient(140deg, #8f1228 0%, #6f0e20 58%, #580915 100%);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 1.15rem 1.15rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 12px 24px rgba(71, 12, 24, 0.2);
+        }
+
+        .profile-hero-main {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: start;
+            gap: 1rem;
+        }
+
+        .profile-identity {
+            min-width: 0;
+        }
+
+        .profile-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.11em;
+            font-weight: 800;
+            color: rgba(255, 229, 177, 0.95);
+        }
+
+        .profile-name {
+            margin: 0;
+            font-family: 'Archivo Black', 'Manrope', sans-serif;
+            font-size: clamp(1.42rem, 1.2rem + 0.85vw, 2rem);
+            letter-spacing: 0.02em;
+            line-height: 1.08;
+        }
+
+        .profile-summary {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.22);
+            border: 1px solid rgba(255,255,255,0.22);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .student-avatar-mark {
+            width: 50px;
+            height: 50px;
+            display: block;
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+        }
+
+        .profile-role-pill {
+            background: rgba(212, 163, 42, 0.94);
+            color: #3a0a10;
+            border-radius: 999px;
+            padding: 0.25rem 0.68rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border: 1px solid rgba(255,255,255,0.35);
+        }
+
+        .profile-meta-list {
+            margin-top: 0.4rem;
+            display: grid;
+            gap: 0.2rem;
+        }
+
+        .profile-meta-row {
+            margin: 0;
+            color: rgba(255,255,255,0.9);
+            font-size: 0.96rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.42rem;
+            min-height: 1.4rem;
+            line-height: 1.32;
+            position: relative;
+        }
+
+        .profile-meta-row i {
+            position: absolute;
+            left: -1.25rem;
+            top: 0.24rem;
+            color: rgba(255, 229, 177, 0.96);
+            flex-shrink: 0;
+            font-size: 0.86rem;
+        }
+
+        .profile-meta-row span {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .profile-role-summary {
+            margin-top: 0.55rem;
+            display: flex;
+            align-items: center;
+            gap: 0.58rem;
+            flex-wrap: wrap;
+        }
+
+        .profile-hero-logout {
+            align-self: start;
+        }
+
+        .stat-card {
+            border: 1px solid #dfcdbb;
+            border-radius: 14px;
+            padding: 0.9rem 0.85rem;
+            text-align: center;
+            min-height: 112px;
+            transition: transform 0.18s ease, box-shadow 0.2s;
+            background: linear-gradient(180deg, #fff 0%, #fff9f2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 0.22rem;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(122,16,34,0.12);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--eac-maroon);
+            line-height: 1.05;
+            margin-bottom: 0.2rem;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #5d4b3a;
+            margin-top: 0;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            min-height: 1.2rem;
+        }
+
+        .stat-card.passed .stat-value {
+            color: #1f7b49;
+        }
+
+        .profile-stats-row {
+            margin-bottom: 0;
+        }
+
+        .profile-controls {
+            border: 1px solid #eadfce;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #fff 0%, #fffaf5 100%);
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .profile-logout-btn {
+            border-radius: 10px;
+            background: #7a1022;
+            border-color: #7a1022;
+            font-weight: 700;
+            padding: 0.48rem 0.9rem;
+            min-width: 132px;
+        }
+
+        .profile-logout-btn:hover,
+        .profile-logout-btn:focus {
+            background: #5f0d1a;
+            border-color: #5f0d1a;
+            color: #fff;
+        }
+
+        @media (max-width: 992px) {
+            .profile-stage {
+                padding: 0.75rem;
+            }
+
+            .profile-hero {
+                padding: 1rem;
+            }
+
+            .profile-hero-main {
+                grid-template-columns: auto minmax(0, 1fr);
+                gap: 0.85rem;
+            }
+
+            .profile-hero-logout {
+                grid-column: 1 / -1;
+                justify-self: end;
+                margin-top: 0.2rem;
+            }
+
+            .profile-meta-row {
+                font-size: 0.9rem;
+            }
+
+            .profile-meta-row i {
+                left: -1.1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .profile-hero-main {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-avatar {
+                width: 64px;
+                height: 64px;
+            }
+
+            .student-avatar-mark {
+                width: 44px;
+                height: 44px;
+            }
+
+            .profile-hero-logout {
+                justify-self: stretch;
+                width: 100%;
+            }
+
+            .profile-logout-btn {
+                width: 100%;
+            }
+
+            .stat-value {
+                font-size: 1.72rem;
+            }
+        }

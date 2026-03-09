@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
@@ -11,7 +11,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
-    <!-- MathJax for equation rendering -->
     <script th:inline="none">
         window.MathJax = {
             tex: {
@@ -29,7 +28,6 @@
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
-    <!-- Main content area -->
     <div class="teacher-content-wrapper">
 <div class="container">
     <div class="row justify-content-center">
@@ -82,24 +80,7 @@
                                 </div>
                             </div>
 
-                            <script>
-                                document.getElementById('subjectSelect').addEventListener('change', function() {
-                                    const newSubjectInput = document.getElementById('newSubjectInput');
-                                    const subjectSelect = document.getElementById('subjectSelect');
-
-                                    if (this.value === '__new__') {
-                                        newSubjectInput.style.display = 'block';
-                                        newSubjectInput.required = true;
-                                        subjectSelect.removeAttribute('name');
-                                        newSubjectInput.setAttribute('name', 'subject');
-                                    } else {
-                                        newSubjectInput.style.display = 'none';
-                                        newSubjectInput.required = false;
-                                        newSubjectInput.removeAttribute('name');
-                                        subjectSelect.setAttribute('name', 'subject');
-                                    }
-                                });
-                            </script>
+                                <script th:src="@{/js/homepage-subject-select.js}"></script>
 
                             <div class="processing-section">
                                 <div class="processing-section-title">Upload Files</div>

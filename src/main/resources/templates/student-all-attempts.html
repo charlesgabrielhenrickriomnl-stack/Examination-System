@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
@@ -8,14 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
-    <style>
-        .section-title {
-            color: var(--eac-maroon); font-weight: 700;
-            border-bottom: 2px solid var(--eac-gold);
-            padding-bottom: 0.4rem; margin-bottom: 1.25rem;
-        }
-        .badge-score { font-size: 0.85rem; }
-    </style>
+        <link rel="stylesheet" th:href="@{/css/student-all-attempts.css}">
 </head>
 <body class="homepage-page">
 
@@ -32,7 +25,6 @@
                 <p class="text-muted small">Complete history of all your exam submissions.</p>
             </div>
 
-            <!-- No Submissions -->
             <div th:if="${!hasSubmissions}" class="text-center py-5">
                 <div class="card upload-card p-5">
                     <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
@@ -41,7 +33,6 @@
                 </div>
             </div>
 
-            <!-- Submissions Table -->
             <div th:if="${hasSubmissions}" class="card upload-card shadow-sm">
                 <div class="card-body p-0">
                     <div class="table-responsive">

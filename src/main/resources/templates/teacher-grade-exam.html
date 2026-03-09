@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -8,110 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link th:href="@{/css/style.css}" rel="stylesheet">
-    <style>
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #7a1022;
-            display: flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding-bottom: 0.6rem;
-            border-bottom: 1px solid #eadfce;
-            margin-bottom: 1rem;
-        }
-        .info-table td {
-            padding: 0.55rem 0.7rem;
-            border-bottom: 1px solid #f0ebe2;
-            vertical-align: middle;
-            font-size: 0.9rem;
-        }
-        .info-table tr:last-child td { border-bottom: none; }
-        .info-table td:first-child {
-            font-weight: 600;
-            color: #4c2a11;
-            width: 42%;
-            white-space: nowrap;
-        }
-        .question-card {
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 1rem 1.1rem;
-            margin-bottom: 0.85rem;
-            transition: box-shadow 0.2s;
-        }
-        .question-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
-        }
-        .question-card.correct {
-            border-left: 4px solid #267a4b;
-            background: #f3faf6;
-        }
-        .question-card.incorrect {
-            border-left: 4px solid #b02a37;
-            background: #fdf4f5;
-        }
-        .question-card.needs-grading {
-            border-left: 4px solid #c28812;
-            background: #fffdf4;
-        }
-        .answer-box {
-            padding: 0.65rem 0.85rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .answer-box.student {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-left: 3px solid #6c757d;
-        }
-        .answer-box.expected {
-            background: #f0f7ff;
-            border: 1px solid #cce0f5;
-            border-left: 3px solid #3557c7;
-        }
-        .score-preview-box {
-            background: #faf8f4;
-            border: 1px solid #eadfce;
-            border-radius: 10px;
-            padding: 1rem 1.2rem;
-        }
-        .score-preview-box .preview-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.3rem 0;
-            font-size: 0.9rem;
-            color: #4c2a11;
-        }
-        .score-preview-box .preview-row.final {
-            border-top: 1px solid #eadfce;
-            margin-top: 0.4rem;
-            padding-top: 0.55rem;
-            font-weight: 700;
-            font-size: 1rem;
-            color: #7a1022;
-        }
-        .finalize-btn {
-            background: linear-gradient(135deg, #267a4b 0%, #1d5c38 100%);
-            border: none;
-            color: #fff;
-            font-weight: 700;
-            font-size: 1rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 10px;
-            width: 100%;
-        }
-        .finalize-btn:hover {
-            background: linear-gradient(135deg, #1d5c38 0%, #174d2e 100%);
-            color: #fff;
-        }
-        .manual-question-input {
-            max-width: 220px;
-        }
-    </style>
+        <link rel="stylesheet" th:href="@{/css/teacher-grade-exam.css}">
 </head>
 <body class="teacher-wide-page">
 <div class="teacher-layout">
@@ -120,7 +17,6 @@
     <div class="teacher-content-wrapper">
         <div class="container-fluid py-4">
 
-            <!-- Page Header -->
             <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
                 <div>
                     <a th:href="@{/teacher/view-result/{id}(id=${submission.id})}"
@@ -134,10 +30,8 @@
                 </div>
             </div>
 
-            <!-- Submission Info -->
             <div class="results-card p-4 mb-4">
                 <div class="row g-4">
-                    <!-- Student Info -->
                     <div class="col-md-6">
                         <div class="section-title">
                             <i class="bi bi-person-badge"></i> Student Information
@@ -157,7 +51,6 @@
                             </tr>
                         </table>
                     </div>
-                    <!-- Scoring Summary -->
                     <div class="col-md-6">
                         <div class="section-title">
                             <i class="bi bi-graph-up"></i> Scoring Summary
@@ -202,7 +95,6 @@
                 </div>
             </div>
 
-            <!-- Review Answers -->
             <div class="results-card p-4 mb-4">
                 <div class="section-title">
                     <i class="bi bi-list-check"></i> Review Answers
@@ -265,7 +157,6 @@
                 </div>
             </div>
 
-            <!-- Finalize Grade -->
             <div class="results-card p-4">
                 <div class="section-title">
                     <i class="bi bi-award"></i> Finalize Grade
@@ -276,7 +167,6 @@
                     <input type="hidden" id="manualScoreTotal" name="manualScore" th:value="${currentManualScore}">
 
                     <div class="row g-4">
-                        <!-- Manual Score Input -->
                         <div class="col-md-6">
                             <label class="form-label fw-semibold small" style="color:#4c2a11;">
                                 <i class="bi bi-plus-circle me-1"></i>Manual Score
@@ -300,7 +190,6 @@
                                       th:text="${submission.teacherComments}"></textarea>
                         </div>
 
-                        <!-- Score Preview -->
                         <div class="col-md-6">
                             <div class="form-label fw-semibold small mb-2" style="color:#4c2a11;">
                                 <i class="bi bi-calculator me-1"></i>Final Score Preview
@@ -356,9 +245,9 @@
                 </form>
             </div>
 
-        </div><!-- /container -->
-    </div><!-- /teacher-content-wrapper -->
-</div><!-- /teacher-layout -->
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:inline="javascript">

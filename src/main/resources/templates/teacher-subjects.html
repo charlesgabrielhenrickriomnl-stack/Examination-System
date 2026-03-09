@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
@@ -12,18 +12,26 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
-<body class="homepage-page">
+<body class="homepage-page subject-management-page">
 
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="container-fluid subject-management-container">
-                    <div class="subject-management-head d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div class="subject-management-head d-flex justify-content-between align-items-start flex-wrap gap-3">
                         <div class="subject-management-copy">
                             <p class="subject-management-kicker mb-1">Teacher Workspace</p>
                             <h2 class="subject-management-title mb-1">Subject Management</h2>
                             <p class="subject-management-subtitle mb-0">Manage subjects and enrolled students</p>
+
+                            <div th:if="${!#lists.isEmpty(subjects)}" class="subject-search-inline mt-3">
+                                <div class="input-group subject-search-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="subjectSearchInput" class="form-control"
+                                           placeholder="Search subject name or description...">
+                                </div>
+                            </div>
                         </div>
                         <button class="btn btn-primary subject-create-btn" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
                             <i class="bi bi-plus-circle"></i> Create New Subject
@@ -47,14 +55,6 @@
                         <button class="btn btn-primary subject-create-btn mt-2" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
                             <i class="bi bi-plus-circle"></i> Create First Subject
                         </button>
-                    </div>
-
-                    <div th:if="${!#lists.isEmpty(subjects)}" class="subject-search-wrap mb-3">
-                        <div class="input-group subject-search-group">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" id="subjectSearchInput" class="form-control"
-                                   placeholder="Search subject name or description...">
-                        </div>
                     </div>
 
                     <div th:if="${!#lists.isEmpty(subjects)}" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xxl-4 g-4 subject-grid">
@@ -134,291 +134,10 @@
     </div>
 </div>
 
-<style>
-.subject-management-container {
-    font-family: 'Manrope', 'Instrument Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding-left: clamp(0.75rem, 1.6vw, 1.75rem);
-    padding-right: clamp(0.75rem, 1.6vw, 1.75rem);
-}
-
-.subject-management-head {
-    border: 1px solid #e4d4c2;
-    border-radius: 16px;
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(250, 243, 233, 0.95));
-    box-shadow: 0 10px 26px rgba(84, 55, 28, 0.12);
-    padding: 0.9rem 1rem;
-    margin-bottom: 1rem;
-}
-
-.subject-management-kicker {
-    color: #9b6d14;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.subject-management-title {
-    font-family: 'Archivo Black', 'Manrope', sans-serif;
-    color: #7a1022;
-    font-size: clamp(1.36rem, 1.08rem + 0.9vw, 2rem);
-    line-height: 1.08;
-    letter-spacing: 0.03em;
-}
-
-.subject-management-subtitle {
-    color: #66584d;
-    font-size: 0.9rem;
-}
-
-.subject-create-btn {
-    border: none;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #b22222 0%, #861919 70%, #6f1313 100%);
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.87rem;
-    letter-spacing: 0.04em;
-    padding: 0.52rem 0.98rem;
-    box-shadow: 0 10px 20px rgba(120, 20, 20, 0.2);
-}
-
-.subject-create-btn:hover,
-.subject-create-btn:focus {
-    color: #ffd95f;
-    box-shadow: 0 14px 24px rgba(120, 20, 20, 0.28);
-}
-
-.subject-grid .col {
-    display: flex;
-}
-
-.subject-card-item {
-    max-width: 420px;
-}
-
-.subject-search-wrap {
-    border: 1px solid #e4d4c2;
-    border-radius: 14px;
-    background: linear-gradient(180deg, #fffdf8 0%, #fff 100%);
-    box-shadow: 0 8px 20px rgba(84, 55, 28, 0.08);
-    padding: 0.72rem 0.78rem;
-}
-
-.subject-search-group .input-group-text {
-    border-radius: 10px 0 0 10px;
-    background: #fff;
-    border-color: #decdbb;
-    color: #7a1022;
-}
-
-.subject-search-group .form-control {
-    border-radius: 0 10px 10px 0;
-    border-left: 0;
-    border-color: #decdbb;
-    font-size: 0.92rem;
-}
-
-.subject-search-group .form-control:focus {
-    border-color: #d9a225;
-    box-shadow: 0 0 0 3px rgba(217, 162, 37, 0.17);
-}
-
-.subject-card {
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-    width: 100%;
-    border-radius: 14px;
-    border: 1px solid #e4d4c2;
-    background: linear-gradient(180deg, #ffffff 0%, #fff9f2 100%);
-}
-
-.subject-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 28px rgba(93, 24, 9, 0.14);
-}
-
-.subject-card-body {
-    min-height: 240px;
-}
-
-.subject-card .card-title {
-    color: #7a1022;
-    line-height: 1.2;
-    min-height: 2.45em;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-}
-
-.subject-description {
-    color: #6b5d51 !important;
-    min-height: 2.65em;
-    line-height: 1.32;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.subject-meta-row {
-    min-height: 30px;
-}
-
-.student-count-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    white-space: nowrap;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    padding: 0.36rem 0.58rem;
-    background: linear-gradient(135deg, #8f1228 0%, #6f0e20 100%);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-}
-
-.subject-delete-btn {
-    padding: 0.2rem 0.45rem;
-    line-height: 1.2;
-    color: #b4233b;
-    border-color: #e58a98;
-    background: #fff7f8;
-    opacity: 1;
-    border-radius: 9px;
-}
-
-.subject-delete-btn:hover,
-.subject-delete-btn:focus {
-    color: #fff;
-    background: #b4233b;
-    border-color: #b4233b;
-}
-
-.view-classroom-btn {
-    font-weight: 700;
-    border: none;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #8f1228 0%, #6f0e20 100%);
-    color: #fff;
-    letter-spacing: 0.01em;
-}
-
-.view-classroom-btn:hover,
-.view-classroom-btn:focus {
-    color: #ffd95f;
-    background: linear-gradient(135deg, #7a1022 0%, #5f0d1a 100%);
-}
-
-#subjectSearchEmptyState {
-    border-radius: 14px;
-    border: 1px dashed #d8c8b7;
-    background: linear-gradient(180deg, #fff 0%, #fffaf5 100%);
-}
-
-.create-subject-modal {
-    border: 1px solid #e4d4c2;
-    border-radius: 14px;
-    overflow: hidden;
-}
-
-.create-subject-modal-header {
-    border-bottom: 1px solid #eadfce;
-    background: linear-gradient(180deg, #fffdf8 0%, #fff8ef 100%);
-}
-
-.create-subject-modal .modal-title {
-    color: #7a1022;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-}
-
-.create-subject-modal .form-label {
-    font-size: 0.84rem;
-    font-weight: 700;
-    color: #4f4337;
-}
-
-.create-subject-modal .form-control {
-    border-radius: 10px;
-    border-color: #decdbb;
-}
-
-.create-subject-modal .form-control:focus {
-    border-color: #d9a225;
-    box-shadow: 0 0 0 3px rgba(217, 162, 37, 0.17);
-}
-
-@media (max-width: 768px) {
-    .subject-management-head {
-        padding: 0.78rem 0.82rem;
-    }
-
-    .subject-management-subtitle {
-        font-size: 0.84rem;
-    }
-
-    .subject-create-btn {
-        width: 100%;
-    }
-
-    .subject-search-wrap {
-        padding: 0.62rem 0.65rem;
-    }
-
-    .subject-card-item {
-        max-width: 100%;
-    }
-
-    .subject-card .card-title {
-        min-height: auto;
-    }
-
-    .subject-description,
-    .subject-card-body,
-    .subject-meta-row {
-        min-height: auto;
-    }
-}
-</style>
+    <link rel="stylesheet" th:href="@{/css/teacher-subjects.css}">
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.view-classroom-btn').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            window.location.assign(this.href);
-        });
-    });
-
-    const subjectSearchInput = document.getElementById('subjectSearchInput');
-    const subjectCards = Array.from(document.querySelectorAll('.subject-card-item'));
-    const subjectSearchEmptyState = document.getElementById('subjectSearchEmptyState');
-
-    if (subjectSearchInput && subjectCards.length > 0) {
-        const runSubjectFilter = function () {
-            const query = subjectSearchInput.value.trim().toLowerCase();
-            let visibleCount = 0;
-
-            subjectCards.forEach(function (card) {
-                const searchText = (card.getAttribute('data-search') || '').toLowerCase();
-                const isMatch = query === '' || searchText.includes(query);
-                card.style.display = isMatch ? '' : 'none';
-                if (isMatch) {
-                    visibleCount++;
-                }
-            });
-
-            if (subjectSearchEmptyState) {
-                subjectSearchEmptyState.style.display = visibleCount === 0 ? '' : 'none';
-            }
-        };
-
-        subjectSearchInput.addEventListener('input', runSubjectFilter);
-    }
-});
-</script>
+    <script th:src="@{/js/teacher-subjects.js}"></script>
 </body>
 </html>
 

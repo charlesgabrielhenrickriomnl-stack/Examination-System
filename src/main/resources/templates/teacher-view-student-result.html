@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -8,116 +8,15 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link th:href="@{/css/style.css}" rel="stylesheet">
-    <style>
-        .detail-info-table td {
-            padding: 0.65rem 0.75rem;
-            border-bottom: 1px solid #f0ebe2;
-            vertical-align: middle;
-        }
-        .detail-info-table tr:last-child td {
-            border-bottom: none;
-        }
-        .detail-info-table td:first-child {
-            font-weight: 600;
-            color: #4c2a11;
-            width: 38%;
-            white-space: nowrap;
-        }
-        .score-panel {
-            background: linear-gradient(135deg, #7a1022 0%, #5f0d1a 100%);
-            border-radius: 14px;
-            padding: 2rem 1.5rem;
-            text-align: center;
-            color: #fff;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-        }
-        .score-panel .score-number {
-            font-size: 3.2rem;
-            font-weight: 800;
-            line-height: 1;
-            color: #fff;
-        }
-        .score-panel .score-pct {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #f7df9a;
-        }
-        .answer-item {
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 1rem 1.1rem;
-            margin-bottom: 0.85rem;
-            transition: box-shadow 0.2s;
-        }
-        .answer-item:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
-        }
-        .answer-item.correct-answer {
-            border-left: 4px solid #267a4b;
-            background: #f3faf6;
-        }
-        .answer-item.incorrect-answer {
-            border-left: 4px solid #b02a37;
-            background: #fdf4f5;
-        }
-        .answer-text {
-            margin: 4px 0 0;
-            padding: 7px 10px;
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-        .feedback-block {
-            background: #fffaf2;
-            border-left: 4px solid #d4a32a;
-            border-radius: 8px;
-            padding: 1rem 1.2rem;
-        }
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #7a1022;
-            display: flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding-bottom: 0.6rem;
-            border-bottom: 1px solid #eadfce;
-            margin-bottom: 1rem;
-        }
-        .analytics-metric {
-            background: #faf8f4;
-            border: 1px solid #eadfce;
-            border-radius: 10px;
-            padding: 1rem;
-        }
-        .analytics-metric .metric-label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #4c2a11;
-            margin-bottom: 0.5rem;
-        }
-        .progress {
-            border-radius: 8px;
-            background-color: #e9ecef;
-        }
-    </style>
+        <link rel="stylesheet" th:href="@{/css/teacher-view-student-result.css}">
 </head>
 <body class="teacher-wide-page">
 <div class="teacher-layout">
-    <!-- Left sidebar -->
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
-    <!-- Main content area -->
     <div class="teacher-content-wrapper">
         <div class="container-fluid py-4">
 
-            <!-- Page Header -->
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <div>
                     <a th:href="@{/teacher/subjects}"
@@ -149,11 +48,9 @@
                 </div>
             </div>
 
-            <!-- Exam Info + Score Panel -->
             <div class="results-card p-4 mb-4">
                 <div class="row g-4">
 
-                    <!-- Left: Exam Information -->
                     <div class="col-lg-8">
                         <div class="section-title">
                             <i class="bi bi-file-earmark-text"></i> Exam Information
@@ -192,7 +89,6 @@
                         </table>
                     </div>
 
-                    <!-- Right: Score Panel -->
                     <div class="col-lg-4">
                         <div class="score-panel">
                             <div class="score-number" th:text="${submission.finalScore + '/' + submission.totalQuestions}">0/0</div>
@@ -209,7 +105,6 @@
                     </div>
                 </div>
 
-                <!-- Score Breakdown (clean stat cards) -->
                 <div class="row g-3 mt-3">
                     <div class="col-6 col-md-3">
                         <div class="clean-stat-card">
@@ -257,7 +152,6 @@
                     </div>
                 </div>
 
-                <!-- Teacher Feedback -->
                 <div th:if="${submission.isGraded() && submission.teacherComments != null && !#strings.isEmpty(submission.teacherComments)}"
                      class="feedback-block mt-4">
                     <div class="fw-bold mb-1" style="color:#7a1022;">
@@ -267,7 +161,6 @@
                 </div>
             </div>
 
-            <!-- Answer Details -->
             <div class="results-card p-4 mb-4">
                 <div class="section-title">
                     <i class="bi bi-list-check"></i> Answer Details
@@ -307,7 +200,6 @@
                 </div>
             </div>
 
-            <!-- Performance Analytics -->
             <div th:if="${submission.performanceCategory != null}" class="results-card p-4 mb-4">
                 <div class="section-title">
                     <i class="bi bi-bar-chart-fill"></i> Performance Analytics
@@ -355,9 +247,9 @@
                 </div>
             </div>
 
-        </div><!-- /container -->
-    </div><!-- /teacher-content-wrapper -->
-</div><!-- /teacher-layout -->
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

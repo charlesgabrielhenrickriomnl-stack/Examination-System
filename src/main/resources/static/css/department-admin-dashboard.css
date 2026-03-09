@@ -1,0 +1,24 @@
+.department-dashboard-page .teacher-content-wrapper {
+    padding-top: clamp(2rem, 3vw, 2.6rem);
+}
+
+.department-card {
+            border: 1px solid var(--eac-border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+        .department-card:hover {
+            box-shadow: 0 8px 24px rgba(122,16,34,0.13);
+        }
+        .department-card-header {
+            background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
+            color: #fff;
+            padding: 0.85rem 1rem;
+        }
+        .department-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }

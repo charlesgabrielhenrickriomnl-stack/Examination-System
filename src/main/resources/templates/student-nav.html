@@ -1,26 +1,5 @@
-<!-- Student Nav - included in student layout -->
 <header class="teacher-sidebar student-topbar" th:fragment="studentNav">
-    <style>
-        .student-topbar {
-            width: min(980px, calc(100% - 5.5in));
-            margin: 0 auto;
-        }
-
-        @media (max-width: 1300px) {
-            .student-topbar {
-                width: calc(100% - 2.5rem);
-                margin: 0 1.25rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .student-topbar {
-                width: calc(100% - 1rem);
-                margin: 0 0.5rem;
-            }
-        }
-    </style>
-    <!-- Top row: centered brand -->
+        <link rel="stylesheet" th:href="@{/css/student-nav.css}">
     <div class="nav-brand-row">
         <a th:href="@{/student/dashboard}" class="text-decoration-none teacher-brand-link">
             <div class="teacher-brand-logo">
@@ -33,7 +12,6 @@
         </a>
     </div>
 
-    <!-- Bottom row: nav links centered -->
     <div class="nav-bottom-row">
         <nav class="teacher-nav-menu" id="studentNavMenu">
             <a class="teacher-nav-item" th:href="@{/student/dashboard}" data-path="/student/dashboard">
@@ -43,124 +21,5 @@
         </nav>
     </div>
 
-    <script>
-        (function() {
-            const path = window.location.pathname;
-            document.querySelectorAll('#studentNavMenu .teacher-nav-item').forEach(function(link) {
-                const p = link.getAttribute('data-path');
-                if (!p) return;
-                if (path.startsWith('/student/classroom/') && p === '/student/dashboard') {
-                    link.classList.add('active');
-                    return;
-                }
-                if (path.startsWith(p)) {
-                    link.classList.add('active');
-                }
-            });
-
-            if (!document.getElementById('fa6-cdn')) {
-                const fa = document.createElement('link');
-                fa.id = 'fa6-cdn';
-                fa.rel = 'stylesheet';
-                fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
-                document.head.appendChild(fa);
-            }
-
-            const iconMap = {
-                'bi-grid-1x2': 'fa-table-cells-large',
-                'bi-journals': 'fa-book-open',
-                'bi-file-earmark-text': 'fa-file-lines',
-                'bi-file-earmark-text-fill': 'fa-file-lines',
-                'bi-file-text': 'fa-file-lines',
-                'bi-person': 'fa-user',
-                'bi-person-circle': 'fa-user-circle',
-                'bi-box-arrow-right': 'fa-right-from-bracket',
-                'bi-arrow-left': 'fa-arrow-left',
-                'bi-download': 'fa-download',
-                'bi-file-earmark-pdf': 'fa-file-pdf',
-                'bi-file-earmark-spreadsheet': 'fa-file-csv',
-                'bi-file-earmark-word': 'fa-file-word',
-                'bi-plus-circle': 'fa-circle-plus',
-                'bi-check-circle': 'fa-circle-check',
-                'bi-check-circle-fill': 'fa-circle-check',
-                'bi-check2-circle': 'fa-circle-check',
-                'bi-exclamation-triangle': 'fa-triangle-exclamation',
-                'bi-list-ol': 'fa-list-ol',
-                'bi-list-ul': 'fa-list-ul',
-                'bi-info-circle': 'fa-circle-info',
-                'bi-info-circle-fill': 'fa-circle-info',
-                'bi-pencil': 'fa-pen',
-                'bi-trash': 'fa-trash',
-                'bi-key': 'fa-key',
-                'bi-fonts': 'fa-font',
-                'bi-paint-bucket': 'fa-fill-drip',
-                'bi-eraser': 'fa-eraser',
-                'bi-eraser-fill': 'fa-eraser',
-                'bi-arrow-counterclockwise': 'fa-rotate-left',
-                'bi-arrow-clockwise': 'fa-rotate-right',
-                'bi-x-lg': 'fa-xmark',
-                'bi-journal-check': 'fa-file-circle-check',
-                'bi-search': 'fa-magnifying-glass',
-                'bi-eye': 'fa-eye',
-                'bi-journal-x': 'fa-file-circle-xmark',
-                'bi-book': 'fa-book',
-                'bi-people': 'fa-users',
-                'bi-person-plus': 'fa-user-plus',
-                'bi-send-check': 'fa-paper-plane',
-                'bi-send-fill': 'fa-paper-plane',
-                'bi-send-check-fill': 'fa-paper-plane',
-                'bi-hourglass-split': 'fa-hourglass-half',
-                'bi-people-fill': 'fa-users',
-                'bi-inbox': 'fa-inbox',
-                'bi-clipboard-check': 'fa-clipboard-check',
-                'bi-clipboard-data': 'fa-chart-column',
-                'bi-envelope': 'fa-envelope',
-                'bi-chevron-down': 'fa-chevron-down',
-                'bi-pencil-square': 'fa-pen-to-square',
-                'bi-exclamation-triangle-fill': 'fa-triangle-exclamation',
-                'bi-journal-text': 'fa-file-lines',
-                'bi-clock': 'fa-clock',
-                'bi-clock-history': 'fa-clock-rotate-left',
-                'bi-bar-chart': 'fa-chart-column',
-                'bi-calendar-event': 'fa-calendar-days',
-                'bi-calendar-check': 'fa-calendar-check',
-                'bi-calendar-x': 'fa-calendar-xmark',
-                'bi-person-badge': 'fa-id-badge',
-                'bi-graph-up': 'fa-chart-line',
-                'bi-list-check': 'fa-list-check',
-                'bi-x-circle': 'fa-circle-xmark',
-                'bi-chat-text': 'fa-comments',
-                'bi-chat-left-text': 'fa-comment-dots',
-                'bi-check-square': 'fa-square-check',
-                'bi-award': 'fa-award',
-                'bi-calculator': 'fa-calculator',
-                'bi-play-circle': 'fa-circle-play',
-                'bi-play-circle-fill': 'fa-circle-play',
-                'bi-question-circle': 'fa-circle-question',
-                'bi-question-circle-fill': 'fa-circle-question',
-                'bi-mortarboard': 'fa-user-graduate',
-                'bi-mortarboard-fill': 'fa-user-graduate',
-                'bi-speedometer2': 'fa-gauge-high'
-            };
-
-            const toFa = function() {
-                document.querySelectorAll('.teacher-layout i.bi').forEach(function(icon) {
-                    const classes = Array.from(icon.classList);
-                    const biClass = classes.find(c => c.startsWith('bi-'));
-                    if (!biClass) return;
-
-                    const mapped = iconMap[biClass] || biClass.replace(/^bi-/, 'fa-');
-                    icon.classList.remove('bi');
-                    classes.filter(c => c.startsWith('bi-')).forEach(c => icon.classList.remove(c));
-                    icon.classList.add('fa-solid', mapped);
-                });
-            };
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', toFa);
-            } else {
-                toFa();
-            }
-        })();
-    </script>
+        <script th:src="@{/js/student-nav.js}"></script>
 </header>

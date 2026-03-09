@@ -1,0 +1,39 @@
+.paper-actions-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+    }
+
+    .paper-action-btn {
+        border-radius: 12px;
+        padding: 0.5rem 0.9rem;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+        .paper-actions-toolbar {
+            justify-content: flex-start;
+        }
+
+        .paper-action-btn {
+            flex: 1 1 100%;
+        }
+    }
+
+    .answer-key-text {
+        display: block;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.35;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 0.35rem 0.55rem;
+        font-size: 0.875rem;
+    }
