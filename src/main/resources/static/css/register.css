@@ -505,3 +505,421 @@ body.login-page.register-page::after {
     }
 }
 
+/* Register redesign aligned with current login page style */
+body.login-page.register-page {
+    padding: 14px;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+body.login-page.register-page::before {
+    background-image:
+        linear-gradient(rgba(247, 240, 227, 0.72), rgba(241, 230, 211, 0.74)),
+        url('/images/EACBG.png');
+    background-position: center 84%;
+    filter: saturate(1.18) contrast(1.06);
+}
+
+body.login-page.register-page::after {
+    background-image:
+        linear-gradient(90deg, rgba(166, 58, 33, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(166, 58, 33, 0.03) 1px, transparent 1px);
+    background-size: 44px 44px;
+    opacity: 1;
+}
+
+.register-page .login-container {
+    width: min(1180px, calc(100vw - 28px));
+    max-width: 1180px;
+    padding: 16px;
+    gap: 12px;
+    border: 1px solid rgba(225, 225, 225, 0.9);
+    border-radius: 16px;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+    background: rgba(255, 255, 255, 0.93);
+    backdrop-filter: blur(6px);
+    max-height: none;
+}
+
+.register-page .content {
+    display: grid;
+    grid-template-columns: minmax(0, 1.42fr) minmax(290px, 0.84fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.register-page .register-form-panel {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    padding: 2px 6px 0 2px;
+    align-self: start;
+}
+
+.register-page .eac-header {
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.register-page .eac-title {
+    font-size: 2rem;
+    letter-spacing: 0.04em;
+    line-height: 1.04;
+    margin-bottom: 4px;
+}
+
+.register-page .aes-subtitle {
+    font-size: 0.74rem;
+    letter-spacing: 0.14em;
+    color: #3a3531;
+}
+
+.register-intro {
+    margin-top: 8px;
+    font-size: 0.92rem;
+    color: #5e5751;
+}
+
+.register-page .register-form {
+    gap: 10px;
+}
+
+.register-page .register-section {
+    border-radius: 12px;
+    border: 1px solid #decfbe;
+    background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+    padding: 12px;
+}
+
+.register-page .register-section-title {
+    margin-bottom: 8px;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+}
+
+.register-page .form-label {
+    font-size: 0.86rem;
+    margin-bottom: 4px;
+}
+
+.register-page .form-control,
+.register-page .form-select {
+    border-radius: 10px;
+    border: 1px solid #d2c4b5;
+    padding: 8px 10px;
+    font-size: 0.92rem;
+}
+
+.register-page .register-form .mb-3,
+.register-page .register-form .row.g-3 {
+    margin-bottom: 0.55rem !important;
+}
+
+.register-page .register-role-card {
+    padding: 10px 12px;
+    border-radius: 10px;
+}
+
+.register-page .register-submit {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    letter-spacing: 0.14em;
+}
+
+.register-page .footer-links {
+    margin-top: 2px;
+    font-size: 0.9rem;
+}
+
+.register-hero {
+    grid-column: 2;
+    grid-row: 1;
+    border: 1px solid rgba(207, 194, 177, 0.85);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(252, 247, 240, 0.94) 100%);
+    color: #2f2a25;
+    padding: 16px 18px 16px 16px;
+    text-align: center;
+    animation: registerSlideIn 420ms ease-out;
+    align-self: start;
+}
+
+.register-hero::after {
+    right: -56px;
+    bottom: -64px;
+    width: 186px;
+    height: 186px;
+    border: 26px solid rgba(178, 34, 34, 0.1);
+}
+
+.register-hero-topline {
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    background: rgba(178, 34, 34, 0.08);
+    color: #7a6f63;
+    font-size: 0.77rem;
+}
+
+.register-hero-title {
+    font-size: 1.9rem;
+    line-height: 1.07;
+    background: linear-gradient(to right, #b22222, #d9a225);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.register-hero-text {
+    margin-top: 8px;
+    color: #4a433d;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: center;
+    max-width: 34ch;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.register-hero-points {
+    margin-top: 12px;
+    gap: 8px;
+}
+
+.register-hero-point {
+    justify-content: center;
+    color: #4a433d;
+    font-size: 0.84rem;
+    text-align: center;
+}
+
+.register-hero-point i {
+    color: #b88a16;
+}
+
+.register-hero-brand {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(186, 172, 154, 0.6);
+    text-align: center;
+}
+
+.register-hero-brand-title {
+    font-size: 0.78rem;
+    color: #4a433d;
+}
+
+.register-hero-brand-subtitle {
+    color: #b17608;
+    font-size: 0.73rem;
+}
+
+.register-hero-contact {
+    margin-top: 9px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px 14px;
+    color: #5e5650;
+    font-size: 0.7rem;
+}
+
+.register-hero-contact span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.register-hero-contact i {
+    color: #b17608;
+}
+
+.register-hero-president {
+    right: -112px;
+    bottom: -20px;
+    width: min(152%, 700px);
+    opacity: 0.98;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.register-hero-president .register-hero-building-image {
+    width: 172%;
+    max-width: none;
+    margin-left: -236px;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    object-position: left bottom;
+    filter: grayscale(0.1) contrast(1.04) brightness(0.93);
+}
+
+.register-hero-president .register-hero-president-image {
+    position: absolute;
+    left: 65%;
+    right: auto;
+    bottom: -6px;
+    width: min(92%, 530px);
+    height: auto;
+    display: block;
+    object-fit: contain;
+    object-position: center bottom;
+    transform: translateX(-50%);
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.24));
+}
+
+@media (min-width: 1100px) {
+    .register-page .register-form-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 12px;
+        row-gap: 9px;
+    }
+}
+
+@media (max-width: 1100px) {
+    body.login-page.register-page {
+        padding: 12px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .register-page .login-container {
+        width: min(100%, calc(100vw - 24px));
+        padding: 14px;
+    }
+
+    .register-page .content {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .register-page .register-form-panel {
+        grid-column: 1;
+        grid-row: auto;
+        order: 1;
+        padding: 0;
+    }
+
+    .register-hero {
+        grid-column: 1;
+        grid-row: auto;
+        order: 2;
+        text-align: center;
+        padding: 14px 14px 110px;
+    }
+
+    .register-hero-point,
+    .register-hero-contact span {
+        justify-content: center;
+    }
+
+    .register-hero-president {
+        right: -86px;
+        bottom: -16px;
+        width: min(134%, 570px);
+    }
+
+    .register-hero-president .register-hero-building-image {
+        width: 160%;
+        margin-left: -206px;
+        object-position: left bottom;
+    }
+
+    .register-hero-president .register-hero-president-image {
+        left: 64%;
+        right: auto;
+        width: min(88%, 440px);
+        transform: translateX(-50%);
+    }
+}
+
+@media (max-width: 768px) {
+    body.login-page.register-page {
+        padding: 8px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .register-page .login-container {
+        width: min(100%, calc(100vw - 16px));
+        padding: 10px;
+        border-radius: 14px;
+    }
+
+    .register-page .eac-title {
+        font-size: 1.34rem;
+        letter-spacing: 0.03em;
+    }
+
+    .register-page .aes-subtitle {
+        font-size: 0.66rem;
+        letter-spacing: 0.1em;
+    }
+
+    .register-intro {
+        font-size: 0.82rem;
+    }
+
+    .register-page .register-section {
+        padding: 10px 9px;
+    }
+
+    .register-page .form-control,
+    .register-page .form-select {
+        font-size: 0.86rem;
+        padding: 7px 9px;
+    }
+
+    .register-hero {
+        padding: 12px 11px 92px;
+    }
+
+    .register-hero-title {
+        font-size: 1.42rem;
+    }
+
+    .register-hero-text {
+        font-size: 0.84rem;
+    }
+
+    .register-hero-point {
+        font-size: 0.78rem;
+    }
+
+    .register-hero-president {
+        width: min(140%, 470px);
+        right: -72px;
+        bottom: -14px;
+    }
+
+    .register-hero-president .register-hero-building-image {
+        width: 150%;
+        margin-left: -176px;
+        object-position: left bottom;
+    }
+
+    .register-hero-president .register-hero-president-image {
+        width: min(82%, 330px);
+        left: 63%;
+        right: auto;
+        transform: translateX(-50%);
+    }
+
+    .register-page .auth-corner-iso,
+    .register-page .auth-corner-seal {
+        display: none;
+    }
+}
+
+@media (min-width: 992px) {
+    body.login-page.register-page {
+        overflow-y: auto;
+    }
+
+    .register-page .login-container {
+        max-height: none;
+    }
+}
+

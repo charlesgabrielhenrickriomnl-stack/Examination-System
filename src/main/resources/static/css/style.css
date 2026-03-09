@@ -263,6 +263,208 @@ body {
     color: var(--eac-maroon) !important;
 }
 
+/* Homepage processing card redesign, aligned with login/register visual language. */
+body.homepage-page {
+    font-family: 'Manrope', 'Instrument Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f2e4cc;
+    background-image:
+        linear-gradient(rgba(247, 240, 227, 0.72), rgba(241, 230, 211, 0.74)),
+        url('/images/EACBG.png');
+    background-size: cover;
+    background-position: center 84%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+body.homepage-page::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(90deg, rgba(166, 58, 33, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(166, 58, 33, 0.03) 1px, transparent 1px);
+    background-size: 44px 44px;
+}
+
+.homepage-page .teacher-layout {
+    position: relative;
+    z-index: 1;
+}
+
+.homepage-page .teacher-content-wrapper {
+    padding-top: 1.2rem;
+}
+
+.homepage-page .exam-processing-card {
+    border: 1px solid rgba(221, 206, 189, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 20px 48px rgba(84, 55, 28, 0.2);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(250, 243, 233, 0.95));
+    backdrop-filter: blur(5px);
+}
+
+.homepage-page .exam-processing-body {
+    padding: 1.1rem 1.3rem;
+}
+
+.homepage-page .exam-processing-header {
+    margin-bottom: 0.95rem;
+}
+
+.homepage-page .exam-processing-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.55rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(178, 34, 34, 0.08);
+    color: #7a1022;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.homepage-page .exam-processing-card .card-title {
+    font-family: 'Archivo Black', 'Manrope', sans-serif;
+    color: #7a1022 !important;
+    font-size: clamp(1.65rem, 1.2rem + 1.2vw, 2.1rem);
+    letter-spacing: 0.05em;
+    line-height: 1.05;
+}
+
+.homepage-page .exam-processing-subtitle {
+    margin: 0 auto;
+    max-width: 62ch;
+    color: #5a5147;
+    font-size: 0.91rem;
+    line-height: 1.42;
+}
+
+.homepage-page .processing-section {
+    border: 1px solid #decfbe;
+    border-radius: 13px;
+    background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+    padding: 0.9rem 0.9rem 0.75rem;
+    margin-bottom: 0.7rem;
+}
+
+.homepage-page .processing-section-title {
+    margin-bottom: 0.5rem;
+    color: #861919;
+    font-size: 0.69rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+.homepage-page .processing-label {
+    margin-bottom: 0.22rem;
+    font-size: 0.84rem;
+    color: #473c32;
+}
+
+.homepage-page .processing-label-primary {
+    color: #7a1022;
+}
+
+.homepage-page .processing-label-warning {
+    color: #9a6504;
+}
+
+.homepage-page .exam-processing-card .form-control,
+.homepage-page .exam-processing-card .form-select {
+    border-radius: 10px;
+    border: 1px solid #d9c9b7;
+    background-color: #ffffff;
+    color: #2b2520;
+    padding: 0.5rem 0.62rem;
+    font-size: 0.9rem;
+}
+
+.homepage-page .exam-processing-card .form-control:focus,
+.homepage-page .exam-processing-card .form-select:focus {
+    border-color: #d9a225;
+    box-shadow: 0 0 0 3px rgba(217, 162, 37, 0.2);
+}
+
+.homepage-page .processing-section-help .form-text {
+    margin-top: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #5f554c;
+}
+
+.homepage-page .processing-guide-list,
+.homepage-page .processing-guide-bullets {
+    margin: 0.28rem 0 0.45rem;
+    padding-left: 1.15rem;
+}
+
+.homepage-page .processing-guide-list li,
+.homepage-page .processing-guide-bullets li {
+    margin-bottom: 0.28rem;
+}
+
+.homepage-page .processing-section-help code {
+    color: #7a1022;
+    background: #f7efe2;
+    border-radius: 6px;
+    padding: 0.08rem 0.33rem;
+}
+
+.homepage-page .processing-submit-wrap {
+    margin-top: 0.25rem;
+}
+
+.homepage-page .processing-submit-btn {
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #b22222 0%, #861919 70%, #6f1313 100%);
+    color: #ffffff;
+    font-size: 0.94rem;
+    letter-spacing: 0.11em;
+    padding: 0.64rem 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.homepage-page .processing-submit-btn:hover,
+.homepage-page .processing-submit-btn:focus {
+    color: #ffd95f;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(120, 20, 20, 0.28);
+}
+
+@media (max-width: 768px) {
+    body.homepage-page {
+        background-position: center 92%;
+    }
+
+    .homepage-page .teacher-content-wrapper {
+        padding: 0.85rem 0.65rem 1rem;
+    }
+
+    .homepage-page .exam-processing-body {
+        padding: 0.8rem 0.75rem;
+    }
+
+    .homepage-page .processing-section {
+        padding: 0.75rem 0.7rem 0.62rem;
+    }
+
+    .homepage-page .exam-processing-kicker {
+        font-size: 0.67rem;
+        letter-spacing: 0.08em;
+    }
+
+    .homepage-page .exam-processing-subtitle {
+        font-size: 0.84rem;
+    }
+}
+
 .btn {
     border-radius: 10px;
     font-weight: 600;
