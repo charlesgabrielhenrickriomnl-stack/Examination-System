@@ -46,23 +46,25 @@
                             </div>
                         </div>
 
-                        <div class="subjects-hero">
-                            <div class="subjects-hero-main">
-                                <div class="subjects-hero-copy">
-                                    <h3 class="section-title">My Subjects</h3>
-                                    <p class="subjects-subtext">View your enrolled subjects and available exams.</p>
-                                </div>
-                                <div class="subjects-hero-stat">
-                                    <div class="number" th:text="${hasSubjects ? #lists.size(subjectCards) : 0}">0</div>
-                                    <div class="label">Enrolled</div>
+                        <div class="subjects-hero-merged mb-3">
+                            <div class="subjects-hero">
+                                <div class="subjects-hero-main">
+                                    <div class="subjects-hero-copy">
+                                        <h3 class="section-title">My Subjects</h3>
+                                        <p class="subjects-subtext">View your enrolled subjects and available exams.</p>
+                                    </div>
+                                    <div class="subjects-hero-stat">
+                                        <div class="number" th:text="${hasSubjects ? #lists.size(subjectCards) : 0}">0</div>
+                                        <div class="label">Enrolled</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div th:if="${hasSubjects}" class="subjects-toolbar mb-3">
-                            <label for="subjectSearch" class="subjects-toolbar-label">Find a classroom</label>
-                            <input id="subjectSearch" type="text" class="form-control subject-search"
-                                   placeholder="Search subject, description, or teacher name...">
+                            <div th:if="${hasSubjects}" class="subjects-toolbar subjects-toolbar-merged">
+                                <label for="subjectSearch" class="subjects-toolbar-label">Find a classroom</label>
+                                <input id="subjectSearch" type="text" class="form-control subject-search"
+                                       placeholder="Search subject, description, or teacher name...">
+                            </div>
                         </div>
 
                         <div th:if="${!hasSubjects}" class="text-center py-5">

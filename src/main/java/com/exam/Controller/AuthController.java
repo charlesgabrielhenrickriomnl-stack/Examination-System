@@ -13,10 +13,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.exam.config.AcademicCatalog;
 import com.exam.entity.User;
-import com.exam.service.FaceVerificationSessionKeys;
 import com.exam.service.UserService;
-
-import jakarta.servlet.http.HttpSession;
 
 @Controller
 public class AuthController {
@@ -145,7 +142,7 @@ public class AuthController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(Principal principal, HttpSession session) {
+    public String dashboard(Principal principal) {
         if (principal != null) {
             User user = userService.findByEmail(principal.getName()).orElse(null);
             if (user != null && user.getRole() == User.Role.TEACHER) {
@@ -155,10 +152,6 @@ public class AuthController {
                 return "redirect:/department-admin/dashboard";
             }
             if (user != null && user.getRole() == User.Role.STUDENT) {
-                Object faceVerified = session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED);
-                if (!Boolean.TRUE.equals(faceVerified)) {
-                    return "redirect:/student/face-verification";
-                }
                 return "redirect:/student/dashboard";
             }
         }

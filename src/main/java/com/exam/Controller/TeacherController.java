@@ -544,26 +544,26 @@ public class TeacherController {
                 gson.toJson(answerKeyMap)
             );
 
-            UploadStorageService.StoredFile sourceFile = uploadStorageService.store(
+            UploadStorageService.StoredFile storedExamFile = uploadStorageService.store(
                 "processed-exams",
                 principal.getName(),
                 examCreated
             );
-            paper.setSourceFilename(sourceFile.originalFilename());
-            paper.setSourceFilePath(sourceFile.relativePath());
-            paper.setSourceFileChecksum(sourceFile.checksum());
-            paper.setSourceFileSize(sourceFile.size());
+            paper.setSourceFilename(storedExamFile.originalFilename());
+            paper.setSourceFilePath(storedExamFile.relativePath());
+            paper.setSourceFileChecksum(storedExamFile.checksum());
+            paper.setSourceFileSize(storedExamFile.size());
 
             if (answerKeyPdf != null && !answerKeyPdf.isEmpty()) {
-                UploadStorageService.StoredFile answerKeyFile = uploadStorageService.store(
+                UploadStorageService.StoredFile storedAnswerKeyFile = uploadStorageService.store(
                     "processed-exams-answer-keys",
                     principal.getName(),
                     answerKeyPdf
                 );
-                paper.setAnswerKeyFilename(answerKeyFile.originalFilename());
-                paper.setAnswerKeyFilePath(answerKeyFile.relativePath());
-                paper.setAnswerKeyFileChecksum(answerKeyFile.checksum());
-                paper.setAnswerKeyFileSize(answerKeyFile.size());
+                paper.setAnswerKeyFilename(storedAnswerKeyFile.originalFilename());
+                paper.setAnswerKeyFilePath(storedAnswerKeyFile.relativePath());
+                paper.setAnswerKeyFileChecksum(storedAnswerKeyFile.checksum());
+                paper.setAnswerKeyFileSize(storedAnswerKeyFile.size());
             }
 
             originalProcessedPaperRepository.save(paper);

@@ -43,8 +43,6 @@ import com.exam.repository.ExamSubmissionRepository;
 import com.exam.repository.OriginalProcessedPaperRepository;
 import com.exam.repository.SubjectRepository;
 import com.exam.repository.UserRepository;
-import com.exam.service.FaceVerificationService;
-import com.exam.service.FaceVerificationSessionKeys;
 import com.exam.service.FisherYatesService;
 import com.exam.service.IRT3PLService;
 import com.google.gson.Gson;
@@ -73,7 +71,6 @@ public class StudentController {
     private final DistributedExamRepository distributedExamRepository;
     private final OriginalProcessedPaperRepository originalProcessedPaperRepository;
     private final UserRepository userRepository;
-    private final FaceVerificationService faceVerificationService;
     private final FisherYatesService fisherYatesService;
     private final IRT3PLService irt3PLService;
     private final Gson gson = new Gson();
@@ -84,7 +81,6 @@ public class StudentController {
                              DistributedExamRepository distributedExamRepository,
                              OriginalProcessedPaperRepository originalProcessedPaperRepository,
                              UserRepository userRepository,
-                             FaceVerificationService faceVerificationService,
                              FisherYatesService fisherYatesService,
                              IRT3PLService irt3PLService) {
         this.examSubmissionRepository = examSubmissionRepository;
@@ -93,7 +89,6 @@ public class StudentController {
         this.distributedExamRepository = distributedExamRepository;
         this.originalProcessedPaperRepository = originalProcessedPaperRepository;
         this.userRepository = userRepository;
-        this.faceVerificationService = faceVerificationService;
         this.fisherYatesService = fisherYatesService;
         this.irt3PLService = irt3PLService;
     }
@@ -234,13 +229,6 @@ public class StudentController {
                     return "redirect:" + target;
                 })
                 .orElse("redirect:/student/dashboard");
-        }
-
-        if (faceVerificationService.isFeatureEnabled() && !isExamFaceVerified(session, distributedExam.getId())) {
-            session.setAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID, distributedExam.getId());
-            session.setAttribute(FaceVerificationSessionKeys.PENDING_FACE_REDIRECT_URL,
-                "/student/take-exam/" + distributedExam.getId());
-            return "redirect:/student/face-verification";
         }
 
         ExamContentSnapshot examContent = loadExamContent(distributedExam);
@@ -1974,36 +1962,6 @@ public class StudentController {
                 session.removeAttribute(ACTIVE_EXAM_SESSION_KEY);
             }
         }
-
-        Long verifiedExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID));
-        if (distributedExamId != null && distributedExamId.equals(verifiedExamId)) {
-            session.removeAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID);
-        }
-
-        Long pendingExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID));
-        if (distributedExamId != null && distributedExamId.equals(pendingExamId)) {
-            session.removeAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID);
-            session.removeAttribute(FaceVerificationSessionKeys.PENDING_FACE_REDIRECT_URL);
-        }
-    }
-
-    private boolean isExamFaceVerified(HttpSession session, Long distributedExamId) {
-        if (session == null || distributedExamId == null) {
-            return false;
-        }
-
-        Long verifiedExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID));
-        return distributedExamId.equals(verifiedExamId);
-    }
-
-    private Long parseSessionLong(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        if (raw instanceof Number number) {
-            return number.longValue();
-        }
-        return parseLong(String.valueOf(raw));
     }
 
     private boolean sameText(String left, String right) {
