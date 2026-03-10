@@ -1,0 +1,143 @@
+body.teacher-loading-page {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background:
+        radial-gradient(circle at 12% 20%, rgba(190, 138, 42, 0.16), transparent 36%),
+        radial-gradient(circle at 88% 16%, rgba(123, 16, 34, 0.14), transparent 30%),
+        linear-gradient(165deg, #f6ecdd 0%, #f2e5d1 45%, #f9f1e4 100%);
+    color: #7b1022;
+    font-family: 'Sora', 'Space Grotesk', sans-serif;
+}
+
+.teacher-loading-wrap {
+    width: min(94vw, 520px);
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+
+.teacher-loading-card {
+    width: 100%;
+    border-radius: 18px;
+    border: 1px solid rgba(133, 95, 50, 0.25);
+    background: linear-gradient(160deg, rgba(255, 252, 247, 0.92), rgba(252, 243, 231, 0.88));
+    box-shadow: 0 18px 42px rgba(101, 63, 30, 0.18);
+    padding: clamp(1.05rem, 2vw, 1.45rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.52rem;
+}
+
+.teacher-loading-logo-orb {
+    width: clamp(108px, 13vw, 152px);
+    height: clamp(108px, 13vw, 152px);
+    display: grid;
+    place-items: center;
+    perspective: 1000px;
+}
+
+.teacher-loading-logo {
+    width: clamp(86px, 10vw, 122px);
+    height: clamp(86px, 10vw, 122px);
+    object-fit: contain;
+    transform-style: preserve-3d;
+    backface-visibility: visible;
+    transform-origin: center;
+    will-change: transform;
+    animation: eac-logo-3d-spin 2.6s linear infinite;
+    filter: drop-shadow(0 12px 20px rgba(93, 18, 31, 0.24));
+}
+
+.teacher-loading-college {
+    margin: 0.06rem 0 0;
+    color: #711022;
+    font-size: clamp(1.02rem, 0.9rem + 0.62vw, 1.34rem);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.teacher-loading-text {
+    margin: 0.05rem 0 0.22rem;
+    color: #5f4b3a;
+    font-size: clamp(0.9rem, 0.84rem + 0.3vw, 1.05rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.teacher-loading-bar {
+    width: min(360px, 88%);
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(240, 226, 206, 0.92));
+    border: 1px solid rgba(131, 91, 48, 0.24);
+    box-shadow: inset 0 1px 4px rgba(86, 59, 30, 0.2);
+}
+
+.teacher-loading-bar-fill {
+    position: relative;
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #7b1022, #a01631 45%, #c78529 100%);
+    animation: eac-bar-fill 3s cubic-bezier(0.2, 0.75, 0.3, 1) forwards;
+}
+
+.teacher-loading-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 28%;
+    left: -32%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    animation: eac-bar-shimmer 1.05s linear infinite;
+}
+
+@keyframes eac-logo-3d-spin {
+    0% {
+        transform: rotateY(0deg) rotateX(3deg);
+    }
+
+    25% {
+        transform: rotateY(90deg) rotateX(1.5deg);
+    }
+
+    50% {
+        transform: rotateY(180deg) rotateX(0deg);
+    }
+
+    75% {
+        transform: rotateY(270deg) rotateX(1.5deg);
+    }
+
+    100% {
+        transform: rotateY(360deg) rotateX(3deg);
+    }
+}
+
+@keyframes eac-bar-fill {
+    0% {
+        width: 0;
+    }
+
+    100% {
+        width: 100%;
+    }
+}
+
+@keyframes eac-bar-shimmer {
+    from {
+        left: -32%;
+    }
+
+    to {
+        left: 108%;
+    }
+}

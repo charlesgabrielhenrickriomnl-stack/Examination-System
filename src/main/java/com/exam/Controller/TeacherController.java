@@ -136,6 +136,11 @@ public class TeacherController {
         return "redirect:/teacher/department-dashboard";
     }
 
+    @GetMapping("/loading")
+    public String loading() {
+        return "teacher-loading";
+    }
+
     @GetMapping("/department-dashboard")
     public String departmentDashboard(Model model, Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
@@ -144,6 +149,14 @@ public class TeacherController {
             : subjectRepository.findByTeacherEmail(teacherEmail);
 
         User currentTeacher = teacherEmail.isBlank() ? null : userRepository.findByEmail(teacherEmail).orElse(null);
+        String teacherFullName = currentTeacher == null ? "" : (currentTeacher.getFullName() == null ? "" : currentTeacher.getFullName().trim());
+        if (teacherFullName.isBlank() && !teacherEmail.isBlank()) {
+            int atPos = teacherEmail.indexOf('@');
+            teacherFullName = atPos > 0 ? teacherEmail.substring(0, atPos) : teacherEmail;
+        }
+        if (teacherFullName.isBlank()) {
+            teacherFullName = "Teacher";
+        }
         String departmentName = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
 
         int departmentQuestionCount = 0;
@@ -181,6 +194,7 @@ public class TeacherController {
         model.addAttribute("teacherSubjectCount", teacherSubjects.size());
         model.addAttribute("departmentSubjects", departmentSubjects);
         model.addAttribute("teacherEmail", teacherEmail);
+        model.addAttribute("teacherFullName", teacherFullName);
         model.addAttribute("departmentName", departmentName);
         model.addAttribute("departmentTeacherCount", departmentTeacherCount);
         model.addAttribute("departmentQuestionCount", departmentQuestionCount);
@@ -192,7 +206,7 @@ public class TeacherController {
     public String subjects(Model model, Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
         List<Subject> subjects = teacherEmail.isBlank()
-            ? new ArrayList<>()
+            ? new ArrayList<>() 
             : subjectRepository.findByTeacherEmail(teacherEmail);
 
         Map<Long, Integer> enrollmentCountBySubject = new HashMap<>();
@@ -211,7 +225,7 @@ public class TeacherController {
         return "teacher-subjects";
     }
 
-    @GetMapping("/students")
+    @GetMapping("/students") 
     public String studentsAlias() {
         return "redirect:/teacher/subjects";
     }
