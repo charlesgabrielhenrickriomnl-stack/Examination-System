@@ -297,6 +297,10 @@ body.homepage-page::after {
     padding-top: 1.2rem;
 }
 
+.exam-processing-page.homepage-page .teacher-content-wrapper {
+    padding-top: clamp(2rem, 3vw, 2.6rem);
+}
+
 .homepage-page .exam-processing-card {
     border: 1px solid rgba(221, 206, 189, 0.95);
     border-radius: 20px;

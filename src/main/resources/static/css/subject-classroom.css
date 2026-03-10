@@ -1,44 +1,453 @@
-/* Subject Classroom Styles — EAC Design System */
+/* Subject Classroom Suite: shared design for classroom and list pages */
+
+.subject-classroom-page {
+    --sc-bg: #f6f1e6;
+    --sc-surface: #ffffff;
+    --sc-border: #eadfce;
+    --sc-ink: #3b2a1c;
+    --sc-muted: #6d6257;
+    --sc-brand: #7a1022;
+    --sc-brand-2: #99172e;
+    --sc-accent: #d4a32a;
+    --sc-shadow: 0 14px 34px rgba(60, 36, 13, 0.09);
+}
+
+.subject-classroom-page .teacher-content-wrapper {
+    padding-top: clamp(1rem, 2vw, 1.6rem);
+}
 
 .main-container {
-    max-width: 1200px;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: 1.2rem clamp(0.8rem, 1.8vw, 1.5rem) 1.8rem;
+}
+
+.teacher-wide-page .main-container {
+    max-width: 1540px;
+}
+
+.teacher-wide-page.subject-classroom-page .main-container {
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.2rem clamp(0.8rem, 1.8vw, 1.5rem) 1.8rem;
+}
+
+.page-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.page-toolbar .btn,
+.page-toolbar .badge {
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.subject-classroom-page .page-toolbar .btn.btn-sm {
+    font-size: 0.96rem;
+    padding: 0.52rem 0.95rem;
+    border-radius: 13px;
+    line-height: 1.15;
+}
+
+.subject-classroom-page .page-toolbar .badge {
+    font-size: 0.92rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 13px;
+    font-weight: 700;
 }
 
 .classroom-header {
-    background: #fff;
-    border: 1px solid #eadfce;
-    border-radius: 16px;
-    padding: 1.5rem 1.75rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.09);
+    background:
+        linear-gradient(180deg, #fffdfa 0%, #fff8ef 100%);
+    border: 1px solid var(--sc-border);
+    border-radius: 18px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1.2rem;
+    box-shadow: var(--sc-shadow);
+}
+
+.classroom-title {
+    color: var(--sc-brand);
+    letter-spacing: 0.01em;
 }
 
 .section-card {
-    background: #fff;
-    border: 1px solid #eadfce;
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.09);
+    background: var(--sc-surface);
+    border: 1px solid var(--sc-border);
+    border-radius: 18px;
+    padding: 1.25rem;
+    margin-bottom: 1.2rem;
+    box-shadow: var(--sc-shadow);
 }
 
 .section-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #7a1022;
+    font-size: 1.12rem;
+    font-weight: 800;
+    color: var(--sc-brand);
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid #eadfce;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
+}
+
+.section-title i {
+    font-size: 1.06rem;
+}
+
+.section-head .form-control.form-control-sm {
+    font-size: 0.95rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.section-head {
+    border-bottom: 1px solid var(--sc-border);
+    padding-bottom: 0.8rem;
+}
+
+.section-divider {
+    height: 1px;
+    background: var(--sc-border);
+    margin: 0.95rem 0 1rem;
+}
+
+.classroom-list-link-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 0.8rem;
+    row-gap: 0.55rem;
+}
+
+.classroom-list-link-btn {
+    min-width: 250px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.98rem;
+    padding: 0.5rem 0.95rem;
+    white-space: nowrap;
+    justify-self: end;
+}
+
+.classroom-list-link-btn i {
+    line-height: 1;
+}
+
+.classroom-stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+@media (max-width: 768px) {
+    .classroom-list-link-row {
+        grid-template-columns: 1fr;
+    }
+
+    .classroom-list-link-row > small {
+        width: 100%;
+    }
+
+    .classroom-list-link-btn {
+        width: 100%;
+        min-width: 0;
+        justify-self: stretch;
+    }
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    padding: 0.42rem 0.82rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    line-height: 1;
+}
+
+.stat-badge.students {
+    background: #f6ebf2;
+    color: #7a1022;
+    border: 1px solid #ead5e2;
+}
+
+.stat-badge.submissions {
+    background: #e9f6ee;
+    color: #226f46;
+    border: 1px solid #cde7d8;
+}
+
+.subject-classroom-page .alert {
+    border-radius: 12px;
+    border-width: 1px;
+    box-shadow: 0 8px 20px rgba(56, 42, 25, 0.07);
+}
+
+.subject-classroom-page .btn {
+    border-radius: 11px;
+}
+
+.subject-classroom-page .btn-primary {
+    background: linear-gradient(130deg, var(--sc-brand) 0%, var(--sc-brand-2) 100%);
+    border-color: var(--sc-brand);
+    box-shadow: 0 8px 18px rgba(122, 16, 34, 0.22);
+}
+
+.subject-classroom-page .btn-primary:hover,
+.subject-classroom-page .btn-primary:focus {
+    background: linear-gradient(130deg, #690d1d 0%, #8a1328 100%);
+    border-color: #690d1d;
+}
+
+.subject-classroom-page .btn-outline-primary {
+    border-color: #3f86ff;
+    color: #1f6be8;
+}
+
+.subject-classroom-page .btn-outline-primary:hover,
+.subject-classroom-page .btn-outline-primary:focus {
+    color: #fff;
+    background: #1f6be8;
+    border-color: #1f6be8;
+}
+
+.subject-classroom-page .btn-outline-secondary {
+    border-color: #cdbda9;
+    color: #70533a;
+}
+
+.subject-classroom-page .btn-outline-secondary:hover,
+.subject-classroom-page .btn-outline-secondary:focus {
+    background: #70533a;
+    border-color: #70533a;
+    color: #fff;
+}
+
+.subject-classroom-page .form-control,
+.subject-classroom-page .form-select {
+    border-radius: 10px;
+    border-color: #d8cdbd;
+}
+
+.subject-classroom-page .form-control:focus,
+.subject-classroom-page .form-select:focus {
+    border-color: #c28f2b;
+    box-shadow: 0 0 0 0.18rem rgba(194, 143, 43, 0.2);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2.1rem 1.2rem;
+    color: var(--sc-muted);
+    background: linear-gradient(180deg, #fffdfa 0%, #fbf6ef 100%);
+    border: 1px dashed #e4d7c4;
+    border-radius: 14px;
+}
+
+.empty-state i {
+    font-size: 2.1rem;
+    margin-bottom: 0.65rem;
+    display: block;
+    opacity: 0.4;
+}
+
+.table-responsive {
+    border: 1px solid #e7dbc9;
+    border-radius: 14px;
+    overflow: auto;
+    background: #fff;
+}
+
+.student-list-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.student-list-table thead th {
+    background: linear-gradient(180deg, #faf5ec 0%, #f5ecdf 100%);
+    color: #4a2911;
+    font-size: 0.84rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.76rem 0.86rem;
+    border-bottom: 1px solid #e8dbc8;
+    white-space: nowrap;
+}
+
+.student-list-table tbody tr {
+    border-bottom: 1px solid #f0e6d8;
+    transition: background-color 0.2s ease;
+}
+
+.student-list-table tbody tr:nth-child(odd) {
+    background: #fff;
+}
+
+.student-list-table tbody tr:nth-child(even) {
+    background: #fffdfa;
+}
+
+.student-list-table tbody tr:hover {
+    background: #fef8ef;
+}
+
+.student-list-table td {
+    padding: 0.8rem 0.86rem;
+    vertical-align: middle;
+    font-size: 0.98rem;
+    color: #3f3326;
+}
+
+.student-list-table .btn {
+    border-radius: 10px;
+    font-size: 0.96rem;
+    padding: 0.45rem 0.75rem;
+    line-height: 1.2;
+}
+
+.student-list-table .btn.btn-sm {
+    font-size: 0.96rem;
+    padding: 0.45rem 0.8rem;
+}
+
+.student-list-table .btn i {
+    font-size: 1rem;
+}
+
+.student-list-table .badge {
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0.28rem 0.48rem;
+    border-radius: 8px;
+}
+
+/* Keep action buttons on View Students page uniform and aligned. */
+#distributionStudentsTable td:last-child {
+    text-align: center;
+}
+
+#distributionStudentsTable td:last-child .d-flex {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem !important;
+    min-width: 170px;
+}
+
+#distributionStudentsTable td:last-child .d-flex > a.btn,
+#distributionStudentsTable td:last-child .d-flex > form .btn,
+#distributionStudentsTable td:last-child .d-flex > button.btn {
+    width: auto;
+    min-width: 122px;
+    justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    text-align: center;
+    white-space: nowrap;
+}
+
+#distributionStudentsTable td:last-child .d-flex > form {
+    display: inline-block;
+    margin: 0;
+}
+
+#distributedExamsTable td:last-child .d-inline-flex {
+    flex-wrap: wrap;
+}
+
+#distributedExamsTable td:last-child .btn {
+    white-space: nowrap;
+}
+
+#reopenStudentModal .modal-dialog,
+#reopenBatchModal .modal-dialog {
+    max-width: 520px;
+}
+
+#reopenStudentModal .modal-body,
+#reopenBatchModal .modal-body {
+    padding-top: 0.95rem;
+    padding-bottom: 1rem;
+}
+
+#reopenStudentModal .modal-title,
+#reopenBatchModal .modal-title {
+    font-size: 1.28rem;
+    font-weight: 800;
+    color: var(--sc-brand);
+    letter-spacing: 0.01em;
+}
+
+#reopenStudentModal .modal-body p,
+#reopenBatchModal .modal-body p {
+    font-size: 0.98rem !important;
+    margin-bottom: 0.7rem !important;
+}
+
+#reopenStudentName,
+#reopenBatchLabel {
+    font-size: 1.05rem;
+    line-height: 1.3;
+    background: #f8f2e7;
+    border: 1px solid #e8d8c2;
+    border-radius: 10px;
+    padding: 0.6rem 0.7rem;
+}
+
+#reopenStudentModal .form-label,
+#reopenBatchModal .form-label {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #4b2e19;
+    margin-bottom: 0.4rem;
+}
+
+#reopenStudentModal .form-select.form-select-sm,
+#reopenBatchModal .form-select.form-select-sm,
+#reopenStudentModal .form-control.form-control-sm,
+#reopenBatchModal .form-control.form-control-sm {
+    font-size: 1rem;
+    padding-top: 0.52rem;
+    padding-bottom: 0.52rem;
+}
+
+#reopenStudentModal .form-text,
+#reopenBatchModal .form-text {
+    font-size: 0.9rem;
+    margin-top: 0.4rem;
+}
+
+#reopenStudentModal .modal-footer .btn.btn-sm,
+#reopenBatchModal .modal-footer .btn.btn-sm {
+    font-size: 0.98rem;
+    padding: 0.5rem 0.9rem;
+}
+
+/* Delete button always visible against theme */
+.student-list-table .btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.student-list-table .btn-outline-danger:hover {
+    background: #dc3545;
+    color: #fff;
+    border-color: #dc3545;
 }
 
 .student-card {
-    border: 1px solid #eadfce;
-    border-radius: 10px;
+    border: 1px solid var(--sc-border);
+    border-radius: 12px;
     padding: 0.9rem 1rem;
     margin-bottom: 0.85rem;
     background: #fdfaf6;
@@ -46,111 +455,71 @@
 }
 
 .student-card:hover {
-    box-shadow: 0 4px 14px rgba(60, 36, 13, 0.1);
+    box-shadow: 0 6px 16px rgba(60, 36, 13, 0.12);
 }
 
 .submission-card {
-    border-left: 4px solid #7a1022;
+    border-left: 4px solid var(--sc-brand);
     background: #fdfaf6;
     padding: 0.9rem 1rem;
     margin-bottom: 0.85rem;
-    border-radius: 6px;
-    border: 1px solid #eadfce;
+    border-radius: 10px;
+    border: 1px solid var(--sc-border);
     border-left-width: 4px;
 }
 
-.classroom-stats-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
+.subject-classroom-page .modal-content {
+    border-radius: 16px;
+    border: 1px solid #e5d9c8;
+    box-shadow: 0 18px 42px rgba(47, 34, 17, 0.2);
 }
 
-.stat-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    padding: 0.4rem 0.9rem;
-    border-radius: 20px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    line-height: 1;
-    margin-right: 0;
+/* Prevent Bootstrap scrollbar compensation from creating a right-side stripe. */
+body.subject-classroom-page.modal-open {
+    padding-right: 0 !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
 }
 
-.stat-badge i {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
+body.subject-classroom-page.modal-open .modal {
+    padding-right: 0 !important;
 }
 
-.stat-badge .stat-value,
-.stat-badge .stat-label {
-    display: inline-flex;
-    align-items: center;
-    line-height: 1;
+.subject-classroom-page .modal-header {
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
 }
 
-.stat-badge.students {
-    background: #f3eaf5;
-    color: #7a1022;
-    border: 1px solid #e8d5ea;
+.subject-classroom-page .modal-footer {
+    border-top: 1px solid #eee2d2;
 }
 
-.stat-badge.submissions {
-    background: #eaf5ef;
-    color: #267a4b;
-    border: 1px solid #c5e8d4;
+.subject-classroom-page #distributeQuizModal .modal-body,
+.subject-classroom-page #distributeQuizModal .modal-footer {
+    background: linear-gradient(180deg, #faf5eb 0%, #f6efe2 100%);
 }
 
-.empty-state {
-    text-align: center;
-    padding: 2.5rem;
-    color: #6c757d;
+.subject-classroom-page #distributeQuizModal .modal-footer {
+    border-top: 0;
 }
 
-.empty-state i {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-    display: block;
-    opacity: 0.35;
+.subject-classroom-page #distributeQuizModal .modal-content {
+    overflow: hidden;
+    background: linear-gradient(180deg, #faf5eb 0%, #f6efe2 100%);
+    border: 0 !important;
+    outline: 0;
+    box-shadow: 0 22px 46px rgba(47, 34, 17, 0.28);
 }
 
-/* Student list table */
-.student-list-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-.student-list-table thead th {
-    background: #f7f2ea;
-    color: #4c2a11;
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0.6rem 0.85rem;
-    border-bottom: 1px solid #eadfce;
-}
-.student-list-table tbody tr {
-    border-bottom: 1px solid #f0ebe2;
-    transition: background 0.15s;
-}
-.student-list-table tbody tr:last-child {
-    border-bottom: none;
-}
-.student-list-table tbody tr:hover {
-    background: #fdfaf6;
-}
-.student-list-table td {
-    padding: 0.7rem 0.85rem;
-    vertical-align: middle;
-    font-size: 0.9rem;
+.subject-classroom-page #distributeQuizModal .modal-header {
+    margin-bottom: 0;
 }
 
-/* Floating bulk action popup */
+.subject-classroom-page #distributeQuizModal .modal-body {
+    border-top: 0 !important;
+    box-shadow: none !important;
+}
+
 .bulk-action-bar {
     display: flex;
     position: fixed;
@@ -163,7 +532,7 @@
     color: #fff;
     padding: 0.7rem 1.25rem;
     border-radius: 50px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
     font-size: 0.875rem;
     font-weight: 600;
     z-index: 1050;
@@ -172,88 +541,42 @@
     pointer-events: none;
     transition: opacity 0.22s ease, transform 0.22s ease;
 }
+
 .bulk-action-bar.visible {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(-50%) translateY(0);
 }
+
 .bulk-action-bar .bulk-label {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    color: #d4a32a;
+    color: var(--sc-accent);
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.03em;
     padding-right: 0.65rem;
-    border-right: 1px solid rgba(255,255,255,0.15);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-/* Delete button always visible — override global .btn-outline-danger white-on-dark rule */
-.student-list-table .btn-outline-danger {
-    color: #dc3545;
-    border-color: #dc3545;
-}
-.student-list-table .btn-outline-danger:hover {
-    background: #dc3545;
-    color: #fff;
-    border-color: #dc3545;
-}
+@media (max-width: 991.98px) {
+    .main-container {
+        padding-top: 1rem;
+    }
 
-.student-panel {
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 6px rgba(0,0,0,.06);
-    transition: box-shadow .2s;
-}
+    .classroom-header,
+    .section-card {
+        padding: 1rem;
+    }
 
-.student-panel:hover {
-    box-shadow: 0 4px 14px rgba(0,0,0,.12);
-}
+    .section-title {
+        font-size: 0.96rem;
+    }
 
-.student-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: .9rem 1.2rem;
-    background: #f8f9fa;
-    cursor: pointer;
-    user-select: none;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.student-panel-header:hover {
-    background: #f3f7ff;
-}
-
-.student-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    font-size: .95rem;
-    flex-shrink: 0;
-}
-
-.sub-inner-table th,
-.sub-inner-table td {
-    font-size: .82rem;
-    vertical-align: middle;
-}
-
-.sub-inner-table {
-    margin-bottom: 0;
-}
-
-.btn-xs {
-    --bs-btn-padding-y: .1rem;
-    --bs-btn-padding-x: .4rem;
-    --bs-btn-font-size: .75rem;
+    .student-list-table thead th,
+    .student-list-table td {
+        font-size: 0.82rem;
+        padding: 0.62rem 0.62rem;
+    }
 }

@@ -10,52 +10,60 @@
     <link th:href="@{/css/style.css}" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/subject-classroom.css}">
 </head>
-<body class="teacher-wide-page">
+<body class="teacher-wide-page subject-classroom-page homepage-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="main-container">
-            <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <a th:href="@{/teacher/subject-classroom/{id}(id=${subject.id})}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Classroom
+            <div class="page-toolbar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                     <a th:href="@{/teacher/subject-classroom/{id}/distributed-exams(id=${subject.id})}"
+                         class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back
                 </a>
                 <span class="badge bg-light text-dark border" th:text="${totalTrackedCount} + ' Students Tracked'">0 Students Tracked</span>
             </div>
 
             <div class="classroom-header">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h4 class="fw-bold mb-0" style="color:#7a1022;">
+                    <h4 class="fw-bold mb-0 classroom-title">
                         <i class="bi bi-clipboard-check me-2"></i>
                         <span th:text="${subject.subjectName} + ' - Student Distribution Status'">Student Distribution Status</span>
                     </h4>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="badge bg-success-subtle text-success border border-success-subtle"
-                              th:text="${submittedCount} + ' Submitted'">0 Submitted</span>
-                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle"
-                              th:text="${notSubmittedCount} + ' Not Submitted'">0 Not Submitted</span>
+                            th:text="|${submittedCount}${deadlinePassed ? ' Completed' : ' Submitted'}|">0 Submitted</span>
+                        <span th:if="${deadlinePassed}"
+                            class="badge bg-danger-subtle text-danger border border-danger-subtle"
+                            th:text="${missedCount} + ' Missed'">0 Missed</span>
+                        <span th:if="${!deadlinePassed}"
+                            class="badge bg-warning-subtle text-warning border border-warning-subtle"
+                            th:text="${notSubmittedCount} + ' Not Submitted'">0 Not Submitted</span>
                         <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"
-                              th:text="${queuedCount} + ' Queued'">0 Queued</span>
+                            th:text="|${deadlinePassed ? pendingCount : queuedCount}${deadlinePassed ? ' Pending' : ' Queued'}|">0 Queued</span>
                     </div>
                 </div>
                 <div th:if="${activeQuizFilter}" class="mt-2">
                     <small class="text-muted">
                         Showing quiz:
                         <strong th:text="${filterExamName}">Quiz</strong>
-                        <span th:if="${filterActivityType != null and !filterActivityType.isEmpty()}" th:text="' â€¢ ' + ${filterActivityType}"></span>
-                        <span th:if="${filterTimeLimit != null}" th:text="' â€¢ ' + ${filterTimeLimit} + ' min'"></span>
-                        <span th:if="${filterDeadline != null and !filterDeadline.isEmpty()}" th:text="' â€¢ ' + ${filterDeadline}"></span>
+                        <span th:if="${filterActivityType != null and !filterActivityType.isEmpty()}" th:text="' - ' + ${filterActivityType}"></span>
+                        <span th:if="${filterTimeLimit != null}" th:text="' - ' + ${filterTimeLimit} + ' min'"></span>
+                        <span th:if="${filterDeadline != null and !filterDeadline.isEmpty()}" th:text="' - ' + ${filterDeadline}"></span>
                     </small>
                 </div>
             </div>
 
             <div class="section-card">
-                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
-                    <div class="section-title mb-0" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">
+                <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+                <div class="section-head d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div class="section-title mb-0">
                         <i class="bi bi-list-ul"></i> Student Tracking List
                     </div>
                     <input type="text" id="distributionSearch" class="form-control form-control-sm"
-                           placeholder="ðŸ”Ž Search student name or email..." style="max-width:280px;">
+                           placeholder="Search student name or email..." style="max-width:280px;">
                 </div>
 
                 <div th:if="${totalTrackedCount == 0}" class="empty-state">
@@ -74,6 +82,7 @@
                             <th>Type</th>
                             <th>Deadline</th>
                             <th>Last Submitted</th>
+                            <th>Submission</th>
                             <th>Open-Ended</th>
                             <th>Grade</th>
                             <th>Release</th>
@@ -92,15 +101,15 @@
                             </td>
                             <td th:text="${item.deadline}">Deadline</td>
                             <td th:text="${item.lastSubmittedAt}">-</td>
+                                <td><span class="badge bg-success">Submitted</span></td>
                             <td>
                                 <span th:if="${item.openEndedCount > 0}" class="badge bg-info"
                                       th:text="${item.openEndedCount} + ' item(s)'">0 item(s)</span>
                                 <span th:if="${item.openEndedCount == 0}" class="badge bg-secondary">None</span>
                             </td>
                             <td>
-                                <span th:if="${item.needsManualGrading}" class="badge bg-warning text-dark">Needs Manual Check</span>
-                                <span th:if="${!item.needsManualGrading and item.isGraded}" class="badge bg-success">Complete</span>
-                                <span th:if="${!item.needsManualGrading and !item.isGraded}" class="badge bg-secondary">Auto-Graded</span>
+                                <span th:if="${item.isGraded}" class="badge bg-success">Graded</span>
+                                <span th:if="${!item.isGraded}" class="badge bg-secondary">Not Graded</span>
                             </td>
                             <td>
                                 <span th:if="${item.resultsReleased}" class="badge bg-success">Released</span>
@@ -109,7 +118,7 @@
                             <td>
                                 <div class="d-flex gap-1 flex-wrap">
                                     <a th:if="${item.submissionId != null}"
-                                       th:href="@{/teacher/view-result/{id}(id=${item.submissionId})}"
+                                       th:href="${item.viewResultUrl}"
                                        class="btn btn-sm btn-outline-primary"
                                        title="View submitted exam paper">
                                         <i class="bi bi-file-earmark-text me-1"></i>Paper
@@ -141,6 +150,16 @@
                                             <span th:text="${item.resultsReleased ? 'Hide' : 'Release'}"></span>
                                         </button>
                                     </form>
+
+                                    <button th:if="${deadlinePassed}"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-warning open-reopen-student-modal"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#reopenStudentModal"
+                                            th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-reopen-label='Allow Retake'"
+                                            title="Create a custom retake schedule for this student">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Allow Retake
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -156,10 +175,26 @@
                             </td>
                             <td th:text="${item.deadline}">Deadline</td>
                             <td th:text="${item.lastSubmittedAt}">-</td>
+                            <td>
+                                <span th:if="${deadlinePassed}" class="badge bg-danger">Missed</span>
+                                <span th:if="${!deadlinePassed}" class="badge bg-warning text-dark">Not Submitted</span>
+                            </td>
                             <td><span class="badge bg-secondary">-</span></td>
-                            <td><span class="badge bg-warning text-dark">Not Submitted</span></td>
+                            <td>
+                                <span class="badge bg-secondary">Not Graded</span>
+                            </td>
                             <td><span class="badge bg-secondary">Hidden</span></td>
-                            <td><span class="text-muted small">No paper yet</span></td>
+                            <td>
+                                <button th:if="${deadlinePassed}"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning open-reopen-student-modal"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#reopenStudentModal"
+                                        th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-reopen-label='Re-open'">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Re-open
+                                </button>
+                                <span th:if="${!deadlinePassed}" class="text-muted small">No paper yet</span>
+                            </td>
                         </tr>
 
                         <tr th:each="item : ${queuedStudents}"
@@ -173,13 +208,74 @@
                             </td>
                             <td th:text="${item.deadline}">Deadline</td>
                             <td th:text="${item.lastSubmittedAt}">-</td>
+                            <td>
+                                <span th:if="${deadlinePassed}" class="badge bg-danger">Missed</span>
+                                <span th:if="${!deadlinePassed}" class="badge bg-secondary">Queued</span>
+                            </td>
                             <td><span class="badge bg-secondary">-</span></td>
-                            <td><span class="badge bg-secondary">Queued</span></td>
+                            <td>
+                                <span class="badge bg-secondary">Not Graded</span>
+                            </td>
                             <td><span class="badge bg-secondary">Hidden</span></td>
-                            <td><span class="text-muted small">Waiting</span></td>
+                            <td>
+                                <button th:if="${deadlinePassed}"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning open-reopen-student-modal"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#reopenStudentModal"
+                                        th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-reopen-label='Re-open'">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Re-open
+                                </button>
+                                <span th:if="${!deadlinePassed}" class="text-muted small">Waiting</span>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class="modal fade" id="reopenStudentModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form th:action="@{/teacher/subject-classroom/{id}/distribution-students/reopen(id=${subject.id})}" method="post" id="reopenStudentForm">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="reopenStudentModalTitle">Re-open Quiz</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2 small text-muted">Set a custom re-open window for this student.</p>
+                                <div class="fw-semibold mb-3" id="reopenStudentName">Student</div>
+
+                                <input type="hidden" name="studentEmail" id="reopenStudentEmailInput">
+                                <input type="hidden" name="filterExamName" th:value="${filterExamName}">
+                                <input type="hidden" name="filterActivityType" th:value="${filterActivityType}">
+                                <input type="hidden" name="filterTimeLimit" th:value="${filterTimeLimit}">
+                                <input type="hidden" name="filterDeadline" th:value="${filterDeadline}">
+
+                                <div class="mb-3">
+                                    <label for="reopenPreset" class="form-label">Re-open Window</label>
+                                    <select id="reopenPreset" name="reopenPreset" class="form-select form-select-sm">
+                                        <option value="1h">1 hour</option>
+                                        <option value="24h" selected>24 hours</option>
+                                        <option value="72h">72 hours</option>
+                                        <option value="custom">Custom date and time</option>
+                                    </select>
+                                    <div class="form-text">Pick <strong>Custom date and time</strong> if you want an exact deadline.</div>
+                                </div>
+
+                                <div id="customDeadlineWrap" class="d-none">
+                                    <label for="customDeadline" class="form-label">Custom Deadline</label>
+                                    <input type="datetime-local" id="customDeadline" name="customDeadline" class="form-control form-control-sm" disabled>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Apply Re-open
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

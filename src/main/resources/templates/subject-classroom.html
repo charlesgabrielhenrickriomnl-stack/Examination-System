@@ -10,13 +10,13 @@
     <link th:href="@{/css/style.css}" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/subject-classroom.css}">
 </head>
-<body>
+<body class="subject-classroom-page homepage-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="main-container">
-            <div class="mb-3">
+            <div class="page-toolbar mb-3">
                 <a th:href="@{/teacher/subjects}" class="btn btn-sm btn-outline-secondary mb-2">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
@@ -40,7 +40,7 @@
             <div class="classroom-header">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                     <div>
-                        <h4 class="fw-bold mb-1" style="color:#7a1022;">
+                        <h4 class="fw-bold mb-1 classroom-title">
                             <i class="bi bi-book me-2"></i>
                             <span th:text="${subject.subjectName}">Subject Name</span>
                         </h4>
@@ -83,18 +83,9 @@
                 </div>
             </div>
 
-            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
-                <span th:text="${successMessage}">Success</span>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
-                <span th:text="${errorMessage}">Error</span>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-
             <div class="section-card">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div class="section-title mb-0" style="border-bottom:none; padding-bottom:0;">
+                    <div class="section-title mb-0">
                         <i class="bi bi-clipboard-check"></i> Distributed Exam Tracking
                     </div>
                     <div class="d-flex align-items-center gap-2">
@@ -104,16 +95,16 @@
                               th:text="${distributedNotSubmittedCount} + ' Pending'">0 Pending</span>
                     </div>
                 </div>
-                <div style="height:1px; background:#eadfce; margin:1rem 0;"></div>
+                <div class="section-divider"></div>
 
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                     <small class="text-muted">View all distributed quizzes in a dedicated list page to keep this classroom view compact.</small>
                 </div>
 
                 <div th:if="${quizDistributionSummary != null && !quizDistributionSummary.isEmpty()}"
-                     class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                     class="classroom-list-link-row">
                     <small class="text-muted" th:text="${#lists.size(quizDistributionSummary)} + ' distributed quiz' + (${#lists.size(quizDistributionSummary) != 1} ? 'es' : '')">0 distributed quizzes</small>
-                    <a class="btn btn-sm btn-outline-primary"
+                    <a class="btn btn-sm btn-outline-primary classroom-list-link-btn"
                        th:href="@{/teacher/subject-classroom/{id}/distributed-exams(id=${subject.id})}">
                         <i class="bi bi-list-ul me-1"></i> View Distributed Exams List
                     </a>
@@ -127,10 +118,10 @@
             </div>
 
             <div class="section-card">
-                <div class="section-title mb-0" style="border-bottom:none; padding-bottom:0;">
+                <div class="section-title mb-0">
                     <i class="bi bi-people-fill"></i> Enrolled Students
                 </div>
-                <div style="height:1px; background:#eadfce; margin:1rem 0;"></div>
+                <div class="section-divider"></div>
 
                 <div th:if="${#lists.isEmpty(enrolledStudents)}" class="empty-state">
                     <i class="bi bi-inbox"></i>
@@ -138,9 +129,9 @@
                     <small class="text-muted">Click "Enroll Students" to add students to this classroom.</small>
                 </div>
 
-                <div th:if="${!#lists.isEmpty(enrolledStudents)}" class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div th:if="${!#lists.isEmpty(enrolledStudents)}" class="classroom-list-link-row">
                     <small class="text-muted">Manage and search all enrolled students in a dedicated list page.</small>
-                    <a class="btn btn-sm btn-outline-primary"
+                    <a class="btn btn-sm btn-outline-primary classroom-list-link-btn"
                        th:href="@{/teacher/subject-classroom/{id}/enrolled-students(id=${subject.id})}">
                         <i class="bi bi-list-ul me-1"></i> View Enrolled Students List
                     </a>
@@ -216,7 +207,7 @@
                                                       th:label="'This Subject: ' + ${subject.subjectName}">
                                                 <option th:each="exam : ${uploadedExams}"
                                                         th:value="${exam.examId}"
-                                                        th:text="${exam.examName + ' â€¢ ' + exam.activityType}"
+                                                    th:text="${exam.examName + ' - ' + exam.activityType}"
                                                         th:attr="data-question-count=${#lists.size(exam.questions)}"></option>
                                             </optgroup>
                                         </select>
@@ -325,7 +316,7 @@
                             <div class="mb-3">
                                 <label class="form-label">Select Student</label>
                                 <input type="text" id="enrollStudentSearch" class="form-control mb-2"
-                                       placeholder="ðŸ”Ž Search student via email">
+                                        placeholder="Search student via email">
                                 <small class="text-muted d-block mb-2">Select from existing student accounts.</small>
                                 <select id="enrollStudentSelect" name="studentEmail" class="form-select" required>
                                     <option value="">-- Select a student --</option>

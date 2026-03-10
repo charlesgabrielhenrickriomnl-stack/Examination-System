@@ -10,15 +10,16 @@
     <link th:href="@{/css/style.css}" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/subject-classroom.css}">
 </head>
-<body>
+<body class="teacher-wide-page subject-classroom-page homepage-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="main-container">
-            <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <a th:href="@{/teacher/subject-classroom/{id}(id=${subject.id})}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Classroom
+            <div class="page-toolbar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                     <a th:href="@{/teacher/subject-classroom/{id}(id=${subject.id})}"
+                         class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back
                 </a>
                 <span class="badge bg-light text-dark border" th:text="${distributedExamCount} + ' Distributed Quiz' + (${distributedExamCount != 1} ? 'es' : '')">0 Distributed Quizzes</span>
             </div>
@@ -27,13 +28,13 @@
                 <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
                 <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
-                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
-                    <div class="section-title mb-0" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">
+                <div class="section-head d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div class="section-title mb-0">
                         <i class="bi bi-clipboard-check"></i>
                         <span th:text="${subject.subjectName} + ' - Distributed Exams'">Distributed Exams</span>
                     </div>
                     <input type="text" id="distributedExamsSearch" class="form-control form-control-sm"
-                           placeholder="ðŸ”Ž Search quiz name, type, or deadline..." style="max-width:320px;">
+                           placeholder="Search quiz name, type, or deadline..." style="max-width:320px;">
                 </div>
 
                 <div th:if="${quizDistributionSummary == null || quizDistributionSummary.isEmpty()}" class="empty-state">
@@ -74,12 +75,10 @@
                             <td><span class="badge bg-success" th:text="${quiz.submittedCount}">0</span></td>
                             <td><span class="badge bg-warning text-dark" th:text="${quiz.notSubmittedCount}">0</span></td>
                             <td>
-                                <span class="badge bg-success"
-                                      th:if="${quiz.assignedCount > 0 and quiz.submittedCount == quiz.assignedCount}">Completed</span>
-                                <span class="badge bg-primary"
-                                      th:if="${quiz.submittedCount > 0 and quiz.submittedCount < quiz.assignedCount}">Ongoing</span>
-                                <span class="badge bg-secondary"
-                                      th:if="${quiz.submittedCount == 0}">Waiting for submissions</span>
+                                <span class="badge bg-success" th:if="${quiz.completed}">Completed</span>
+                                <span class="badge bg-danger" th:if="${quiz.overdue}">Overdue</span>
+                                <span class="badge bg-primary" th:if="${quiz.ongoing}">Ongoing</span>
+                                <span class="badge bg-secondary" th:if="${quiz.waiting}">Waiting for submissions</span>
                             </td>
                             <td>
                                 <div class="d-inline-flex gap-2">
@@ -87,6 +86,14 @@
                                        th:href="@{/teacher/subject-classroom/{id}/distribution-students(id=${subject.id},filterExamName=${quiz.filterExamName},filterActivityType=${quiz.filterActivityType},filterTimeLimit=${quiz.filterTimeLimit},filterDeadline=${quiz.filterDeadline})}">
                                         <i class="bi bi-people me-1"></i> View Students
                                     </a>
+                                    <button th:if="${quiz.overdue}"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-warning open-reopen-batch-modal"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#reopenBatchModal"
+                                            th:attr="data-exam-name=${quiz.filterExamName},data-activity-type=${quiz.filterActivityType},data-time-limit=${quiz.filterTimeLimit},data-deadline=${quiz.filterDeadline},data-exam-label=${quiz.examName}">
+                                        <i class="bi bi-arrow-clockwise me-1"></i> Re-open
+                                    </button>
                                     <form th:action="@{/teacher/subject-classroom/{id}/distributed-exams/delete(id=${subject.id})}"
                                           method="post"
                                           class="d-inline"
@@ -104,6 +111,50 @@
                         </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class="modal fade" id="reopenBatchModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form th:action="@{/teacher/subject-classroom/{id}/distributed-exams/reopen(id=${subject.id})}" method="post" id="reopenBatchForm">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="reopenBatchModalTitle">Re-open Quiz Batch</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2 small text-muted">This re-opens the selected quiz for students who did not submit.</p>
+                                <div class="fw-semibold mb-3" id="reopenBatchLabel">Quiz batch</div>
+
+                                <input type="hidden" name="examName" id="reopenBatchExamName">
+                                <input type="hidden" name="activityType" id="reopenBatchActivityType">
+                                <input type="hidden" name="timeLimit" id="reopenBatchTimeLimit">
+                                <input type="hidden" name="deadline" id="reopenBatchDeadline">
+
+                                <div class="mb-3">
+                                    <label for="reopenBatchPreset" class="form-label">Re-open Window</label>
+                                    <select id="reopenBatchPreset" name="reopenPreset" class="form-select form-select-sm">
+                                        <option value="1h">1 hour</option>
+                                        <option value="24h" selected>24 hours</option>
+                                        <option value="72h">72 hours</option>
+                                        <option value="custom">Custom date and time</option>
+                                    </select>
+                                    <div class="form-text">Pick <strong>Custom date and time</strong> if you want an exact deadline.</div>
+                                </div>
+
+                                <div id="reopenBatchCustomWrap" class="d-none">
+                                    <label for="reopenBatchCustomDeadline" class="form-label">Custom Deadline</label>
+                                    <input type="datetime-local" id="reopenBatchCustomDeadline" name="customDeadline" class="form-control form-control-sm" disabled>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Apply Batch Re-open
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

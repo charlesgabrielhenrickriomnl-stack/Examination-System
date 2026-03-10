@@ -24,7 +24,7 @@
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <link rel="stylesheet" th:href="@{/css/manage-questions.css}">
 </head>
-<body class="homepage-page">
+<body class="homepage-page manage-questions-screen">
 
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
@@ -38,7 +38,7 @@
                     <h4 class="mb-0"><i class="bi bi-file-earmark-text"></i> Exam Details</h4>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row g-3 mq-exam-meta">
                         <div class="col-md-3">
                             <p class="mb-1"><strong>Exam Name:</strong></p>
                             <h5 class="text-primary" th:text="${exam.examName}">Midterm Exam</h5>
@@ -57,7 +57,7 @@
                         </div>
                     </div>
                     <hr class="my-3">
-                    <div class="d-flex justify-content-end gap-2">
+                    <div class="d-flex justify-content-end gap-2 mq-exam-actions">
                         <div class="dropdown">
                             <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-download"></i> Export Exam with Answers
@@ -163,14 +163,14 @@
                             <div class="mq-help mt-2">
                                 <div>For multiple choice questions, include all options (A, B, C, D, etc.) in the question text.</div>
                                 <div class="mt-1"><strong>Supported formats</strong></div>
-                                <div>â€¢ Images: <code>&lt;img src="URL" alt="description"&gt;</code></div>
-                                <div>â€¢ Videos: <code>&lt;video src="URL" controls&gt;&lt;/video&gt;</code></div>
-                                <div>â€¢ Or upload media using the file pickers below</div>
-                                <div>â€¢ Equations (inline): <code>$x^2 + y^2 = r^2$</code> or <code>\(x^2\)</code></div>
-                                <div>â€¢ Equations (block): <code>$$\frac{a}{b}$$</code> or <code>\[\int_0^\infty\]</code></div>
+                                <div>- Images: <code>&lt;img src="URL" alt="description"&gt;</code></div>
+                                <div>- Videos: <code>&lt;video src="URL" controls&gt;&lt;/video&gt;</code></div>
+                                <div>- Or upload media using the file pickers below</div>
+                                <div>- Equations (inline): <code>$x^2 + y^2 = r^2$</code> or <code>\(x^2\)</code></div>
+                                <div>- Equations (block): <code>$$\frac{a}{b}$$</code> or <code>\[\int_0^\infty\]</code></div>
                             </div>
                             <div id="mathPreviewContainer" class="mt-2 p-3 rounded">
-                                <small class="d-block mb-1 text-muted" style="font-size:.75rem;">âŸ¨ LaTeX Preview âŸ©</small>
+                                <small class="d-block mb-1 text-muted" style="font-size:.75rem;">[LaTeX Preview]</small>
                                 <div id="mathPreview"></div>
                             </div>
                         </div>
@@ -234,9 +234,9 @@
                                 <label class="form-label fw-bold">Difficulty Level *</label>
                                 <select class="form-select" name="difficulty" required>
                                     <option value="">Select Difficulty</option>
-                                    <option value="Easy">ðŸŸ¢ Easy</option>
-                                    <option value="Medium">ðŸŸ¡ Medium</option>
-                                    <option value="Hard">ðŸ”´ Hard</option>
+                                    <option value="Easy">Easy</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Hard">Hard</option>
                                 </select>
                             </div>
                         </div>
@@ -266,8 +266,8 @@
                 <div class="card-header mq-section-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-list-ol"></i> All Questions</h5>
                     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                        <input type="text" id="manageQuestionSearch" class="form-control form-control-sm mq-search-input"
-                               placeholder="ðŸ”Ž Search question or answer...">
+                           <input type="text" id="manageQuestionSearch" class="form-control form-control-sm mq-search-input"
+                               placeholder="Search question or answer...">
                         <span class="badge bg-light text-dark" th:text="${#lists.size(exam.questions)} + ' Questions'">100 Questions</span>
                     </div>
                 </div>
@@ -277,22 +277,23 @@
                     </div>
                     
                     <div class="list-group list-group-flush">
-                        <div th:each="question, iterStat : ${exam.questions}" 
+                        <div th:each="questionText, iterStat : ${exam.questions}"
+                             th:with="originalIndex=${questionOriginalIndexes[iterStat.index]}"
                              class="list-group-item question-card"
-                             th:attr="data-question-search=${#strings.toLowerCase(question) + ' ' + #strings.toLowerCase(exam.answerKey[iterStat.index])}"
-                             th:classappend="${exam.difficulties[iterStat.index] == 'Easy'} ? 'difficulty-easy' : 
+                             th:attr="data-question-search=${#strings.toLowerCase(questionText) + ' ' + #strings.toLowerCase(exam.answerKey[iterStat.index])}"
+                             th:classappend="${exam.difficulties[iterStat.index] == 'Easy'} ? 'difficulty-easy' :
                                             (${exam.difficulties[iterStat.index] == 'Medium'} ? 'difficulty-medium' : 'difficulty-hard')">
                             <div class="d-flex align-items-start gap-3">
                                 <div class="question-actions">
                                     <button class="btn btn-sm btn-outline-primary mq-edit" type="button"
                                             data-bs-toggle="collapse"
-                                            th:attr="data-bs-target='#editQuestion' + ${iterStat.index}, aria-controls='editQuestion' + ${iterStat.index}">
+                                            th:attr="data-bs-target='#editQuestion' + ${originalIndex}, aria-controls='editQuestion' + ${originalIndex}">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form th:action="@{/teacher/delete-question}" method="post" style="display: inline;"
                                           onsubmit="return confirm('Are you sure you want to delete this question?');">
                                         <input type="hidden" name="examId" th:value="${exam.examId}">
-                                        <input type="hidden" name="questionIndex" th:value="${iterStat.index}">
+                                        <input type="hidden" name="questionIndex" th:value="${originalIndex}">
                                         <input type="hidden" name="returnTo" th:value="${returnTo}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger mq-delete">
                                             <i class="bi bi-trash"></i>
@@ -301,9 +302,9 @@
                                 </div>
                                 <div class="question-main">
                                     <div class="d-flex align-items-center mb-2">
-                                        <span class="question-number me-3" th:text="'#' + ${iterStat.count}">Q1</span>
+                                        <span class="question-number me-3" th:text="'#' + ${originalIndex + 1}">Q1</span>
                                         <span class="badge" 
-                                              th:classappend="${exam.difficulties[iterStat.index] == 'Easy'} ? 'bg-success' : 
+                                              th:classappend="${exam.difficulties[iterStat.index] == 'Easy'} ? 'bg-success' :
                                                              (${exam.difficulties[iterStat.index] == 'Medium'} ? 'bg-warning' : 'bg-danger')"
                                               th:text="${exam.difficulties[iterStat.index]}">Easy</span>
                                         <span class="mq-meta-chip ms-2" th:if="${exam.answerKey[iterStat.index] != null}">
@@ -315,11 +316,11 @@
                                 </div>
                             </div>
 
-                            <div class="collapse mt-3" th:id="'editQuestion' + ${iterStat.index}">
+                            <div class="collapse mt-3" th:id="'editQuestion' + ${originalIndex}">
                                 <div class="card card-body bg-light border">
                                     <form th:action="@{/teacher/edit-question}" method="post" class="row g-2" enctype="multipart/form-data">
                                         <input type="hidden" name="examId" th:value="${exam.examId}">
-                                        <input type="hidden" name="questionIndex" th:value="${iterStat.index}">
+                                        <input type="hidden" name="questionIndex" th:value="${originalIndex}">
                                         <input type="hidden" name="returnTo" th:value="${returnTo}">
 
                                         <div class="col-12">
@@ -377,7 +378,7 @@
                                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="undo" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
                                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cmd="redo" title="Redo"><i class="bi bi-arrow-clockwise"></i></button>
                                                 </div>
-                                                <div class="rich-editor rich-editor-edit" contenteditable="true" th:utext="${question}"></div>
+                                                <div class="rich-editor rich-editor-edit" contenteditable="true" th:utext="${questionText}"></div>
                                                 <input type="hidden" name="questionText" class="edit-question-text-input">
                                             </div>
                                         </div>
@@ -385,15 +386,15 @@
                                         <div class="col-md-4">
                                             <label class="form-label small fw-semibold mb-1">Question Type</label>
                                             <select class="form-select form-select-sm edit-question-type" name="questionType" onchange="toggleEditQuestionTypeFields(this)" required>
-                                                <option value="MULTIPLE_CHOICE" th:selected="${!#strings.startsWith(question, '[TEXT_INPUT]')}">Multiple Choice</option>
-                                                <option value="OPEN_ENDED" th:selected="${#strings.startsWith(question, '[TEXT_INPUT]')}">Open-Ended</option>
+                                                <option value="MULTIPLE_CHOICE" th:selected="${!#strings.startsWith(questionText, '[TEXT_INPUT]')}">Multiple Choice</option>
+                                                <option value="OPEN_ENDED" th:selected="${#strings.startsWith(questionText, '[TEXT_INPUT]')}">Open-Ended</option>
                                             </select>
                                         </div>
 
                                         <div class="col-md-4">
                                             <label class="form-label small fw-semibold mb-1">Answer / Reference</label>
                                             <input type="text" class="form-control form-control-sm edit-answer-input" name="answer"
-                                                   th:value="${exam.answerKey[iterStat.index] == 'MANUAL_GRADE' ? '' : exam.answerKey[iterStat.index]}">
+                                                  th:value="${exam.answerKey[iterStat.index] == 'MANUAL_GRADE' ? '' : exam.answerKey[iterStat.index]}">
                                         </div>
 
                                         <div class="col-md-4">

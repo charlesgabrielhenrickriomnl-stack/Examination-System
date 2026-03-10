@@ -10,33 +10,34 @@
     <link th:href="@{/css/style.css}" rel="stylesheet">
         <link rel="stylesheet" th:href="@{/css/teacher-view-student-result.css}">
 </head>
-<body class="teacher-wide-page">
+<body class="teacher-wide-page homepage-page teacher-result-details-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="container-fluid py-4">
 
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div class="result-topbar d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <div>
-                    <a th:href="@{/teacher/subjects}"
+                    <a th:href="${returnTo}"
                        class="btn btn-sm btn-outline-secondary mb-2">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
-                    <h4 class="mb-0 fw-bold" style="color:#7a1022;">
+                    <h4 class="mb-0 fw-bold result-page-title">
                         <i class="bi bi-person-lines-fill me-2"></i>Student Result Details
                     </h4>
-                    <p class="text-muted small mb-0">Detailed view of student's exam submission and performance.</p>
+                    <p class="text-muted mb-0 result-page-subtitle">Detailed view of student's exam submission and performance.</p>
                 </div>
-                <div class="d-flex gap-2 flex-wrap">
+                <div class="d-flex gap-2 flex-wrap result-top-actions">
                     <a th:unless="${submission.isGraded()}"
                        th:href="@{/teacher/grade/{id}(id=${submission.id})}"
                        class="btn btn-warning">
                         <i class="bi bi-pencil me-1"></i> Grade This Submission
                     </a>
                     <form th:action="@{/teacher/toggle-result-release/{id}(id=${submission.id})}"
-                          method="post" style="display:inline;">
+                          method="post" class="d-inline">
                         <input type="hidden" name="redirectTo" value="detail">
+                                                <input type="hidden" name="returnTo" th:value="${returnTo}">
                         <button type="submit"
                                 th:classappend="${submission.resultsReleased ? 'btn-secondary' : 'btn-success'}"
                                 class="btn"
@@ -48,7 +49,7 @@
                 </div>
             </div>
 
-            <div class="results-card p-4 mb-4">
+            <div class="results-card p-4 mb-4 result-summary-card">
                 <div class="row g-4">
 
                     <div class="col-lg-8">
@@ -161,7 +162,7 @@
                 </div>
             </div>
 
-            <div class="results-card p-4 mb-4">
+            <div class="results-card p-4 mb-4 result-answer-card">
                 <div class="section-title">
                     <i class="bi bi-list-check"></i> Answer Details
                 </div>
@@ -200,7 +201,7 @@
                 </div>
             </div>
 
-            <div th:if="${submission.performanceCategory != null}" class="results-card p-4 mb-4">
+            <div th:if="${submission.performanceCategory != null}" class="results-card p-4 mb-4 result-analytics-card">
                 <div class="section-title">
                     <i class="bi bi-bar-chart-fill"></i> Performance Analytics
                 </div>
