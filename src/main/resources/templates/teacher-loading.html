@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading - ALGO</title>
+    <title>Loading - Adaptive Examination System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -14,8 +14,10 @@
 <body class="teacher-loading-page">
     <main class="teacher-loading-wrap" role="status" aria-live="polite" aria-label="Loading teacher dashboard">
         <section class="teacher-loading-card">
-            <div class="teacher-loading-logo-orb" aria-hidden="true">
-                <img class="teacher-loading-logo" th:src="@{/images/EAC_Emblem.png}" src="/images/EAC_Emblem.png" alt="EAC Emblem">
+            <div class="teacher-loading-stage" aria-hidden="true">
+                <div class="teacher-loading-flight">
+                    <img class="teacher-loading-logo" th:src="@{/images/EAC_Emblem.png}" src="/images/EAC_Emblem.png" alt="EAC Emblem">
+                </div>
             </div>
 
             <h1 class="teacher-loading-college">Emilio Aguinaldo College</h1>
@@ -28,7 +30,7 @@
     </main>
 
     <script>
-        var loadingDurationMs = 3000;
+        var loadingDurationMs = 4200;
         window.setTimeout(function () {
             window.location.replace('/teacher/department-dashboard');
         }, loadingDurationMs);

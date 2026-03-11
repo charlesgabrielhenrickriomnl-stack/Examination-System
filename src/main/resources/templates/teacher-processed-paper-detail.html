@@ -3,22 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
     <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png"><title th:text="'Processed Paper - ' + ${exam.examName}">Processed Paper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@500;600;700;800&family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/teacher-processed-paper-detail.css}">
 </head>
-<body class="homepage-page processed-paper-detail-page">
+<body class="teacher-dashboard-page processed-paper-detail-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="container-fluid paper-detail-shell">
-            <div class="paper-detail-head">
+            <div class="paper-detail-head dashboard-reveal">
                 <div class="paper-detail-top">
                     <div class="paper-detail-copy">
+                    <p class="paper-detail-kicker mb-1">Paper Workspace</p>
                     <h4 class="paper-detail-title mb-0">
                         <i class="bi bi-file-earmark-check me-2"></i>
                         <span th:text="${exam.examName}">Exam Name</span>
@@ -30,6 +35,18 @@
                         &nbsp;&bull;&nbsp;
                         Processed: <strong th:text="${exam.uploadedAt != null ? #temporals.format(exam.uploadedAt, 'MMM dd, yyyy hh:mm a') : '-'}">-</strong>
                     </p>
+                    <div class="paper-detail-stats">
+                        <span class="paper-detail-chip">
+                            <i class="bi bi-list-ol"></i>
+                            <strong th:text="${questionRows != null ? #lists.size(questionRows) : 0}">0</strong>
+                            <span>Questions</span>
+                        </span>
+                        <span class="paper-detail-chip" th:if="${questionSearch != null and !#strings.isEmpty(questionSearch)}">
+                            <i class="bi bi-funnel"></i>
+                            <span>Filtered by:</span>
+                            <strong th:text="${questionSearch}">query</strong>
+                        </span>
+                    </div>
                 </div>
                 <div class="paper-actions-toolbar">
                     <div class="paper-actions-main">
@@ -80,9 +97,9 @@
                 <i class="bi bi-exclamation-triangle me-1"></i><span th:text="${errorMessage}">Error</span>
             </div>
 
-            <div class="results-card" th:if="${questionRows != null && !questionRows.isEmpty()}">
+            <div class="results-card dashboard-reveal" th:if="${questionRows != null && !questionRows.isEmpty()}">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover align-middle mb-0 paper-question-table">
                         <thead class="table-light">
                         <tr>
                             <th style="width:70px;">#</th>
@@ -99,8 +116,8 @@
                                 <div class="answer-key-text" th:text="${row.answer}" th:title="${row.answer}">Not Set</div>
                             </td>
                             <td>
-                                <span class="badge"
-                                      th:classappend="${#strings.equalsIgnoreCase(row.difficulty, 'Easy') ? 'bg-success' : (#strings.equalsIgnoreCase(row.difficulty, 'Hard') ? 'bg-danger' : 'bg-warning text-dark')}"
+                                  <span class="badge paper-difficulty-badge"
+                                      th:classappend="${#strings.equalsIgnoreCase(row.difficulty, 'Easy') ? ' diff-easy' : (#strings.equalsIgnoreCase(row.difficulty, 'Hard') ? ' diff-hard' : ' diff-medium')}"
                                       th:text="${row.difficulty}">Medium</span>
                             </td>
                         </tr>
@@ -109,7 +126,7 @@
                 </div>
             </div>
 
-            <div class="results-card p-5 text-center text-muted" th:if="${questionRows == null || questionRows.isEmpty()}">
+            <div class="results-card dashboard-reveal p-5 text-center text-muted" th:if="${questionRows == null || questionRows.isEmpty()}">
                 <i class="bi bi-search display-5 d-block mb-2"></i>
                 No questions or answers matched your search.
             </div>

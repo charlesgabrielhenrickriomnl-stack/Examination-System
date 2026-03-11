@@ -1,94 +1,22 @@
 (function() {
-                const path = window.location.pathname;
-                document.querySelectorAll('#teacherNavMenu .teacher-nav-item').forEach(function(link) {
-                    const p = link.getAttribute('data-path');
-                    if (p && path.startsWith(p)) {
-                        link.classList.add('active');
-                    }
-                });
+                const markActiveNavItem = function() {
+                    const path = window.location.pathname;
 
-                if (!document.getElementById('fa6-cdn')) {
-                    const fa = document.createElement('link');
-                    fa.id = 'fa6-cdn';
-                    fa.rel = 'stylesheet';
-                    fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
-                    document.head.appendChild(fa);
-                }
+                    document.querySelectorAll('#teacherNavMenu .teacher-nav-item').forEach(function(link) {
+                        const raw = link.getAttribute('data-path');
+                        if (!raw) {
+                            return;
+                        }
 
-                const iconMap = {
-                    'bi-grid-1x2': 'fa-table-cells-large',
-                    'bi-journals': 'fa-book-open',
-                    'bi-file-earmark-text': 'fa-file-lines',
-                    'bi-person': 'fa-user',
-                    'bi-box-arrow-right': 'fa-right-from-bracket',
-                    'bi-arrow-left': 'fa-arrow-left',
-                    'bi-download': 'fa-download',
-                    'bi-file-earmark-pdf': 'fa-file-pdf',
-                    'bi-file-earmark-spreadsheet': 'fa-file-csv',
-                    'bi-file-earmark-word': 'fa-file-word',
-                    'bi-plus-circle': 'fa-circle-plus',
-                    'bi-check-circle': 'fa-circle-check',
-                    'bi-exclamation-triangle': 'fa-triangle-exclamation',
-                    'bi-list-ol': 'fa-list-ol',
-                    'bi-list-ul': 'fa-list-ul',
-                    'bi-info-circle': 'fa-circle-info',
-                    'bi-pencil': 'fa-pen',
-                    'bi-trash': 'fa-trash',
-                    'bi-key': 'fa-key',
-                    'bi-check2-circle': 'fa-circle-check',
-                    'bi-fonts': 'fa-font',
-                    'bi-paint-bucket': 'fa-fill-drip',
-                    'bi-eraser': 'fa-eraser',
-                    'bi-eraser-fill': 'fa-eraser',
-                    'bi-arrow-counterclockwise': 'fa-rotate-left',
-                    'bi-arrow-clockwise': 'fa-rotate-right',
-                    'bi-x-lg': 'fa-xmark',
-                    'bi-journal-check': 'fa-file-circle-check',
-                    'bi-search': 'fa-magnifying-glass',
-                    'bi-eye': 'fa-eye',
-                    'bi-journal-x': 'fa-file-circle-xmark',
-                    'bi-book': 'fa-book',
-                    'bi-people': 'fa-users',
-                    'bi-file-text': 'fa-file-lines',
-                    'bi-person-plus': 'fa-user-plus',
-                    'bi-send-check': 'fa-paper-plane',
-                    'bi-send-fill': 'fa-paper-plane',
-                    'bi-send-check-fill': 'fa-paper-plane',
-                    'bi-hourglass-split': 'fa-hourglass-half',
-                    'bi-people-fill': 'fa-users',
-                    'bi-inbox': 'fa-inbox',
-                    'bi-clipboard-check': 'fa-clipboard-check',
-                    'bi-clipboard-data': 'fa-chart-column',
-                    'bi-envelope': 'fa-envelope',
-                    'bi-chevron-down': 'fa-chevron-down',
-                    'bi-pencil-square': 'fa-pen-to-square',
-                    'bi-exclamation-triangle-fill': 'fa-triangle-exclamation',
-                    'bi-journal-text': 'fa-file-lines',
-                    'bi-clock': 'fa-clock',
-                    'bi-bar-chart': 'fa-chart-column',
-                    'bi-calendar-event': 'fa-calendar-days',
-                    'bi-person-badge': 'fa-id-badge',
-                    'bi-graph-up': 'fa-chart-line',
-                    'bi-check-circle-fill': 'fa-circle-check',
-                    'bi-list-check': 'fa-list-check',
-                    'bi-x-circle': 'fa-circle-xmark',
-                    'bi-chat-text': 'fa-comments',
-                    'bi-check-square': 'fa-square-check',
-                    'bi-award': 'fa-award',
-                    'bi-chat-left-text': 'fa-comment-dots',
-                    'bi-calculator': 'fa-calculator'
-                };
+                        const matches = raw
+                            .split('|')
+                            .map(function(item) { return item.trim(); })
+                            .filter(Boolean)
+                            .some(function(prefix) { return path.startsWith(prefix); });
 
-                const toFa = function() {
-                    document.querySelectorAll('.teacher-layout i.bi').forEach(function(icon) {
-                        const classes = Array.from(icon.classList);
-                        const biClass = classes.find(c => c.startsWith('bi-'));
-                        if (!biClass) return;
-
-                        const mapped = iconMap[biClass] || biClass.replace(/^bi-/, 'fa-');
-                        icon.classList.remove('bi');
-                        classes.filter(c => c.startsWith('bi-')).forEach(c => icon.classList.remove(c));
-                        icon.classList.add('fa-solid', mapped);
+                        if (matches) {
+                            link.classList.add('active');
+                        }
                     });
                 };
 
@@ -114,11 +42,11 @@
 
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', function() {
-                        toFa();
+                        markActiveNavItem();
                         setupFlashAutoDismiss();
                     });
                 } else {
-                    toFa();
+                    markActiveNavItem();
                     setupFlashAutoDismiss();
                 }
             })();

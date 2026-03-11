@@ -233,9 +233,7 @@ public class TeacherController {
     @GetMapping("/processed-papers")
     public String processedPapers(@RequestParam(name = "search", required = false) String search, Model model, Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
-        List<OriginalProcessedPaper> papers = teacherEmail.isBlank()
-            ? new ArrayList<>()
-            : originalProcessedPaperRepository.findByTeacherEmailOrderByProcessedAtDesc(teacherEmail);
+        List<OriginalProcessedPaper> papers = findTeacherProcessedPapers(teacherEmail);
 
         String normalizedSearch = normalize(search);
         List<Map<String, Object>> processedExams = new ArrayList<>();
@@ -246,6 +244,11 @@ public class TeacherController {
                 paper.setOriginalQuestionsJson(gson.toJson(questions));
                 originalProcessedPaperRepository.save(paper);
             }
+            String subjectDisplay = paper.getSubject() == null || paper.getSubject().isBlank()
+                ? "Unassigned"
+                : paper.getSubject().trim();
+            int questionCount = questions == null ? 0 : questions.size();
+            String questionCountLabel = questionCount + " questions";
             String combinedText = normalize(paper.getExamName());
 
             if (!normalizedSearch.isEmpty() && !combinedText.contains(normalizedSearch)) {
@@ -256,9 +259,14 @@ public class TeacherController {
             row.put("examId", paper.getExamId());
             row.put("examName", paper.getExamName());
             row.put("subject", paper.getSubject());
+            row.put("subjectDisplay", subjectDisplay);
+            row.put("subjectBadge", subjectDisplay);
             row.put("activityType", paper.getActivityType());
             row.put("uploadedAt", paper.getProcessedAt());
             row.put("questions", questions);
+            row.put("questionCount", questionCount);
+            row.put("questionCountLabel", questionCountLabel);
+            row.put("questionBadge", questionCountLabel);
             processedExams.add(row);
         }
 
@@ -601,8 +609,7 @@ public class TeacherController {
         }
 
         OriginalProcessedPaper paper = paperOpt.get();
-        String teacherEmail = principal != null ? principal.getName() : "";
-        if (!teacherEmail.isBlank() && !teacherEmail.equalsIgnoreCase(paper.getTeacherEmail())) {
+        if (!isOwner(principal, paper.getTeacherEmail())) {
             return "redirect:/teacher/processed-papers";
         }
 
@@ -984,9 +991,7 @@ public class TeacherController {
         }
 
         List<EnrolledStudent> enrolledStudents = enrolledStudentRepository.findBySubjectId(id);
-        List<OriginalProcessedPaper> teacherPapers = teacherEmail.isBlank()
-            ? new ArrayList<>()
-            : originalProcessedPaperRepository.findByTeacherEmailOrderByProcessedAtDesc(teacherEmail);
+        List<OriginalProcessedPaper> teacherPapers = findTeacherProcessedPapers(teacherEmail);
 
         List<Map<String, Object>> uploadedExams = new ArrayList<>();
         for (OriginalProcessedPaper paper : teacherPapers) {
@@ -3011,9 +3016,54 @@ public class TeacherController {
         }
     }
 
+    private List<OriginalProcessedPaper> findTeacherProcessedPapers(String teacherEmail) {
+        String rawTeacherEmail = teacherEmail == null ? "" : teacherEmail.trim();
+        if (rawTeacherEmail.isBlank()) {
+            return new ArrayList<>();
+        }
+
+        List<OriginalProcessedPaper> directMatches =
+            originalProcessedPaperRepository.findByTeacherEmailOrderByProcessedAtDesc(rawTeacherEmail);
+        if (!directMatches.isEmpty()) {
+            return directMatches;
+        }
+
+        String normalizedTeacherEmail = normalize(rawTeacherEmail);
+        return originalProcessedPaperRepository.findAll().stream()
+            .filter(paper -> matchesTeacherOwner(normalizedTeacherEmail, paper.getTeacherEmail()))
+            .sorted(Comparator.comparing(OriginalProcessedPaper::getProcessedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+    }
+
+    private boolean matchesTeacherOwner(String teacherEmail, String ownerEmail) {
+        String normalizedTeacherEmail = normalize(teacherEmail);
+        String normalizedOwnerEmail = normalize(ownerEmail);
+        if (normalizedTeacherEmail.isBlank() || normalizedOwnerEmail.isBlank()) {
+            return false;
+        }
+
+        if (normalizedTeacherEmail.equals(normalizedOwnerEmail)) {
+            return true;
+        }
+
+        return normalizeOwnerKey(normalizedTeacherEmail).equals(normalizeOwnerKey(normalizedOwnerEmail));
+    }
+
+    private String normalizeOwnerKey(String value) {
+        String normalized = normalize(value);
+        if (normalized.isBlank()) {
+            return "";
+        }
+        normalized = normalized.replaceAll("[^a-z0-9]+", "_");
+        normalized = normalized.replaceAll("_+", "_");
+        normalized = normalized.replaceAll("^_|_$", "");
+        return normalized;
+    }
+
     private boolean isOwner(Principal principal, String ownerEmail) {
         String teacherEmail = principal != null ? principal.getName() : "";
-        return !teacherEmail.isBlank() && ownerEmail != null && teacherEmail.equalsIgnoreCase(ownerEmail);
+        return matchesTeacherOwner(teacherEmail, ownerEmail);
     }
 
     private String resolveQuestionDisplay(Map<String, Object> questionRow, String difficulty, String answer) {

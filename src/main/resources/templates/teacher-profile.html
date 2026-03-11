@@ -3,69 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
-    <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png"><title>Account Setting - ALGO</title>
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png"><title>Account Setting - Adaptive Examination System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-profile.css}">
 </head>
-<body class="homepage-page teacher-account-page">
+<body class="teacher-dashboard-page teacher-account-page">
 
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
-        <div class="container">
+        <div class="container account-shell">
+            <section class="account-hero dashboard-reveal">
+                <div class="account-hero-copy">
+                    <p class="account-kicker mb-1">Teacher Workspace</p>
+                    <h2 class="account-title mb-1">Account & Profile</h2>
+                    <p class="account-subtitle mb-0">Keep your profile details up to date and review account identity information used across your classes.</p>
+                </div>
+                <div class="account-hero-meta">
+                    <p class="account-meta-label mb-1">Signed In As</p>
+                    <p class="account-meta-value mb-0" th:text="${currentUserFullName ?: 'Teacher'}">Teacher</p>
+                </div>
+            </section>
+
             <div class="row justify-content-center">
                 <div class="col-12 col-md-10 col-lg-8">
                     <div class="card upload-card profile-card">
-                        <div class="card-body p-4"> 
+                        <div class="card-body p-4">
+                            <div class="account-card-head">
+                                <h3 class="account-card-title mb-1">Profile Details</h3>
+                                <p class="account-card-note mb-0">Identity and institutional details linked to your teacher account.</p>
+                            </div>
 
                             <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
                             <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
-                            <div class="profile-info-item">
-                                <div class="profile-info-icon"><i class="fa-solid fa-user"></i></div>
-                                <div class="profile-info-content">
-                                    <div class="profile-info-label">Name</div>
-                                    <div class="profile-info-value" th:text="${currentUserFullName ?: 'Teacher'}">Teacher</div>
+                            <div class="profile-info-grid">
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon"><i class="fa-solid fa-user"></i></div>
+                                    <div class="profile-info-content">
+                                        <div class="profile-info-label">Name</div>
+                                        <div class="profile-info-value" th:text="${currentUserFullName ?: 'Teacher'}">Teacher</div>
+                                    </div>
+                                </div>
+
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon"><i class="fa-solid fa-envelope"></i></div>
+                                    <div class="profile-info-content">
+                                        <div class="profile-info-label">Email</div>
+                                        <div class="profile-info-value" th:text="${currentUserEmail ?: 'N/A'}">N/A</div>
+                                    </div>
+                                </div>
+
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon"><i class="fa-solid fa-user-tag"></i></div>
+                                    <div class="profile-info-content">
+                                        <div class="profile-info-label">Role</div>
+                                        <div class="profile-info-value" th:text="${currentUserRole ?: 'TEACHER'}">TEACHER</div>
+                                    </div>
+                                </div>
+
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon"><i class="fa-solid fa-school"></i></div>
+                                    <div class="profile-info-content">
+                                        <div class="profile-info-label">School</div>
+                                        <div class="profile-info-value" th:text="${currentUserSchool ?: 'Emilio Aguinaldo College'}">Emilio Aguinaldo College</div>
+                                    </div>
+                                </div>
+
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon"><i class="fa-solid fa-location-dot"></i></div>
+                                    <div class="profile-info-content">
+                                        <div class="profile-info-label">Campus</div>
+                                        <div class="profile-info-value" th:text="${currentUserCampus ?: 'Manila'}">Manila</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="profile-info-item">
-                                <div class="profile-info-icon"><i class="fa-solid fa-envelope"></i></div>
-                                <div class="profile-info-content">
-                                    <div class="profile-info-label">Email</div>
-                                    <div class="profile-info-value" th:text="${currentUserEmail ?: 'N/A'}">N/A</div>
-                                </div>
-                            </div>
-
-                            <div class="profile-info-item mb-4">
-                                <div class="profile-info-icon"><i class="fa-solid fa-user-tag"></i></div>
-                                <div class="profile-info-content">
-                                    <div class="profile-info-label">Role</div>
-                                    <div class="profile-info-value" th:text="${currentUserRole ?: 'TEACHER'}">TEACHER</div>
-                                </div>
-                            </div>
-
-                            <div class="profile-info-item">
-                                <div class="profile-info-icon"><i class="fa-solid fa-school"></i></div>
-                                <div class="profile-info-content">
-                                    <div class="profile-info-label">School</div>
-                                    <div class="profile-info-value" th:text="${currentUserSchool ?: 'Emilio Aguinaldo College'}">Emilio Aguinaldo College</div>
-                                </div>
-                            </div>
-
-                            <div class="profile-info-item">
-                                <div class="profile-info-icon"><i class="fa-solid fa-location-dot"></i></div>
-                                <div class="profile-info-content">
-                                    <div class="profile-info-label">Campus</div>
-                                    <div class="profile-info-value" th:text="${currentUserCampus ?: 'Manila'}">Manila</div>
-                                </div>
-                            </div>
-
-                            <form th:action="@{/logout}" method="post" class="text-end">
-                                <button type="submit" class="btn btn-primary px-4">Logout
+                            <form th:action="@{/logout}" method="post" class="text-end account-logout-form">
+                                <button type="submit" class="btn btn-primary px-4 account-logout-btn">Logout
                                 </button>
                             </form>
                         </div>
@@ -75,8 +99,6 @@
         </div>
     </div>
 </div>
-
-    <link rel="stylesheet" th:href="@{/css/teacher-profile.css}">
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

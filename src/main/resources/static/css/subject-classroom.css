@@ -9,11 +9,12 @@
     --sc-brand: #7a1022;
     --sc-brand-2: #99172e;
     --sc-accent: #d4a32a;
-    --sc-shadow: 0 14px 34px rgba(60, 36, 13, 0.09);
+    --sc-shadow: 0 16px 34px rgba(60, 36, 13, 0.12);
+    font-family: 'Space Grotesk', 'Manrope', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .subject-classroom-page .teacher-content-wrapper {
-    padding-top: clamp(1rem, 2vw, 1.6rem);
+    padding-top: clamp(1.15rem, 2.2vw, 1.75rem);
 }
 
 .main-container {
@@ -62,9 +63,9 @@
 
 .classroom-header {
     background:
-        linear-gradient(180deg, #fffdfa 0%, #fff8ef 100%);
+        linear-gradient(160deg, rgba(255, 251, 245, 0.96), rgba(252, 245, 235, 0.92));
     border: 1px solid var(--sc-border);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 1.4rem 1.6rem;
     margin-bottom: 1.2rem;
     box-shadow: var(--sc-shadow);
@@ -78,7 +79,7 @@
 .section-card {
     background: var(--sc-surface);
     border: 1px solid var(--sc-border);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 1.25rem;
     margin-bottom: 1.2rem;
     box-shadow: var(--sc-shadow);
@@ -99,9 +100,11 @@
 }
 
 .section-head .form-control.form-control-sm {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+    border-radius: 10px;
+    border-color: #d8cdbd;
 }
 
 .section-head {
@@ -265,6 +268,42 @@
     background: #fff;
 }
 
+#enrolledStudentsTable,
+#distributionStudentsTable,
+#distributedExamsTable {
+    min-width: 980px;
+}
+
+.subject-classroom-page #enrolledStudentsTable,
+.subject-classroom-page #distributionStudentsTable,
+.subject-classroom-page #distributedExamsTable {
+    font-size: 0.92rem;
+}
+
+.subject-classroom-page #enrolledStudentsTable thead th,
+.subject-classroom-page #distributionStudentsTable thead th,
+.subject-classroom-page #distributedExamsTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.subject-classroom-page #enrolledStudentsTable,
+.subject-classroom-page #distributionStudentsTable,
+.subject-classroom-page #distributedExamsTable {
+    border-collapse: separate;
+}
+
+.subject-classroom-page #enrolledStudentsTable,
+.subject-classroom-page #distributionStudentsTable,
+.subject-classroom-page #distributedExamsTable {
+    width: 100%;
+}
+
+.subject-classroom-page .table-responsive {
+    max-height: min(68vh, 760px);
+}
+
 .student-list-table {
     width: 100%;
     border-collapse: separate;
@@ -303,7 +342,7 @@
 .student-list-table td {
     padding: 0.8rem 0.86rem;
     vertical-align: middle;
-    font-size: 0.98rem;
+    font-size: 0.9rem;
     color: #3f3326;
 }
 
@@ -315,8 +354,8 @@
 }
 
 .student-list-table .btn.btn-sm {
-    font-size: 0.96rem;
-    padding: 0.45rem 0.8rem;
+    font-size: 0.86rem;
+    padding: 0.4rem 0.72rem;
 }
 
 .student-list-table .btn i {

@@ -1,4 +1,6 @@
 body.teacher-loading-page {
+    --loading-duration: 4200ms;
+
     margin: 0;
     min-height: 100vh;
     display: grid;
@@ -29,27 +31,39 @@ body.teacher-loading-page {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 0.52rem;
+    gap: 0.48rem;
 }
 
-.teacher-loading-logo-orb {
-    width: clamp(108px, 13vw, 152px);
-    height: clamp(108px, 13vw, 152px);
+.teacher-loading-stage {
+    width: clamp(126px, 16vw, 178px);
+    height: clamp(126px, 16vw, 178px);
     display: grid;
     place-items: center;
-    perspective: 1000px;
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    perspective: 1300px;
+}
+
+.teacher-loading-flight {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    transform-style: preserve-3d;
+    animation: emblem-approach var(--loading-duration) linear forwards;
 }
 
 .teacher-loading-logo {
-    width: clamp(86px, 10vw, 122px);
-    height: clamp(86px, 10vw, 122px);
+    width: clamp(88px, 10vw, 124px);
+    height: clamp(88px, 10vw, 124px);
     object-fit: contain;
     transform-style: preserve-3d;
     backface-visibility: visible;
     transform-origin: center;
     will-change: transform;
-    animation: eac-logo-3d-spin 2.6s linear infinite;
-    filter: drop-shadow(0 12px 20px rgba(93, 18, 31, 0.24));
+    animation: emblem-orbit-once var(--loading-duration) linear forwards;
+    filter: none;
 }
 
 .teacher-loading-college {
@@ -86,7 +100,7 @@ body.teacher-loading-page {
     width: 0;
     border-radius: inherit;
     background: linear-gradient(90deg, #7b1022, #a01631 45%, #c78529 100%);
-    animation: eac-bar-fill 3s cubic-bezier(0.2, 0.75, 0.3, 1) forwards;
+    animation: eac-bar-fill var(--loading-duration) cubic-bezier(0.2, 0.75, 0.3, 1) forwards;
 }
 
 .teacher-loading-bar-fill::after {
@@ -100,25 +114,83 @@ body.teacher-loading-page {
     animation: eac-bar-shimmer 1.05s linear infinite;
 }
 
-@keyframes eac-logo-3d-spin {
+@keyframes emblem-approach {
     0% {
-        transform: rotateY(0deg) rotateX(3deg);
+        opacity: 0;
+        transform: translate3d(0, -28px, -2600px) rotateX(30deg) rotateY(0deg) rotateZ(0deg) scale(0.02);
     }
 
-    25% {
-        transform: rotateY(90deg) rotateX(1.5deg);
+    6% {
+        opacity: 1;
+        transform: translate3d(0, -24px, -2200px) rotateX(24deg) rotateY(0deg) rotateZ(0deg) scale(0.05);
     }
 
-    50% {
-        transform: rotateY(180deg) rotateX(0deg);
+    12% {
+        opacity: 1;
+        transform: translate3d(0, -22px, -2100px) rotateX(20deg) rotateY(0deg) rotateZ(0deg) scale(0.06);
     }
 
-    75% {
-        transform: rotateY(270deg) rotateX(1.5deg);
+    18% {
+        opacity: 1;
+        transform: translate3d(0, -16px, -1650px) rotateX(16deg) rotateY(0deg) rotateZ(0deg) scale(0.14);
+    }
+
+    24% {
+        opacity: 1;
+        transform: translate3d(0, -10px, -1100px) rotateX(12deg) rotateY(0deg) rotateZ(0deg) scale(0.3);
+    }
+
+    30% {
+        opacity: 1;
+        transform: translate3d(0, -5px, -620px) rotateX(8deg) rotateY(0deg) rotateZ(0deg) scale(0.56);
+    }
+
+    34% {
+        opacity: 1;
+        transform: translate3d(0, -2px, -140px) rotateX(4deg) rotateY(0deg) rotateZ(0deg) scale(0.9);
+    }
+
+    40% {
+        transform: translate3d(0, 0, 10px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.06);
     }
 
     100% {
-        transform: rotateY(360deg) rotateX(3deg);
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
+    }
+}
+
+@keyframes emblem-orbit-once {
+    0% {
+        transform: rotateY(0deg) rotateX(8deg) scale(0.92);
+    }
+
+    45% {
+        transform: rotateY(0deg) rotateX(5deg) scale(1);
+    }
+
+    62% {
+        transform: rotateY(120deg) rotateX(8deg) scale(1.02);
+    }
+
+    78% {
+        transform: rotateY(240deg) rotateX(8deg) scale(1.03);
+    }
+
+    92% {
+        transform: rotateY(360deg) rotateX(6deg) scale(1.04);
+    }
+
+    96% {
+        transform: rotateY(360deg) rotateX(3deg) scale(1.22);
+    }
+
+    98% {
+        transform: rotateY(360deg) rotateX(1deg) scale(0.86);
+    }
+
+    100% {
+        transform: rotateY(360deg) rotateX(0deg) scale(1);
     }
 }
 

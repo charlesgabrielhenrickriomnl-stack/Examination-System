@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Something Went Wrong</title>
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #f7f3ec 0%, #ffffff 60%, #f9f6f0 100%);
+            color: #2a2a2a;
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+        }
+
+        .error-card {
+            width: min(680px, 100%);
+            border: 1px solid #eadfce;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 14px 28px rgba(60, 36, 13, 0.11);
+            padding: 1.25rem 1.25rem 1.05rem;
+        }
+
+        .error-title {
+            color: #7a1022;
+            font-size: clamp(1.3rem, 1.1rem + 0.8vw, 1.8rem);
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .error-meta {
+            color: #6f6f6f;
+            font-size: 0.9rem;
+        }
+
+        .error-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+
+        .btn-maroon {
+            background: linear-gradient(135deg, #8f1228 0%, #6f0e20 100%);
+            border: 0;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .btn-maroon:hover,
+        .btn-maroon:focus {
+            color: #ffe9b8;
+            background: linear-gradient(135deg, #7a1022 0%, #5f0d1a 100%);
+        }
+    </style>
+</head>
+<body>
+<div class="error-card">
+    <p class="text-uppercase fw-bold mb-2" style="color:#8a5915; letter-spacing:0.1em; font-size:0.72rem;">Adaptive Examination System</p>
+    <h1 class="error-title mb-2">We hit an unexpected problem.</h1>
+    <p class="mb-2">Please try again. If this keeps happening, contact the administrator.</p>
+
+    <div class="error-meta">
+        <div th:if="${status != null}">Status: <span th:text="${status}">500</span></div>
+        <div th:if="${error != null}">Error: <span th:text="${error}">Internal Server Error</span></div>
+        <div th:if="${path != null}">Path: <span th:text="${path}">/</span></div>
+    </div>
+
+    <div class="error-actions">
+        <a class="btn btn-maroon" href="/">Go to Homepage</a>
+        <a class="btn btn-outline-secondary" href="javascript:history.back()">Go Back</a>
+    </div>
+</div>
+</body>
+</html>

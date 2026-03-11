@@ -3,30 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
     <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png"><title>Processed Papers</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@500;600;700;800&family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
-        <link rel="stylesheet" th:href="@{/css/teacher-processed-papers.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-processed-papers.css}">
 </head>
-<body class="homepage-page processed-papers-page">
+<body class="teacher-dashboard-page processed-papers-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="container-fluid processed-papers-shell">
-            <div class="processed-papers-head">
+            <div class="processed-papers-head dashboard-reveal">
                 <div class="processed-head-top">
                     <div class="processed-head-copy">
+                        <p class="processed-kicker mb-1">Question Bank Library</p>
                         <h4 class="processed-papers-title mb-1">
                         <i class="bi bi-journal-check me-2"></i>Processed Papers
                         </h4>
                         <p class="processed-papers-note">Teacher-only list of processed exams with subject and upload timestamp.</p>
                         <p class="processed-papers-note">Imported questions are also copied into the shared question bank, and distributed quizzes keep their own snapshot.</p>
+                        <div class="processed-head-stats">
+                            <span class="processed-stat-chip">
+                                <i class="bi bi-collection"></i>
+                                <strong th:text="${totalProcessed}">0</strong>
+                                <span>Total Papers</span>
+                            </span>
+                            <span class="processed-stat-chip" th:if="${not #strings.isEmpty(search)}">
+                                <i class="bi bi-funnel"></i>
+                                <span>Filtered by:</span>
+                                <strong th:text="${search}">query</strong>
+                            </span>
+                        </div>
                     </div>
                     <a th:href="@{/teacher/department-dashboard}" class="btn btn-sm btn-outline-secondary processed-back-btn">
                         <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
@@ -41,13 +55,10 @@
                                 <input type="text" name="search" class="form-control processed-search-input"
                                        placeholder="Search exam or quiz title/name..."
                                        th:value="${search}">
+                                <button type="submit" class="btn btn-primary processed-search-btn">
+                                    <i class="bi bi-search me-1"></i>Search
+                                </button>
                             </div>
-                            <button type="submit" class="btn btn-primary processed-search-btn">
-                                <i class="bi bi-search me-1"></i>Search
-                            </button>
-                        </div>
-                        <div class="processed-count">
-                            <strong th:text="${totalProcessed}">0</strong> paper(s)
                         </div>
                     </form>
                 </div>
@@ -56,7 +67,7 @@
             <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
             <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
-            <div class="processed-table-card" th:if="${processedExams != null && !processedExams.isEmpty()}">
+            <div class="processed-table-card dashboard-reveal" th:if="${not #lists.isEmpty(processedExams)}">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle processed-table mb-0">
                         <thead>
@@ -73,11 +84,13 @@
                         <tr th:each="paper : ${processedExams}">
                             <td class="fw-semibold" th:text="${paper.examName}">Exam</td>
                             <td>
-                                <span class="badge processed-subject-badge" th:text="${paper.subject}">Subject</span>
+                                  <span class="processed-pill processed-subject-pill"
+                                      th:text="${paper.subjectBadge}">Unassigned</span>
                             </td>
                             <td th:text="${paper.activityType}">Exam</td>
                             <td>
-                                <span class="badge processed-question-badge" th:text="${#lists.size(paper.questions)} + ' questions'">0 questions</span>
+                                  <span class="processed-pill processed-question-pill"
+                                      th:text="${paper.questionBadge}">0 questions</span>
                             </td>
                             <td>
                                 <small class="text-muted"
@@ -105,7 +118,7 @@
                 </div>
             </div>
 
-            <div class="processed-empty-state p-5 text-center text-muted" th:if="${processedExams == null || processedExams.isEmpty()}">
+            <div class="processed-empty-state dashboard-reveal p-5 text-center text-muted" th:if="${#lists.isEmpty(processedExams)}">
                 <i class="bi bi-journal-x display-5 d-block mb-2"></i>
                 No processed papers found.
             </div>
