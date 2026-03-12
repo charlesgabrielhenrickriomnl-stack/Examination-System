@@ -29,6 +29,11 @@ body {
     min-height: 100vh;
 }
 
+.teacher-layout a,
+.teacher-layout button {
+    touch-action: manipulation;
+}
+
 .teacher-sidebar {
     width: min(980px, calc(100% - 5.5in));
     margin: 0 auto;

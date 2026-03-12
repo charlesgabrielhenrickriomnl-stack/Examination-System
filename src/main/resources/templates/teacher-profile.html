@@ -22,22 +22,22 @@
 
     <div class="teacher-content-wrapper">
         <div class="container account-shell">
-            <section class="account-hero dashboard-reveal">
-                <div class="account-hero-copy">
-                    <p class="account-kicker mb-1">Teacher Workspace</p>
-                    <h2 class="account-title mb-1">Account & Profile</h2>
-                    <p class="account-subtitle mb-0">Keep your profile details up to date and review account identity information used across your classes.</p>
-                </div>
-                <div class="account-hero-meta">
-                    <p class="account-meta-label mb-1">Signed In As</p>
-                    <p class="account-meta-value mb-0" th:text="${currentUserFullName ?: 'Teacher'}">Teacher</p>
-                </div>
-            </section>
-
             <div class="row justify-content-center">
                 <div class="col-12 col-md-10 col-lg-8">
                     <div class="card upload-card profile-card">
                         <div class="card-body p-4">
+                            <section class="account-hero account-hero-inline dashboard-reveal">
+                                <div class="account-hero-copy">
+                                    <p class="account-kicker mb-1">Teacher Workspace</p>
+                                    <h2 class="account-title mb-1">Account & Profile</h2>
+                                    <p class="account-subtitle mb-0">Keep your profile details up to date and review account identity information used across your classes.</p>
+                                </div>
+                                <div class="account-hero-meta">
+                                    <p class="account-meta-label mb-1">Signed In As</p>
+                                    <p class="account-meta-value mb-0" th:text="${currentUserFullName ?: 'Teacher'}">Teacher</p>
+                                </div>
+                            </section>
+
                             <div class="account-card-head">
                                 <h3 class="account-card-title mb-1">Profile Details</h3>
                                 <p class="account-card-note mb-0">Identity and institutional details linked to your teacher account.</p>

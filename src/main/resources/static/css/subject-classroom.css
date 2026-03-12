@@ -127,10 +127,14 @@
 }
 
 .classroom-list-link-btn {
-    min-width: 250px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.38rem;
+    text-align: center;
     font-size: 0.98rem;
     padding: 0.5rem 0.95rem;
     white-space: nowrap;
@@ -139,6 +143,7 @@
 
 .classroom-list-link-btn i {
     line-height: 1;
+    margin-right: 0;
 }
 
 .classroom-stats-row {

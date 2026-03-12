@@ -321,6 +321,17 @@
     box-shadow: 0 0 0 3px rgba(190, 138, 42, 0.2);
 }
 
+/* Prevent Bootstrap scrollbar compensation from creating a right-side white strip. */
+body.subject-management-page.modal-open {
+    padding-right: 0 !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+}
+
+body.subject-management-page.modal-open .modal {
+    padding-right: 0 !important;
+}
+
 @media (max-width: 991px) {
     .subject-management-head {
         grid-template-columns: 1fr;

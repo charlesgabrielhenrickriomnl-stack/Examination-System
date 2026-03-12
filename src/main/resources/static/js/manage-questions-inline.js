@@ -388,8 +388,9 @@
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
         removeBtn.className = 'btn btn-sm choice-remove-btn';
-        removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
         removeBtn.title = 'Remove Choice';
+        removeBtn.setAttribute('aria-label', 'Remove Choice');
         removeBtn.addEventListener('click', function () {
             row.remove();
             syncAddChoicesText();
@@ -489,7 +490,30 @@
         }
 
         const savedRanges = new WeakMap();
+        const pendingSelectApply = new WeakSet();
         const DEFAULT_FONT_SIZE = '11pt';
+
+        function getContainingEditor(node) {
+            if (!node) return null;
+            const elementNode = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+            return elementNode ? elementNode.closest('.rich-editor') : null;
+        }
+
+        function markSelectPending(selectEl) {
+            if (selectEl) {
+                pendingSelectApply.add(selectEl);
+            }
+        }
+
+        function clearSelectPending(selectEl) {
+            if (selectEl) {
+                pendingSelectApply.delete(selectEl);
+            }
+        }
+
+        function isSelectPending(selectEl) {
+            return !!(selectEl && pendingSelectApply.has(selectEl));
+        }
 
         function saveSelection(editor) {
             if (!editor) return;
@@ -506,8 +530,12 @@
             if (!saved) return;
             const selection = window.getSelection();
             if (!selection) return;
-            selection.removeAllRanges();
-            selection.addRange(saved);
+            try {
+                selection.removeAllRanges();
+                selection.addRange(saved.cloneRange());
+            } catch (error) {
+                savedRanges.delete(editor);
+            }
         }
 
         function focusEditor(editor) {
@@ -773,17 +801,34 @@
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
+                markSelectPending(this);
             });
             selectEl.addEventListener('focus', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
             });
+            selectEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    markSelectPending(this);
+                }
+            });
             selectEl.addEventListener('change', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 if (!this.value) return;
                 applyFontFamily(editor, this.value);
+                clearSelectPending(this);
+            });
+            selectEl.addEventListener('blur', function () {
+                if (!isSelectPending(this) || !this.value) {
+                    clearSelectPending(this);
+                    return;
+                }
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                applyFontFamily(editor, this.value);
+                clearSelectPending(this);
             });
         });
 
@@ -831,6 +876,14 @@
         });
 
         document.addEventListener('selectionchange', function () {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const editor = getContainingEditor(range.commonAncestorContainer);
+                if (editor) {
+                    saveSelection(editor);
+                }
+            }
             updateAllToolbarStatuses();
         });
 
@@ -859,17 +912,34 @@
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
+                markSelectPending(this);
             });
             selectEl.addEventListener('focus', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
             });
+            selectEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    markSelectPending(this);
+                }
+            });
             selectEl.addEventListener('change', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 if (!this.value) return;
                 applyFontSize(editor, this.value);
+                clearSelectPending(this);
+            });
+            selectEl.addEventListener('blur', function () {
+                if (!isSelectPending(this) || !this.value) {
+                    clearSelectPending(this);
+                    return;
+                }
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                applyFontSize(editor, this.value);
+                clearSelectPending(this);
             });
         });
 

@@ -86,6 +86,13 @@
     box-shadow: var(--account-shadow);
 }
 
+.profile-card .account-hero-inline {
+    margin-bottom: 0.95rem;
+    border-radius: 16px;
+    border-color: #eadccc;
+    box-shadow: none;
+}
+
 .account-card-head {
     border-bottom: 1px solid #ecdfcf;
     margin-bottom: 0.85rem;
@@ -112,7 +119,7 @@
 
 .profile-info-item {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.68rem;
     border: 1px solid #eadccc;
     border-radius: 13px;
@@ -126,7 +133,7 @@
     border-radius: 9px;
     display: grid;
     place-items: center;
-    margin-top: 0.02rem;
+    margin-top: 0;
     color: #fff;
     background: linear-gradient(135deg, #8f1228, #6f0e20);
     box-shadow: 0 8px 14px rgba(122, 16, 34, 0.22);

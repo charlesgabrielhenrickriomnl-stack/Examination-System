@@ -1,16 +1,16 @@
 .teacher-grade-page .grade-shell {
-    max-width: 1060px;
+    max-width: 1220px;
     margin: 0 auto;
 }
 
 /* Override global teacher-wide rule that forces container-fluid to full width. */
 .teacher-wide-page.teacher-grade-page .teacher-content-wrapper > .container-fluid.grade-shell {
-    max-width: 1060px;
+    max-width: 1220px;
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 0.6rem;
-    padding-right: 0.6rem;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
 }
 
 .teacher-grade-page .results-card {
@@ -28,20 +28,32 @@
 .teacher-grade-page .grade-header-main {
     display: flex;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 1.2rem;
     align-items: flex-start;
     flex-wrap: wrap;
 }
 
 .teacher-grade-page .grade-title {
     color: #7a1022;
-    font-size: clamp(1.25rem, 1rem + 0.8vw, 1.7rem);
+    font-size: clamp(1.35rem, 1.08rem + 0.9vw, 1.9rem);
     letter-spacing: 0.01em;
 }
 
 .teacher-grade-page .grade-subtitle {
     color: #6e6a62;
-    font-size: 0.92rem;
+    font-size: 0.98rem;
+}
+
+.teacher-grade-page .grade-back-btn {
+    min-height: 46px;
+    padding: 0.56rem 1rem;
+    font-size: 0.96rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    border-radius: 12px;
+    font-weight: 700;
 }
 
 .teacher-grade-page .grade-header-status {
@@ -54,9 +66,14 @@
 }
 
 .teacher-grade-page .status-pill {
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
     border-radius: 999px;
-    padding: 0.45rem 0.9rem;
-    font-size: 0.78rem;
+    padding: 0.56rem 1rem;
+    font-size: 0.92rem;
     font-weight: 700;
     border: 1px solid transparent;
 }

@@ -1,6 +1,7 @@
 package com.exam.Controller;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -25,10 +26,14 @@ import java.util.stream.Collectors;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -61,6 +66,13 @@ import com.exam.service.FisherYatesService;
 import com.exam.service.UploadStorageService;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.lowagie.text.Chunk;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 
 @Controller
 @RequestMapping("/teacher")
@@ -163,6 +175,40 @@ public class TeacherController {
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=exam-upload-template.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
             .body(content);
+    }
+
+    @GetMapping("/export-exam-with-answers/{format}")
+    public ResponseEntity<byte[]> exportExamWithAnswers(@PathVariable("format") String format,
+                                                        @RequestParam("examId") String examId,
+                                                        Principal principal) {
+        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
+        if (paperOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        OriginalProcessedPaper paper = paperOpt.get();
+        if (!isOwner(principal, paper.getTeacherEmail())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        List<ExportQuestionRow> rows = buildExportQuestionRows(paper);
+        String normalizedFormat = format == null ? "" : format.trim().toLowerCase();
+
+        try {
+            return switch (normalizedFormat) {
+                case "csv" -> buildCsvExportResponse(paper, rows);
+                case "pdf" -> buildPdfExportResponse(paper, rows);
+                case "docx", "word" -> buildDocxExportResponse(paper, rows);
+                default -> ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("Unsupported export format.".getBytes(StandardCharsets.UTF_8));
+            };
+        } catch (Exception exception) {
+            LOGGER.error("Failed to export exam. examId={}, format={}", examId, format, exception);
+            return ResponseEntity.internalServerError()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body("Failed to export exam right now. Please try again.".getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     @GetMapping("/department-dashboard")
@@ -3796,6 +3842,217 @@ public class TeacherController {
             }
         }
         return target;
+    }
+
+    private List<ExportQuestionRow> buildExportQuestionRows(OriginalProcessedPaper paper) {
+        List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
+        Map<String, String> difficultiesMap = parseSimpleMapJson(paper.getDifficultiesJson());
+        Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
+
+        List<ExportQuestionRow> rows = new ArrayList<>();
+        for (int index = 0; index < questions.size(); index++) {
+            String key = String.valueOf(index + 1);
+            Map<String, Object> row = questions.get(index) == null ? new HashMap<>() : questions.get(index);
+
+            String difficulty = normalizeDifficulty(difficultiesMap.getOrDefault(key, "Medium"));
+            if (difficulty.isBlank()) {
+                difficulty = "Medium";
+            }
+
+            String rawAnswer = answerKeyMap.getOrDefault(
+                key,
+                row.get("answer") == null ? "" : String.valueOf(row.get("answer")));
+
+            String questionText = resolveQuestionDisplay(row, difficulty, rawAnswer);
+            questionText = toPlainQuestionText(questionText);
+            if (questionText.isBlank()) {
+                questionText = "Question " + (index + 1);
+            }
+
+            List<String> choices = new ArrayList<>();
+            for (String choice : extractChoices(row)) {
+                String plainChoice = toPlainQuestionText(choice);
+                if (!plainChoice.isBlank()) {
+                    choices.add(plainChoice);
+                }
+            }
+
+            String answer = formatAnswerForExport(rawAnswer, choices);
+            rows.add(new ExportQuestionRow(index + 1, difficulty, questionText, choices, answer));
+        }
+
+        return rows;
+    }
+
+    private ResponseEntity<byte[]> buildCsvExportResponse(OriginalProcessedPaper paper,
+                                                          List<ExportQuestionRow> rows) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("No,Difficulty,Question,Choices,Correct_Answer\n");
+
+        for (ExportQuestionRow row : rows) {
+            csv.append(csvCell(String.valueOf(row.number()))).append(',')
+                .append(csvCell(row.difficulty())).append(',')
+                .append(csvCell(row.question())).append(',')
+                .append(csvCell(formatChoicesForExport(row.choices()))).append(',')
+                .append(csvCell(row.answer()))
+                .append('\n');
+        }
+
+        String filename = sanitizeFilename(paper.getExamName()) + "-with-answers.csv";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.parseMediaType("text/csv"))
+            .body(csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private ResponseEntity<byte[]> buildPdfExportResponse(OriginalProcessedPaper paper,
+                                                          List<ExportQuestionRow> rows) throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+        PdfWriter.getInstance(document, outputStream);
+        document.open();
+
+        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+        Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
+        Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+
+        document.add(new Paragraph(
+            (paper.getExamName() == null || paper.getExamName().isBlank()) ? "Exam" : paper.getExamName(),
+            titleFont));
+        document.add(new Paragraph("Subject: " + safeText(paper.getSubject()), bodyFont));
+        document.add(new Paragraph("Type: " + safeText(paper.getActivityType()), bodyFont));
+        document.add(new Paragraph("Total Questions: " + rows.size(), bodyFont));
+        document.add(Chunk.NEWLINE);
+
+        for (ExportQuestionRow row : rows) {
+            document.add(new Paragraph(
+                row.number() + ". [" + row.difficulty() + "] " + row.question(),
+                sectionFont));
+
+            for (int index = 0; index < row.choices().size(); index++) {
+                String label = generateChoiceLabel(index);
+                document.add(new Paragraph("    " + label + ". " + row.choices().get(index), bodyFont));
+            }
+
+            document.add(new Paragraph("Answer: " + row.answer(), bodyFont));
+            document.add(Chunk.NEWLINE);
+        }
+
+        document.close();
+
+        String filename = sanitizeFilename(paper.getExamName()) + "-with-answers.pdf";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(outputStream.toByteArray());
+    }
+
+    private ResponseEntity<byte[]> buildDocxExportResponse(OriginalProcessedPaper paper,
+                                                           List<ExportQuestionRow> rows) throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph title = document.createParagraph();
+            XWPFRun titleRun = title.createRun();
+            titleRun.setBold(true);
+            titleRun.setFontSize(16);
+            titleRun.setText((paper.getExamName() == null || paper.getExamName().isBlank()) ? "Exam" : paper.getExamName());
+
+            XWPFParagraph meta = document.createParagraph();
+            XWPFRun metaRun = meta.createRun();
+            metaRun.setText("Subject: " + safeText(paper.getSubject())
+                + " | Type: " + safeText(paper.getActivityType())
+                + " | Total Questions: " + rows.size());
+
+            for (ExportQuestionRow row : rows) {
+                XWPFParagraph questionParagraph = document.createParagraph();
+                XWPFRun questionRun = questionParagraph.createRun();
+                questionRun.setBold(true);
+                questionRun.setText(row.number() + ". [" + row.difficulty() + "] " + row.question());
+
+                for (int index = 0; index < row.choices().size(); index++) {
+                    XWPFParagraph choiceParagraph = document.createParagraph();
+                    XWPFRun choiceRun = choiceParagraph.createRun();
+                    choiceRun.setText(generateChoiceLabel(index) + ". " + row.choices().get(index));
+                }
+
+                XWPFParagraph answerParagraph = document.createParagraph();
+                XWPFRun answerRun = answerParagraph.createRun();
+                answerRun.setItalic(true);
+                answerRun.setText("Answer: " + row.answer());
+
+                document.createParagraph();
+            }
+
+            document.write(outputStream);
+        }
+
+        String filename = sanitizeFilename(paper.getExamName()) + "-with-answers.docx";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+            .body(outputStream.toByteArray());
+    }
+
+    private String formatAnswerForExport(String rawAnswer, List<String> choices) {
+        String normalized = normalizeQuestionHtml(rawAnswer);
+        if (normalized.isBlank()) {
+            return "Not Set";
+        }
+
+        if ("MANUAL_GRADE".equalsIgnoreCase(normalized)) {
+            return "Manual grading required";
+        }
+
+        if (choices != null && !choices.isEmpty()) {
+            Integer answerIndex = parseCsvChoiceIndex(normalized, choices.size());
+            if (answerIndex != null && answerIndex >= 0 && answerIndex < choices.size()) {
+                return generateChoiceLabel(answerIndex) + ". " + choices.get(answerIndex);
+            }
+        }
+
+        return toPlainQuestionText(normalized);
+    }
+
+    private String formatChoicesForExport(List<String> choices) {
+        if (choices == null || choices.isEmpty()) {
+            return "";
+        }
+
+        List<String> labeledChoices = new ArrayList<>();
+        for (int index = 0; index < choices.size(); index++) {
+            labeledChoices.add(generateChoiceLabel(index) + ". " + choices.get(index));
+        }
+
+        return String.join(" | ", labeledChoices);
+    }
+
+    private String csvCell(String value) {
+        String safe = value == null ? "" : value;
+        return '"' + safe.replace("\"", "\"\"") + '"';
+    }
+
+    private String sanitizeFilename(String rawName) {
+        if (rawName == null || rawName.isBlank()) {
+            return "exam";
+        }
+
+        String sanitized = rawName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        sanitized = sanitized.replaceAll("_+", "_");
+        sanitized = sanitized.replaceAll("^[_\\.]+|[_\\.]+$", "");
+        return sanitized.isBlank() ? "exam" : sanitized;
+    }
+
+    private String safeText(String value) {
+        return (value == null || value.isBlank()) ? "N/A" : value;
+    }
+
+    private record ExportQuestionRow(int number,
+                                     String difficulty,
+                                     String question,
+                                     List<String> choices,
+                                     String answer) {
     }
 
     private String normalizeMathSymbols(String text) {

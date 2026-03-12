@@ -1,16 +1,16 @@
 .teacher-result-details-page .container-fluid {
-    max-width: 1060px;
+    max-width: 1220px;
     margin: 0 auto;
 }
 
 /* Override global teacher-wide rule that forces container-fluid to full width. */
 .teacher-wide-page.teacher-result-details-page .teacher-content-wrapper > .container-fluid {
-    max-width: 1060px;
+    max-width: 1220px;
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 0.6rem;
-    padding-right: 0.6rem;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
 }
 
 .teacher-result-details-page .results-card {
@@ -29,19 +29,19 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 1.2rem;
     flex-wrap: wrap;
 }
 
 .teacher-result-details-page .result-page-title {
     color: #7a1022;
-    font-size: clamp(1.2rem, 1rem + 0.7vw, 1.65rem);
+    font-size: clamp(1.35rem, 1.08rem + 0.9vw, 1.9rem);
     letter-spacing: 0.01em;
 }
 
 .teacher-result-details-page .result-page-subtitle {
     color: #6e6a62;
-    font-size: 0.9rem;
+    font-size: 0.98rem;
 }
 
 .teacher-result-details-page .hero-meta-tags {
@@ -58,7 +58,7 @@
     background: #fff;
     border-radius: 999px;
     padding: 0.3rem 0.72rem;
-    font-size: 0.78rem;
+    font-size: 0.84rem;
     color: #4f3c2a;
     max-width: 100%;
 }
@@ -77,10 +77,25 @@
 }
 
 .teacher-result-details-page .result-top-actions .btn {
-    min-height: 42px;
+    min-height: 46px;
+    padding: 0.56rem 1rem;
+    font-size: 0.96rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.3rem;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.teacher-result-details-page .hero-back-btn {
+    min-height: 46px;
+    padding: 0.56rem 1rem;
+    font-size: 0.96rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
     border-radius: 12px;
     font-weight: 700;
 }
