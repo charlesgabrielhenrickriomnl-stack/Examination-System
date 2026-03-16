@@ -400,6 +400,8 @@ public class TeacherController {
             }
 
             Map<String, Object> row = new HashMap<>();
+            String ownerEmail = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+            boolean isOwnedByCurrentTeacher = matchesTeacherOwner(teacherEmail, ownerEmail);
             row.put("examId", paper.getExamId());
             row.put("examName", paper.getExamName());
             row.put("subject", paper.getSubject());
@@ -411,6 +413,10 @@ public class TeacherController {
             row.put("questionCount", questionCount);
             row.put("questionCountLabel", questionCountLabel);
             row.put("questionBadge", questionCountLabel);
+            row.put("ownerEmail", ownerEmail);
+            row.put("isOwnedByCurrentTeacher", isOwnedByCurrentTeacher);
+            row.put("scopeLabel", isOwnedByCurrentTeacher ? "My Paper" : "Department Library");
+            row.put("scopeClass", isOwnedByCurrentTeacher ? "processed-scope-owned" : "processed-scope-shared");
             processedExams.add(row);
         }
 

@@ -80,12 +80,15 @@
                                 <td th:text="${question.number}">1</td>
                                 <td th:text="${question.questionText}">Question text</td>
                                 <td>
-                                    <ul class="mb-0 ps-3" th:if="${question.choices != null && !question.choices.isEmpty()}">
-                                        <li th:each="choice : ${question.choices}" th:text="${choice}">Choice</li>
+                                    <ul class="mb-0 ps-3" th:if="${question.labeledChoices != null && !question.labeledChoices.isEmpty()}">
+                                        <li th:each="choice : ${question.labeledChoices}">
+                                            <span class="fw-semibold me-1" th:text="${choice.label} + '.'">A.</span>
+                                            <span th:text="${choice.text}">Choice</span>
+                                        </li>
                                     </ul>
-                                    <span class="text-muted small" th:if="${question.choices == null || question.choices.isEmpty()}">No options</span>
+                                    <span class="text-muted small" th:if="${question.labeledChoices == null || question.labeledChoices.isEmpty()}">No options</span>
                                 </td>
-                                <td><span class="fw-semibold" th:text="${question.answerText}">A</span></td>
+                                <td><span class="fw-semibold" th:text="${question.answerDisplay}">A - Choice</span></td>
                                 <td><span class="badge bg-secondary" th:text="${question.difficulty}">Medium</span></td>
                             </tr>
                             </tbody>

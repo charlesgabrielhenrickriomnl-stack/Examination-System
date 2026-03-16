@@ -613,6 +613,9 @@ public class DepartmentAdminController {
                                @RequestParam(name = "sourceExamId", required = false) String sourceExamId,
                                @RequestParam(name = "sourceExamName", required = false) String sourceExamName,
                                @RequestParam(name = "subject", required = false) String subject,
+                               @RequestParam(name = "teacherSearch", required = false) String teacherSearch,
+                               @RequestParam(name = "teacherPage", defaultValue = "0") int teacherPage,
+                               @RequestParam(name = "teacherSize", defaultValue = "6") int teacherSize,
                                @RequestParam(name = "page", defaultValue = "0") int page,
                                @RequestParam(name = "size", defaultValue = "15") int size,
                                Model model,
@@ -723,6 +726,81 @@ public class DepartmentAdminController {
             quizRow.put("questionCount", questionCount + 1);
         }
 
+        List<User> teacherOptions = teachersInDepartment.stream()
+            .sorted(Comparator.comparing(
+                teacher -> teacher.getFullName() == null || teacher.getFullName().isBlank() ? teacher.getEmail() : teacher.getFullName(),
+                String.CASE_INSENSITIVE_ORDER
+            ))
+            .toList();
+
+        Map<String, Integer> quizzesByTeacherCount = new HashMap<>();
+        for (Map<String, Object> quizRow : quizRowsByKey.values()) {
+            String teacherEmail = normalizeEmail(String.valueOf(quizRow.getOrDefault("sourceTeacherEmail", "")));
+            if (teacherEmail.isBlank()) {
+                continue;
+            }
+
+            quizzesByTeacherCount.merge(teacherEmail, 1, Integer::sum);
+        }
+
+        Map<String, Set<String>> studentEmailsByTeacher = new HashMap<>();
+        for (EnrolledStudent enrolledStudent : enrolledStudentRepository.findAll()) {
+            if (enrolledStudent == null || enrolledStudent.getTeacherEmail() == null) {
+                continue;
+            }
+
+            String teacherEmail = normalizeEmail(enrolledStudent.getTeacherEmail());
+            if (teacherEmail.isBlank() || !teacherEmailSetInScope.contains(teacherEmail)) {
+                continue;
+            }
+
+            String studentEmail = normalizeEmail(enrolledStudent.getStudentEmail());
+            if (studentEmail.isBlank()) {
+                continue;
+            }
+
+            studentEmailsByTeacher
+                .computeIfAbsent(teacherEmail, key -> new java.util.HashSet<>())
+                .add(studentEmail);
+        }
+
+        String normalizedTeacherSearch = teacherSearch == null ? "" : teacherSearch.trim().toLowerCase();
+        List<Map<String, Object>> teacherInsights = new ArrayList<>();
+        for (User teacher : teacherOptions) {
+            if (teacher == null || teacher.getEmail() == null) {
+                continue;
+            }
+
+            String teacherEmail = normalizeEmail(teacher.getEmail());
+            String teacherName = teacher.getFullName() == null || teacher.getFullName().isBlank()
+                ? teacher.getEmail().trim()
+                : teacher.getFullName().trim();
+
+            if (!normalizedTeacherSearch.isBlank()) {
+                String searchableTeacher = (teacherName + " " + teacherEmail).toLowerCase();
+                if (!searchableTeacher.contains(normalizedTeacherSearch)) {
+                    continue;
+                }
+            }
+
+            Map<String, Object> teacherInsight = new LinkedHashMap<>();
+            teacherInsight.put("teacherName", teacherName);
+            teacherInsight.put("teacherEmail", teacher.getEmail().trim());
+            teacherInsight.put("studentCount", studentEmailsByTeacher.getOrDefault(teacherEmail, new java.util.HashSet<>()).size());
+            teacherInsight.put("quizCount", quizzesByTeacherCount.getOrDefault(teacherEmail, 0));
+            teacherInsights.add(teacherInsight);
+        }
+
+        int safeTeacherSize = Math.max(4, Math.min(teacherSize, 30));
+        int teacherTotal = teacherInsights.size();
+        int teacherTotalPages = Math.max(1, (int) Math.ceil(teacherTotal / (double) safeTeacherSize));
+        int safeTeacherPage = Math.max(0, Math.min(teacherPage, teacherTotalPages - 1));
+        int teacherFrom = safeTeacherPage * safeTeacherSize;
+        int teacherTo = Math.min(teacherFrom + safeTeacherSize, teacherTotal);
+        List<Map<String, Object>> pagedTeacherInsights = teacherFrom < teacherTo
+            ? teacherInsights.subList(teacherFrom, teacherTo)
+            : new ArrayList<>();
+
         String normalizedSearch = search == null ? "" : search.trim().toLowerCase();
         List<Map<String, Object>> allQuizRows = quizRowsByKey.values().stream()
             .filter(row -> normalizedSearch.isBlank() || (
@@ -747,14 +825,16 @@ public class DepartmentAdminController {
         model.addAttribute("selectedProgram", selectedProgram);
         model.addAttribute("selectedSubject", selectedSubject);
         model.addAttribute("quizRows", pagedQuizRows);
-        List<User> teacherOptions = teachersInDepartment.stream()
-            .sorted(Comparator.comparing(
-                teacher -> teacher.getFullName() == null || teacher.getFullName().isBlank() ? teacher.getEmail() : teacher.getFullName(),
-                String.CASE_INSENSITIVE_ORDER
-            ))
-            .toList();
         boolean canManageImports = !selectedProgram.isBlank() && !"Unassigned Program".equalsIgnoreCase(selectedProgram);
         model.addAttribute("teacherOptions", canManageImports ? teacherOptions : new ArrayList<>());
+        model.addAttribute("teacherInsights", pagedTeacherInsights);
+        model.addAttribute("teacherSearch", teacherSearch == null ? "" : teacherSearch.trim());
+        model.addAttribute("teacherPage", safeTeacherPage);
+        model.addAttribute("teacherSize", safeTeacherSize);
+        model.addAttribute("teacherTotal", teacherTotal);
+        model.addAttribute("teacherTotalPages", teacherTotalPages);
+        model.addAttribute("hasTeacherPrev", safeTeacherPage > 0);
+        model.addAttribute("hasTeacherNext", safeTeacherPage + 1 < teacherTotalPages);
         model.addAttribute("canManageImports", canManageImports);
         model.addAttribute("search", search == null ? "" : search);
         model.addAttribute("page", safePage);
@@ -764,6 +844,159 @@ public class DepartmentAdminController {
         model.addAttribute("hasPrev", safePage > 0);
         model.addAttribute("hasNext", safePage + 1 < totalPages);
         return "department-admin-question-bank";
+    }
+
+    @GetMapping("/question-bank/teacher")
+    public String questionBankTeacherDetail(@RequestParam(name = "departmentName", required = false) String departmentName,
+                                            @RequestParam(name = "programName", required = false) String programName,
+                                            @RequestParam(name = "teacherEmail", required = false) String teacherEmail,
+                                            @RequestParam(name = "subject", required = false) String subject,
+                                            @RequestParam(name = "search", required = false) String search,
+                                            @RequestParam(name = "teacherSearch", required = false) String teacherSearch,
+                                            @RequestParam(name = "teacherPage", defaultValue = "0") int teacherPage,
+                                            @RequestParam(name = "teacherSize", defaultValue = "6") int teacherSize,
+                                            @RequestParam(name = "page", defaultValue = "0") int page,
+                                            @RequestParam(name = "size", defaultValue = "15") int size,
+                                            Model model,
+                                            Principal principal) {
+        String adminEmail = principal != null ? principal.getName() : "";
+        User currentAdmin = adminEmail.isBlank() ? null : userRepository.findByEmail(adminEmail).orElse(null);
+        if (currentAdmin == null || currentAdmin.getRole() != User.Role.DEPARTMENT_ADMIN) {
+            return "redirect:/login";
+        }
+
+        String adminDepartment = currentAdmin.getDepartmentName() == null
+            ? ""
+            : currentAdmin.getDepartmentName().trim();
+
+        String requestedDepartment = departmentName == null ? "" : departmentName.trim();
+        final String selectedDepartment = sameDepartment(requestedDepartment, adminDepartment)
+            ? requestedDepartment
+            : adminDepartment;
+        String requestedProgram = programName == null ? "" : programName.trim();
+        boolean unassignedProgramFilter = "Unassigned Program".equalsIgnoreCase(requestedProgram);
+        final String selectedProgram = unassignedProgramFilter ? "Unassigned Program" : requestedProgram;
+        final String selectedSubject = subject == null ? "" : subject.trim();
+        final String selectedTeacherEmail = normalizeEmail(teacherEmail);
+
+        List<User> teachersInDepartment = userRepository.findAll().stream()
+            .filter(user -> user != null && user.getRole() == User.Role.TEACHER)
+            .filter(user -> selectedDepartment.isBlank()
+                || selectedDepartment.equalsIgnoreCase(user.getDepartmentName() == null ? "" : user.getDepartmentName().trim()))
+            .filter(user -> {
+                if (selectedProgram.isBlank()) {
+                    return true;
+                }
+
+                String teacherProgram = user.getProgramName() == null ? "" : user.getProgramName().trim();
+                if (unassignedProgramFilter) {
+                    return teacherProgram.isBlank();
+                }
+                return sameProgram(teacherProgram, selectedProgram);
+            })
+            .toList();
+
+        User selectedTeacher = teachersInDepartment.stream()
+            .filter(teacher -> teacher.getEmail() != null && selectedTeacherEmail.equals(normalizeEmail(teacher.getEmail())))
+            .findFirst()
+            .orElse(null);
+
+        if (selectedTeacher == null) {
+            return "redirect:/department-admin/question-bank";
+        }
+
+        Map<String, String> studentsByEmail = new LinkedHashMap<>();
+        for (EnrolledStudent enrolledStudent : enrolledStudentRepository.findAll()) {
+            if (enrolledStudent == null || enrolledStudent.getTeacherEmail() == null) {
+                continue;
+            }
+
+            if (!selectedTeacherEmail.equals(normalizeEmail(enrolledStudent.getTeacherEmail()))) {
+                continue;
+            }
+
+            String studentEmail = normalizeEmail(enrolledStudent.getStudentEmail());
+            if (studentEmail.isBlank()) {
+                continue;
+            }
+
+            String studentName = enrolledStudent.getStudentName() == null || enrolledStudent.getStudentName().isBlank()
+                ? studentEmail
+                : enrolledStudent.getStudentName().trim();
+            studentsByEmail.putIfAbsent(studentEmail, studentName);
+        }
+
+        List<Map<String, String>> enrolledStudents = studentsByEmail.entrySet().stream()
+            .map(entry -> {
+                Map<String, String> studentRow = new LinkedHashMap<>();
+                studentRow.put("email", entry.getKey());
+                studentRow.put("name", entry.getValue());
+                return studentRow;
+            })
+            .sorted(Comparator.comparing(row -> row.getOrDefault("name", ""), String.CASE_INSENSITIVE_ORDER))
+            .toList();
+
+        Map<String, Map<String, Object>> quizzesByKey = new LinkedHashMap<>();
+        for (QuestionBankItem item : questionBankItemRepository.findAllByOrderByCreatedAtDescIdDesc()) {
+            if (item == null) {
+                continue;
+            }
+
+            if (!selectedTeacherEmail.equals(normalizeEmail(item.getSourceTeacherEmail()))) {
+                continue;
+            }
+
+            if (!selectedSubject.isBlank()) {
+                String itemSubject = item.getSubject() == null ? "" : item.getSubject().trim();
+                if (!selectedSubject.equalsIgnoreCase(itemSubject)) {
+                    continue;
+                }
+            }
+
+            String examId = item.getSourceExamId() == null ? "" : item.getSourceExamId().trim();
+            String examName = item.getSourceExamName() == null ? "" : item.getSourceExamName().trim();
+            if (examName.isBlank()) {
+                examName = "Untitled Quiz";
+            }
+
+            String quizKey = !examId.isBlank()
+                ? "id::" + examId.toLowerCase()
+                : "name::" + examName.toLowerCase();
+
+            Map<String, Object> quizRow = quizzesByKey.get(quizKey);
+            if (quizRow == null) {
+                quizRow = new LinkedHashMap<>();
+                quizRow.put("sourceExamId", examId);
+                quizRow.put("sourceExamName", examName);
+                quizRow.put("subject", item.getSubject() == null ? "" : item.getSubject().trim());
+                quizRow.put("questionCount", 0);
+                quizRow.put("createdAt", item.getCreatedAt());
+                quizzesByKey.put(quizKey, quizRow);
+            }
+
+            int questionCount = (Integer) quizRow.getOrDefault("questionCount", 0);
+            quizRow.put("questionCount", questionCount + 1);
+        }
+
+        List<Map<String, Object>> teacherQuizzes = new ArrayList<>(quizzesByKey.values());
+
+        model.addAttribute("departmentName", selectedDepartment.isBlank() ? "Department not set" : selectedDepartment);
+        model.addAttribute("selectedDepartment", selectedDepartment);
+        model.addAttribute("selectedProgram", selectedProgram);
+        model.addAttribute("selectedSubject", selectedSubject);
+        model.addAttribute("selectedTeacherEmail", selectedTeacherEmail);
+        model.addAttribute("selectedTeacherName", selectedTeacher.getFullName() == null || selectedTeacher.getFullName().isBlank()
+            ? selectedTeacher.getEmail()
+            : selectedTeacher.getFullName().trim());
+        model.addAttribute("enrolledStudents", enrolledStudents);
+        model.addAttribute("teacherQuizzes", teacherQuizzes);
+        model.addAttribute("search", search == null ? "" : search);
+        model.addAttribute("teacherSearch", teacherSearch == null ? "" : teacherSearch.trim());
+        model.addAttribute("teacherPage", Math.max(0, teacherPage));
+        model.addAttribute("teacherSize", Math.max(4, Math.min(teacherSize, 30)));
+        model.addAttribute("page", Math.max(0, page));
+        model.addAttribute("size", Math.max(5, Math.min(size, 50)));
+        return "department-admin-question-bank-teacher";
     }
 
     @GetMapping("/question-bank/quiz")
@@ -884,10 +1117,14 @@ public class DepartmentAdminController {
             for (QuestionBankItem item : selectedQuizItems) {
                 Map<String, Object> questionRow = new LinkedHashMap<>();
                 Integer questionOrder = item.getQuestionOrder();
+                List<String> choices = parseStringListJson(item.getChoicesJson());
+                String answerText = item.getAnswerText() == null || item.getAnswerText().isBlank() ? "-" : item.getAnswerText().trim();
                 questionRow.put("number", questionOrder == null ? Integer.valueOf(index) : questionOrder);
                 questionRow.put("questionText", toPlainText(item.getQuestionText()));
-                questionRow.put("choices", parseStringListJson(item.getChoicesJson()));
-                questionRow.put("answerText", item.getAnswerText() == null || item.getAnswerText().isBlank() ? "-" : item.getAnswerText().trim());
+                questionRow.put("choices", choices);
+                questionRow.put("labeledChoices", buildLabeledChoices(choices));
+                questionRow.put("answerText", answerText);
+                questionRow.put("answerDisplay", resolveAnswerDisplay(answerText, choices));
                 questionRow.put("difficulty", item.getDifficulty() == null || item.getDifficulty().isBlank() ? "Medium" : item.getDifficulty().trim());
                 selectedQuizQuestions.add(questionRow);
                 index++;
@@ -934,6 +1171,92 @@ public class DepartmentAdminController {
         } catch (RuntimeException exception) {
             return new ArrayList<>();
         }
+    }
+
+    private List<Map<String, String>> buildLabeledChoices(List<String> choices) {
+        List<Map<String, String>> labeledChoices = new ArrayList<>();
+        if (choices == null || choices.isEmpty()) {
+            return labeledChoices;
+        }
+
+        for (int index = 0; index < choices.size(); index++) {
+            String choiceText = choices.get(index) == null ? "" : choices.get(index).trim();
+            if (choiceText.isBlank()) {
+                continue;
+            }
+
+            Map<String, String> option = new LinkedHashMap<>();
+            option.put("label", toOptionLabel(index));
+            option.put("text", choiceText);
+            labeledChoices.add(option);
+        }
+        return labeledChoices;
+    }
+
+    private String resolveAnswerDisplay(String answerText, List<String> choices) {
+        if (answerText == null || answerText.isBlank() || "-".equals(answerText.trim())) {
+            return "-";
+        }
+
+        String normalizedAnswer = normalizeAnswerToken(answerText);
+        if (choices != null) {
+            for (int index = 0; index < choices.size(); index++) {
+                String label = toOptionLabel(index);
+                String choiceText = choices.get(index) == null ? "" : choices.get(index).trim();
+                if (normalizedAnswer.equalsIgnoreCase(label) || normalizeAnswerToken(choiceText).equalsIgnoreCase(normalizedAnswer)) {
+                    return choiceText.isBlank() ? label : (label + " - " + choiceText);
+                }
+            }
+        }
+
+        return answerText.trim();
+    }
+
+    private String normalizeAnswerToken(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        String token = value.trim();
+        if (token.startsWith("(") && token.endsWith(")") && token.length() > 2) {
+            token = token.substring(1, token.length() - 1).trim();
+        }
+
+        token = token.replaceAll("\\s+", "");
+        if (token.regionMatches(true, 0, "choice_", 0, 7)) {
+            token = token.substring(7);
+        } else if (token.regionMatches(true, 0, "choice", 0, 6)) {
+            token = token.substring(6);
+        }
+
+        if (token.matches("\\d+")) {
+            try {
+                int numericIndex = Integer.parseInt(token);
+                if (numericIndex > 0) {
+                    return toOptionLabel(numericIndex - 1);
+                }
+            } catch (NumberFormatException exception) {
+                return token.toUpperCase();
+            }
+        }
+
+        return token.toUpperCase();
+    }
+
+    private String toOptionLabel(int index) {
+        if (index < 0) {
+            return "";
+        }
+
+        int value = index;
+        StringBuilder label = new StringBuilder();
+        do {
+            int remainder = value % 26;
+            label.insert(0, (char) ('A' + remainder));
+            value = (value / 26) - 1;
+        } while (value >= 0);
+
+        return label.toString();
     }
 
     private String resolveItemDepartment(QuestionBankItem item, Map<String, User> teacherProfilesByEmail) {

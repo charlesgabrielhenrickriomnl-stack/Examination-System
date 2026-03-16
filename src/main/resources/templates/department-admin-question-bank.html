@@ -43,6 +43,9 @@
                         <input type="hidden" name="subject" th:value="${selectedSubject}">
                         <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
                         <input type="hidden" name="programName" th:value="${selectedProgram}">
+                        <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                        <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                        <input type="hidden" name="teacherSize" th:value="${teacherSize}">
                         <div class="col-md-9">
                             <input type="text" class="form-control" name="search" th:value="${search}"
                                    placeholder="Search quiz, subject, or teacher...">
@@ -104,6 +107,63 @@
                     <div class="alert alert-warning small mb-0" th:if="${!canManageImports}">
                         Select a specific program to manage teacher/student imports.
                     </div>
+
+                    <div class="card department-panel-card mt-3">
+                        <div class="card-header fw-semibold department-panel-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-people me-2"></i>Teacher and Student Overview</span>
+                            <small class="text-muted" th:text="${teacherTotal} + ' teacher(s)'">0 teacher(s)</small>
+                        </div>
+                        <div class="card-body p-2">
+                            <form method="get" th:action="@{/department-admin/question-bank}" class="department-teacher-search-form mb-2">
+                                <input type="hidden" name="page" th:value="${page}">
+                                <input type="hidden" name="size" th:value="${size}">
+                                <input type="hidden" name="search" th:value="${search}">
+                                <input type="hidden" name="subject" th:value="${selectedSubject}">
+                                <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                <input type="hidden" name="teacherPage" value="0">
+                                <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                                <input type="text" name="teacherSearch" class="form-control form-control-sm" th:value="${teacherSearch}" placeholder="Search teacher name or email...">
+                                <button type="submit" class="btn btn-sm department-btn-outline">Apply</button>
+                            </form>
+
+                            <div class="department-empty-state small" th:if="${teacherInsights == null || teacherInsights.isEmpty()}">
+                                No teachers found for this program yet.
+                            </div>
+
+                            <div class="department-teacher-overview-list" th:if="${teacherInsights != null && !teacherInsights.isEmpty()}">
+                                <div class="department-teacher-overview-item" th:each="insight : ${teacherInsights}">
+                                    <div class="department-teacher-overview-summary">
+                                        <div class="department-teacher-overview-identity">
+                                            <p class="department-teacher-overview-name mb-0" th:text="${insight.teacherName}">Teacher Name</p>
+                                            <small class="department-teacher-overview-email text-muted" th:text="${insight.teacherEmail}">teacher@email.com</small>
+                                        </div>
+                                        <div class="department-teacher-overview-metrics">
+                                            <span class="department-pill"><i class="bi bi-people"></i><span th:text="${insight.studentCount} + ' student(s)'">0 student(s)</span></span>
+                                            <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${insight.quizCount} + ' quiz(es)'">0 quiz(es)</span></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="department-teacher-overview-body d-flex justify-content-end">
+                                        <a class="btn btn-sm department-btn-outline"
+                                           th:href="@{/department-admin/question-bank/teacher(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize},teacherEmail=${insight.teacherEmail})}">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="department-teacher-pagination" th:if="${teacherTotalPages > 1}">
+                                <a class="btn btn-sm department-btn-outline"
+                                   th:href="@{/department-admin/question-bank(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage-1},teacherSize=${teacherSize})}"
+                                   th:classappend="${!hasTeacherPrev} ? ' disabled' : ''">Prev</a>
+                                <span class="small text-muted" th:text="'Teacher Page ' + ${teacherPage + 1} + ' of ' + ${teacherTotalPages}">Teacher Page 1 of 1</span>
+                                <a class="btn btn-sm department-btn-outline"
+                                   th:href="@{/department-admin/question-bank(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage+1},teacherSize=${teacherSize})}"
+                                   th:classappend="${!hasTeacherNext} ? ' disabled' : ''">Next</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-12 col-xl-8">
                     <div class="card department-panel-card">
@@ -136,11 +196,11 @@
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <a class="btn btn-sm department-btn-outline"
-                             th:href="@{/department-admin/question-bank(page=${page-1},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject})}"
+                                                         th:href="@{/department-admin/question-bank(page=${page-1},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize})}"
                            th:classappend="${!hasPrev} ? ' disabled' : ''">Previous</a>
                         <span class="small text-muted" th:text="'Page ' + ${page + 1} + ' of ' + ${totalPages}">Page 1 of 1</span>
                         <a class="btn btn-sm department-btn-outline"
-                             th:href="@{/department-admin/question-bank(page=${page+1},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject})}"
+                                                         th:href="@{/department-admin/question-bank(page=${page+1},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize})}"
                            th:classappend="${!hasNext} ? ' disabled' : ''">Next</a>
                     </div>
                 </div>
