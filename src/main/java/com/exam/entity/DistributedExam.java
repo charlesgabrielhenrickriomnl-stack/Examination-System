@@ -55,6 +55,18 @@ public class DistributedExam {
     @Column(name = "question_indexes_json", columnDefinition = "TEXT")
     private String questionIndexesJson;
 
+    @Column(name = "access_otp_hash", length = 120)
+    private String accessOtpHash;
+
+    @Column(name = "access_otp_generated_at")
+    private LocalDateTime accessOtpGeneratedAt;
+
+    @Column(name = "access_otp_expires_at")
+    private LocalDateTime accessOtpExpiresAt;
+
+    @Column(name = "access_otp_verified_at")
+    private LocalDateTime accessOtpVerifiedAt;
+
     // Getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -84,4 +96,12 @@ public class DistributedExam {
     public void setSubmitted(boolean submitted) { this.submitted = submitted; }
     public String getQuestionIndexesJson() { return questionIndexesJson; }
     public void setQuestionIndexesJson(String questionIndexesJson) { this.questionIndexesJson = questionIndexesJson; }
+    public String getAccessOtpHash() { return accessOtpHash; }
+    public void setAccessOtpHash(String accessOtpHash) { this.accessOtpHash = accessOtpHash; }
+    public LocalDateTime getAccessOtpGeneratedAt() { return accessOtpGeneratedAt; }
+    public void setAccessOtpGeneratedAt(LocalDateTime accessOtpGeneratedAt) { this.accessOtpGeneratedAt = accessOtpGeneratedAt; }
+    public LocalDateTime getAccessOtpExpiresAt() { return accessOtpExpiresAt; }
+    public void setAccessOtpExpiresAt(LocalDateTime accessOtpExpiresAt) { this.accessOtpExpiresAt = accessOtpExpiresAt; }
+    public LocalDateTime getAccessOtpVerifiedAt() { return accessOtpVerifiedAt; }
+    public void setAccessOtpVerifiedAt(LocalDateTime accessOtpVerifiedAt) { this.accessOtpVerifiedAt = accessOtpVerifiedAt; }
 }

@@ -213,6 +213,24 @@ body.department-dashboard-page::after {
     overflow: hidden;
 }
 
+.department-teacher-overview-row {
+    padding: 0.62rem 0.66rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.48rem;
+}
+
+.department-teacher-overview-email-only {
+    min-width: 0;
+    color: #543b2b;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .department-teacher-overview-summary {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -310,6 +328,29 @@ body.department-dashboard-page::after {
 .department-overview-scroll {
     max-height: 420px;
     overflow: auto;
+}
+
+.department-teacher-detail-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.department-teacher-detail-card .card-body {
+    min-height: 0;
+}
+
+.department-teacher-detail-scroll {
+    max-height: 360px;
+    overflow: auto;
+    padding-right: 0.08rem;
+}
+
+.department-teacher-detail-scroll .department-quiz-list {
+    padding: 0;
+}
+
+.department-teacher-detail-scroll .department-empty-state {
+    margin: 0;
 }
 
 .department-summary-card {
@@ -626,6 +667,138 @@ body.department-dashboard-page::after {
     background: #fff7ea;
 }
 
+.department-choice-list {
+    padding-left: 0;
+    margin: 0;
+}
+
+.department-choice-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.26rem;
+    margin-bottom: 0.14rem;
+}
+
+.department-choice-list li:last-child {
+    margin-bottom: 0;
+}
+
+.department-question-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.92rem;
+}
+
+.department-question-card {
+    border: 1px solid #e5d4be;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fffdf9, #fcf4e8);
+    padding: 0.9rem 0.95rem;
+    box-shadow: 0 6px 16px rgba(103, 78, 41, 0.08);
+}
+
+.department-question-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.45rem;
+}
+
+.department-question-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #7a1022;
+    color: #fff;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+    min-width: 42px;
+    padding: 0.18rem 0.45rem;
+}
+
+.department-difficulty-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid #d8c3a7;
+    background: #fff8ec;
+    color: #6a4a2b;
+    font-size: 0.73rem;
+    font-weight: 700;
+    padding: 0.16rem 0.56rem;
+    text-transform: uppercase;
+}
+
+.department-question-text {
+    color: #3f2d20;
+    font-weight: 600;
+    line-height: 1.48;
+}
+
+.department-question-block {
+    border: 1px solid #eadcc9;
+    border-radius: 11px;
+    background: #fff;
+    padding: 0.65rem 0.72rem;
+}
+
+.department-question-block-title {
+    margin: 0;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #795c40;
+    font-weight: 800;
+}
+
+.department-choice-list li {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    align-items: start;
+    gap: 0.4rem;
+    margin-bottom: 0.22rem;
+}
+
+.department-choice-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: #f2e4cf;
+    color: #6f0e20;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.department-choice-text {
+    color: #4f3d30;
+    line-height: 1.45;
+    padding-top: 0.15rem;
+}
+
+.department-open-ended-note {
+    color: #7a5f45;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.department-answer-block {
+    background: linear-gradient(180deg, #fff9f0, #fff4e6);
+}
+
+.department-answer-text {
+    color: #5c4028;
+    font-weight: 700;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
 .department-accordion .accordion-item {
     border: 1px solid #e8d7bf;
     border-radius: 12px;
@@ -674,6 +847,11 @@ body.department-dashboard-page::after {
         gap: 0.42rem;
     }
 
+    .department-teacher-overview-row {
+        padding: 0.52rem 0.56rem;
+        flex-wrap: wrap;
+    }
+
     .department-teacher-overview-body {
         padding: 0.5rem 0.54rem 0.58rem;
     }
@@ -690,6 +868,10 @@ body.department-dashboard-page::after {
     .department-teacher-pagination {
         flex-wrap: wrap;
         justify-content: center;
+    }
+
+    .department-teacher-detail-scroll {
+        max-height: 300px;
     }
 
     .department-hero {
@@ -723,5 +905,17 @@ body.department-dashboard-page::after {
     .department-panel-header {
         font-size: 0.94rem;
         padding: 0.76rem 0.88rem;
+    }
+
+    .department-question-card {
+        padding: 0.74rem 0.78rem;
+    }
+
+    .department-question-text {
+        font-size: 0.93rem;
+    }
+
+    .department-choice-list li {
+        grid-template-columns: 24px minmax(0, 1fr);
     }
 }

@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.HtmlUtils;
 
 import com.exam.entity.DistributedExam;
@@ -73,6 +75,7 @@ public class StudentController {
     private final UserRepository userRepository;
     private final FisherYatesService fisherYatesService;
     private final IRT3PLService irt3PLService;
+    private final BCryptPasswordEncoder passwordEncoder;
     private final Gson gson = new Gson();
 
     public StudentController(ExamSubmissionRepository examSubmissionRepository,
@@ -82,7 +85,8 @@ public class StudentController {
                              OriginalProcessedPaperRepository originalProcessedPaperRepository,
                              UserRepository userRepository,
                              FisherYatesService fisherYatesService,
-                             IRT3PLService irt3PLService) {
+                             IRT3PLService irt3PLService,
+                             BCryptPasswordEncoder passwordEncoder) {
         this.examSubmissionRepository = examSubmissionRepository;
         this.enrolledStudentRepository = enrolledStudentRepository;
         this.subjectRepository = subjectRepository;
@@ -91,6 +95,7 @@ public class StudentController {
         this.userRepository = userRepository;
         this.fisherYatesService = fisherYatesService;
         this.irt3PLService = irt3PLService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/loading")
@@ -236,6 +241,11 @@ public class StudentController {
                 .orElse("redirect:/student/dashboard");
         }
 
+        if (!isOtpVerified(distributedExam)) {
+            populateOtpEntryModel(model, distributedExam, studentEmail);
+            return "student-exam-otp";
+        }
+
         ExamContentSnapshot examContent = loadExamContent(distributedExam);
         if (examContent == null) {
             return "redirect:/student/dashboard";
@@ -348,6 +358,61 @@ public class StudentController {
         return "student-exam-paginated";
     }
 
+    @PostMapping("/take-exam/{distributedExamId}/verify-otp")
+    public String verifyExamOtp(@PathVariable("distributedExamId") Long distributedExamId,
+                                @RequestParam(name = "otpCode", required = false) String otpCode,
+                                Principal principal,
+                                RedirectAttributes redirectAttributes) {
+        String studentEmail = getStudentEmail(principal);
+        DistributedExam distributedExam = distributedExamRepository.findById(distributedExamId).orElse(null);
+        if (distributedExam == null || !sameText(distributedExam.getStudentEmail(), studentEmail)) {
+            return "redirect:/student/dashboard";
+        }
+
+        if (distributedExam.isSubmitted() || isMissedExam(distributedExam)) {
+            return "redirect:/student/dashboard";
+        }
+
+        if (isOtpVerified(distributedExam)) {
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        String submittedCode = otpCode == null ? "" : otpCode.trim();
+        if (submittedCode.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Enter the OTP given by your teacher.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        String otpHash = distributedExam.getAccessOtpHash() == null ? "" : distributedExam.getAccessOtpHash().trim();
+        if (otpHash.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "No OTP is available yet. Ask your teacher to generate one.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        LocalDateTime expiresAt = distributedExam.getAccessOtpExpiresAt();
+        if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())) {
+            distributedExam.setAccessOtpHash(null);
+            distributedExam.setAccessOtpGeneratedAt(null);
+            distributedExam.setAccessOtpExpiresAt(null);
+            distributedExamRepository.save(distributedExam);
+            redirectAttributes.addFlashAttribute("errorMessage", "OTP expired. Ask your teacher for a new code.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        if (!passwordEncoder.matches(submittedCode, otpHash)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Invalid OTP. Please ask your teacher and try again.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        distributedExam.setAccessOtpVerifiedAt(LocalDateTime.now());
+        distributedExam.setAccessOtpHash(null);
+        distributedExam.setAccessOtpGeneratedAt(null);
+        distributedExam.setAccessOtpExpiresAt(null);
+        distributedExamRepository.save(distributedExam);
+
+        return "redirect:/student/take-exam/" + distributedExamId;
+    }
+
     @PostMapping("/adaptive-next")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> adaptiveNext(@RequestParam Map<String, String> formData,
@@ -362,6 +427,10 @@ public class StudentController {
         DistributedExam distributedExam = distributedExamRepository.findById(distributedExamId).orElse(null);
         if (distributedExam == null || !sameText(distributedExam.getStudentEmail(), studentEmail)) {
             return ResponseEntity.status(403).body(Map.of("ok", false, "message", "Exam access denied."));
+        }
+
+        if (!isOtpVerified(distributedExam)) {
+            return ResponseEntity.status(403).body(Map.of("ok", false, "message", "OTP verification is required before starting."));
         }
 
         if (distributedExam.isSubmitted() || isMissedExam(distributedExam)) {
@@ -521,6 +590,11 @@ public class StudentController {
         if (isMissedExam(distributedExam)) {
             clearActiveExamSession(session, distributedExam.getId());
             return "redirect:/student/dashboard";
+        }
+
+        if (!isOtpVerified(distributedExam)) {
+            clearActiveExamSession(session, distributedExam.getId());
+            return "redirect:/student/take-exam/" + distributedExam.getId();
         }
 
         ExamContentSnapshot examContent = loadExamContent(distributedExam);
@@ -925,13 +999,53 @@ public class StudentController {
 
     private Map<String, Object> toPendingExamCard(DistributedExam item) {
         Map<String, Object> card = new HashMap<>();
+        boolean otpVerified = isOtpVerified(item);
         card.put("name", item.getExamName());
         card.put("type", item.getActivityType() == null ? "Exam" : item.getActivityType());
         card.put("questionCount", countQuestions(item));
         card.put("timeLimit", item.getTimeLimit() == null ? 60 : item.getTimeLimit());
         card.put("deadline", formatDeadline(item.getDeadline()));
         card.put("startUrl", "/student/take-exam/" + item.getId());
+        card.put("otpBadge", otpVerified ? "OTP verified" : "Teacher OTP required");
+        card.put("otpBadgeClass", otpVerified ? "bg-success-subtle text-success border" : "bg-warning-subtle text-dark border");
         return card;
+    }
+
+    private void populateOtpEntryModel(Model model, DistributedExam distributedExam, String studentEmail) {
+        if (model == null || distributedExam == null) {
+            return;
+        }
+
+        model.addAttribute("distributedExamId", distributedExam.getId());
+        model.addAttribute("examName", distributedExam.getExamName());
+        model.addAttribute("activityType", distributedExam.getActivityType() == null ? "Exam" : distributedExam.getActivityType());
+        model.addAttribute("subjectName", distributedExam.getSubject());
+        model.addAttribute("timeLimit", distributedExam.getTimeLimit() == null ? 60 : distributedExam.getTimeLimit());
+        model.addAttribute("deadline", formatDeadline(distributedExam.getDeadline()));
+
+        Long classroomId = enrolledStudentRepository.findByStudentEmail(studentEmail).stream()
+            .filter(item -> item.getSubjectId() != null)
+            .filter(item -> sameText(item.getSubjectName(), distributedExam.getSubject()))
+            .map(EnrolledStudent::getSubjectId)
+            .findFirst()
+            .orElse(null);
+
+        String classroomUrl = classroomId == null ? "/student/dashboard" : "/student/classroom/" + classroomId;
+        model.addAttribute("classroomUrl", classroomUrl);
+
+        String hash = distributedExam.getAccessOtpHash() == null ? "" : distributedExam.getAccessOtpHash().trim();
+        LocalDateTime expiresAt = distributedExam.getAccessOtpExpiresAt();
+        if (hash.isBlank()) {
+            model.addAttribute("otpPromptMessage", "Your teacher has not generated an OTP yet. Please ask your teacher in person.");
+        } else if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())) {
+            model.addAttribute("otpPromptMessage", "The previous OTP has expired. Please ask your teacher for a new code.");
+        } else {
+            model.addAttribute("otpExpiresAt", expiresAt.format(DEADLINE_DISPLAY_FORMAT));
+        }
+    }
+
+    private boolean isOtpVerified(DistributedExam distributedExam) {
+        return distributedExam != null && distributedExam.getAccessOtpVerifiedAt() != null;
     }
 
     private int countQuestions(DistributedExam distributedExam) {

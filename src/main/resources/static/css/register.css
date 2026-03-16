@@ -783,10 +783,10 @@ body.login-page.register-page::after {
 
 .register-hero-president .register-hero-president-image {
     position: absolute;
-    left: 60%;
+    left: 58%;
     right: auto;
     bottom: 19.5px;
-    width: min(57%, 750px);
+    width: min(65%, 850px);
     height: auto;
     display: block;
     object-fit: contain;

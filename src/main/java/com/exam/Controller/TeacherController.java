@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -89,6 +90,8 @@ public class TeacherController {
     private static final String SCHOOL_NAME = "Emilio Aguinaldo College";
     private static final String CAMPUS_NAME = "Manila";
     private static final String DEFAULT_IMPORTED_STUDENT_PASSWORD = "Student123!";
+    private static final int ACCESS_OTP_LENGTH = 6;
+    private static final long ACCESS_OTP_VALID_MINUTES = 10L;
     private static final List<String> DEPARTMENTS = List.of(
         "ETEEAP",
         "Arts & Sciences",
@@ -1863,6 +1866,7 @@ public class TeacherController {
         List<Map<String, Object>> submittedStudents = new ArrayList<>();
         List<Map<String, Object>> notSubmittedStudents = new ArrayList<>();
         List<Map<String, Object>> queuedStudents = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
         String distributionReturnTo = buildDistributionStudentsReturnTo(
             id,
             effectiveExamName,
@@ -1910,6 +1914,10 @@ public class TeacherController {
             item.put("needsManualGrading", needsManualGrading);
             item.put("isGraded", graded);
             item.put("resultsReleased", released);
+            item.put("otpStatusLabel", buildOtpStatusLabel(distribution, now));
+            item.put("otpStatusClass", buildOtpStatusClass(distribution, now));
+            item.put("otpActionLabel", resolveOtpActionLabel(distribution, now));
+            item.put("otpAvailableForGeneration", !distribution.isSubmitted());
 
             boolean completedSubmission = submission != null && isSubmissionCompleted(submission);
             if (completedSubmission || (submission == null && distribution.isSubmitted())) {
@@ -1953,6 +1961,114 @@ public class TeacherController {
                 || (effectiveDeadline != null && !effectiveDeadline.isBlank()));
 
         return "subject-distribution-students";
+    }
+
+    @PostMapping("/subject-classroom/{id}/distribution-students/generate-otp")
+    public String generateDistributionOtp(@PathVariable("id") Long id,
+                                          @RequestParam("studentEmail") String studentEmail,
+                                          @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                          @RequestParam(name = "filterExamName", required = false) String filterExamName,
+                                          @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
+                                          @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
+                                          @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                          Principal principal,
+                                          RedirectAttributes redirectAttributes) {
+        Optional<Subject> subjectOpt = subjectRepository.findById(id);
+        if (subjectOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject not found.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Subject subject = subjectOpt.get();
+        if (!isOwner(principal, subject.getTeacherEmail())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You are not allowed to generate OTP for this quiz.");
+            return "redirect:/teacher/subjects";
+        }
+
+        String normalizedStudentEmail = studentEmail == null ? "" : studentEmail.trim();
+        if (normalizedStudentEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Student email is required.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
+        }
+
+        DistributedExam target = null;
+        if (distributionId != null) {
+            target = distributedExamRepository.findById(distributionId)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .orElse(null);
+        }
+
+        if (target == null) {
+            String normalizedDeadline = filterDeadline == null ? "" : filterDeadline.trim();
+            target = distributedExamRepository.findAll().stream()
+                .filter(item -> item != null)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .filter(item -> filterExamName == null || sameText(item.getExamName(), filterExamName))
+                .filter(item -> filterActivityType == null || sameText(item.getActivityType(), filterActivityType))
+                .filter(item -> filterTimeLimit == null || filterTimeLimit.equals(item.getTimeLimit()))
+                .filter(item -> {
+                    String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
+                    return normalizedDeadline.isBlank() || itemDeadline.equals(normalizedDeadline);
+                })
+                .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())))
+                .findFirst()
+                .orElse(null);
+        }
+
+        if (target == null) {
+            redirectAttributes.addFlashAttribute("errorMessage", "No distributed quiz record found for this student.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
+        }
+
+        if (target.isSubmitted()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Cannot generate OTP because this student has already submitted.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                target.getExamName(),
+                target.getActivityType(),
+                target.getTimeLimit(),
+                target.getDeadline(),
+                target.getId());
+        }
+
+        String otpCode = generateNumericOtpCode(ACCESS_OTP_LENGTH);
+        LocalDateTime generatedAt = LocalDateTime.now();
+        LocalDateTime expiresAt = generatedAt.plusMinutes(ACCESS_OTP_VALID_MINUTES);
+
+        target.setAccessOtpHash(passwordEncoder.encode(otpCode));
+        target.setAccessOtpGeneratedAt(generatedAt);
+        target.setAccessOtpExpiresAt(expiresAt);
+        target.setAccessOtpVerifiedAt(null);
+        distributedExamRepository.save(target);
+
+        redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "OTP for " + normalizedStudentEmail + " is " + otpCode
+                + " (valid until " + expiresAt.format(DEADLINE_DISPLAY_FORMAT)
+                + "). Share it in person only.");
+
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            target.getExamName(),
+            target.getActivityType(),
+            target.getTimeLimit(),
+            target.getDeadline(),
+            target.getId());
     }
 
     @PostMapping("/subject-classroom/{id}/distribution-students/reopen")
@@ -2193,6 +2309,95 @@ public class TeacherController {
         target.setDeadline(deadlineValue == null ? "" : deadlineValue);
         target.setDistributedAt(distributedAt == null ? LocalDateTime.now() : distributedAt);
         target.setSubmitted(false);
+        clearDistributionOtpState(target);
+    }
+
+    private String generateNumericOtpCode(int length) {
+        int safeLength = Math.max(4, length);
+        StringBuilder builder = new StringBuilder(safeLength);
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        for (int index = 0; index < safeLength; index++) {
+            builder.append(random.nextInt(0, 10));
+        }
+        return builder.toString();
+    }
+
+    private String buildOtpStatusLabel(DistributedExam distribution, LocalDateTime now) {
+        if (distribution == null) {
+            return "Not generated";
+        }
+
+        if (distribution.isSubmitted()) {
+            return "Closed";
+        }
+
+        if (distribution.getAccessOtpVerifiedAt() != null) {
+            return "Verified";
+        }
+
+        String hash = distribution.getAccessOtpHash() == null ? "" : distribution.getAccessOtpHash().trim();
+        if (hash.isBlank()) {
+            return "Not generated";
+        }
+
+        LocalDateTime expiresAt = distribution.getAccessOtpExpiresAt();
+        if (expiresAt != null && (now == null || expiresAt.isAfter(now))) {
+            return "Active until " + expiresAt.format(DEADLINE_DISPLAY_FORMAT);
+        }
+        return "Expired";
+    }
+
+    private String buildOtpStatusClass(DistributedExam distribution, LocalDateTime now) {
+        if (distribution == null || distribution.isSubmitted()) {
+            return "bg-secondary";
+        }
+
+        if (distribution.getAccessOtpVerifiedAt() != null) {
+            return "bg-success";
+        }
+
+        String hash = distribution.getAccessOtpHash() == null ? "" : distribution.getAccessOtpHash().trim();
+        if (hash.isBlank()) {
+            return "bg-secondary";
+        }
+
+        LocalDateTime expiresAt = distribution.getAccessOtpExpiresAt();
+        if (expiresAt != null && (now == null || expiresAt.isAfter(now))) {
+            return "bg-warning text-dark";
+        }
+        return "bg-danger";
+    }
+
+    private String resolveOtpActionLabel(DistributedExam distribution, LocalDateTime now) {
+        if (distribution == null || distribution.isSubmitted()) {
+            return "N/A";
+        }
+
+        if (distribution.getAccessOtpVerifiedAt() != null) {
+            return "Generate New OTP";
+        }
+
+        String hash = distribution.getAccessOtpHash() == null ? "" : distribution.getAccessOtpHash().trim();
+        if (hash.isBlank()) {
+            return "Generate OTP";
+        }
+
+        LocalDateTime expiresAt = distribution.getAccessOtpExpiresAt();
+        if (expiresAt != null && (now == null || expiresAt.isAfter(now))) {
+            return "Regenerate OTP";
+        }
+        return "Generate New OTP";
+    }
+
+    private void clearDistributionOtpState(DistributedExam target) {
+        if (target == null) {
+            return;
+        }
+
+        target.setAccessOtpHash(null);
+        target.setAccessOtpGeneratedAt(null);
+        target.setAccessOtpExpiresAt(null);
+        target.setAccessOtpVerifiedAt(null);
     }
 
     private String buildDistributionStudentsReturnTo(Long subjectId,

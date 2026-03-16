@@ -37,14 +37,30 @@
                 </div>
             </div>
 
-            <div class="row g-3 align-items-start">
+            <div class="row g-3 align-items-stretch">
                 <div class="col-12 col-xl-6">
-                    <div class="card department-panel-card">
+                    <div class="card department-panel-card department-teacher-detail-card h-100">
                         <div class="card-header d-flex justify-content-between align-items-center department-panel-header">
                             <span class="fw-semibold"><i class="bi bi-people me-2"></i>Enrolled Students</span>
                             <small class="text-muted" th:text="${enrolledStudents != null ? enrolledStudents.size() : 0} + ' student(s)'">0 student(s)</small>
                         </div>
-                        <div class="card-body department-overview-scroll">
+                        <div class="card-body p-2 d-flex flex-column">
+                            <form method="get" th:action="@{/department-admin/question-bank/teacher}" class="department-teacher-search-form mb-2">
+                                <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                <input type="hidden" name="teacherEmail" th:value="${selectedTeacherEmail}">
+                                <input type="hidden" name="subject" th:value="${selectedSubject}">
+                                <input type="hidden" name="search" th:value="${search}">
+                                <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                                <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                                <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                                <input type="hidden" name="page" th:value="${page}">
+                                <input type="hidden" name="size" th:value="${size}">
+                                <input type="hidden" name="quizSearch" th:value="${quizSearch}">
+                                <input type="text" name="studentSearch" class="form-control form-control-sm" th:value="${studentSearch}" placeholder="Search students by name or email...">
+                                <button type="submit" class="btn btn-sm department-btn-outline">Search</button>
+                            </form>
+                            <div class="department-teacher-detail-scroll">
                             <div class="department-empty-state small" th:if="${enrolledStudents == null || enrolledStudents.isEmpty()}">
                                 No students enrolled under this teacher yet.
                             </div>
@@ -54,33 +70,52 @@
                                     <small class="text-muted" th:text="${student.email}">student@email.com</small>
                                 </li>
                             </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-12 col-xl-6">
-                    <div class="card department-panel-card">
+                    <div class="card department-panel-card department-teacher-detail-card h-100">
                         <div class="card-header d-flex justify-content-between align-items-center department-panel-header">
                             <span class="fw-semibold"><i class="bi bi-journal-richtext me-2"></i>Quizzes Given</span>
                             <small class="text-muted" th:text="${teacherQuizzes != null ? teacherQuizzes.size() : 0} + ' quiz(es)'">0 quiz(es)</small>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="department-empty-state small m-2" th:if="${teacherQuizzes == null || teacherQuizzes.isEmpty()}">
-                                No quizzes uploaded by this teacher yet.
-                            </div>
-                            <div class="department-quiz-list" th:if="${teacherQuizzes != null && !teacherQuizzes.isEmpty()}">
-                                <div class="department-quiz-item" th:each="quiz : ${teacherQuizzes}">
-                                    <div>
-                                        <p class="department-quiz-item-title mb-1" th:text="${quiz.sourceExamName}">Quiz Name</p>
-                                        <div class="department-quiz-item-meta">
-                                            <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${quiz.subject != null && !#strings.isEmpty(quiz.subject) ? quiz.subject : '-'}">Subject</span></span>
-                                            <span class="department-pill"><i class="bi bi-collection"></i><span th:text="${quiz.questionCount} + ' item(s)'">0 item(s)</span></span>
+                        <div class="card-body p-2 d-flex flex-column">
+                            <form method="get" th:action="@{/department-admin/question-bank/teacher}" class="department-teacher-search-form mb-2">
+                                <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                <input type="hidden" name="teacherEmail" th:value="${selectedTeacherEmail}">
+                                <input type="hidden" name="subject" th:value="${selectedSubject}">
+                                <input type="hidden" name="search" th:value="${search}">
+                                <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                                <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                                <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                                <input type="hidden" name="page" th:value="${page}">
+                                <input type="hidden" name="size" th:value="${size}">
+                                <input type="hidden" name="studentSearch" th:value="${studentSearch}">
+                                <input type="text" name="quizSearch" class="form-control form-control-sm" th:value="${quizSearch}" placeholder="Search quizzes by name or subject...">
+                                <button type="submit" class="btn btn-sm department-btn-outline">Search</button>
+                            </form>
+
+                            <div class="department-teacher-detail-scroll">
+                                <div class="department-empty-state small" th:if="${teacherQuizzes == null || teacherQuizzes.isEmpty()}">
+                                    No quizzes uploaded by this teacher yet.
+                                </div>
+                                <div class="department-quiz-list" th:if="${teacherQuizzes != null && !teacherQuizzes.isEmpty()}">
+                                    <div class="department-quiz-item" th:each="quiz : ${teacherQuizzes}">
+                                        <div>
+                                            <p class="department-quiz-item-title mb-1" th:text="${quiz.sourceExamName}">Quiz Name</p>
+                                            <div class="department-quiz-item-meta">
+                                                <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${quiz.subject != null && !#strings.isEmpty(quiz.subject) ? quiz.subject : '-'}">Subject</span></span>
+                                                <span class="department-pill"><i class="bi bi-collection"></i><span th:text="${quiz.questionCount} + ' item(s)'">0 item(s)</span></span>
+                                            </div>
                                         </div>
+                                        <a class="btn btn-sm department-btn-outline"
+                                           th:href="@{/department-admin/question-bank/quiz(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},sourceExamId=${quiz.sourceExamId},sourceExamName=${quiz.sourceExamName})}">
+                                            <i class="bi bi-eye me-1"></i>View Quiz
+                                        </a>
                                     </div>
-                                    <a class="btn btn-sm department-btn-outline"
-                                       th:href="@{/department-admin/question-bank/quiz(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},sourceExamId=${quiz.sourceExamId},sourceExamName=${quiz.sourceExamName})}">
-                                        <i class="bi bi-eye me-1"></i>View Quiz
-                                    </a>
                                 </div>
                             </div>
                         </div>

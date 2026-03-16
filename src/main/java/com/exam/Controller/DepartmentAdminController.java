@@ -882,6 +882,8 @@ public class DepartmentAdminController {
                                             @RequestParam(name = "subject", required = false) String subject,
                                             @RequestParam(name = "search", required = false) String search,
                                             @RequestParam(name = "teacherSearch", required = false) String teacherSearch,
+                                            @RequestParam(name = "studentSearch", required = false) String studentSearch,
+                                            @RequestParam(name = "quizSearch", required = false) String quizSearch,
                                             @RequestParam(name = "teacherPage", defaultValue = "0") int teacherPage,
                                             @RequestParam(name = "teacherSize", defaultValue = "6") int teacherSize,
                                             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -955,12 +957,21 @@ public class DepartmentAdminController {
             studentsByEmail.putIfAbsent(studentEmail, studentName);
         }
 
+        String normalizedStudentSearch = studentSearch == null ? "" : studentSearch.trim().toLowerCase();
         List<Map<String, String>> enrolledStudents = studentsByEmail.entrySet().stream()
             .map(entry -> {
                 Map<String, String> studentRow = new LinkedHashMap<>();
                 studentRow.put("email", entry.getKey());
                 studentRow.put("name", entry.getValue());
                 return studentRow;
+            })
+            .filter(row -> {
+                if (normalizedStudentSearch.isBlank()) {
+                    return true;
+                }
+                String studentName = row.getOrDefault("name", "").toLowerCase();
+                String studentEmail = row.getOrDefault("email", "").toLowerCase();
+                return studentName.contains(normalizedStudentSearch) || studentEmail.contains(normalizedStudentSearch);
             })
             .sorted(Comparator.comparing(row -> row.getOrDefault("name", ""), String.CASE_INSENSITIVE_ORDER))
             .toList();
@@ -1007,7 +1018,17 @@ public class DepartmentAdminController {
             quizRow.put("questionCount", questionCount + 1);
         }
 
-        List<Map<String, Object>> teacherQuizzes = new ArrayList<>(quizzesByKey.values());
+        String normalizedQuizSearch = quizSearch == null ? "" : quizSearch.trim().toLowerCase();
+        List<Map<String, Object>> teacherQuizzes = quizzesByKey.values().stream()
+            .filter(quiz -> {
+                if (normalizedQuizSearch.isBlank()) {
+                    return true;
+                }
+                String quizName = String.valueOf(quiz.getOrDefault("sourceExamName", "")).toLowerCase();
+                String quizSubject = String.valueOf(quiz.getOrDefault("subject", "")).toLowerCase();
+                return quizName.contains(normalizedQuizSearch) || quizSubject.contains(normalizedQuizSearch);
+            })
+            .toList();
 
         model.addAttribute("departmentName", selectedDepartment.isBlank() ? "Department not set" : selectedDepartment);
         model.addAttribute("selectedDepartment", selectedDepartment);
@@ -1021,6 +1042,8 @@ public class DepartmentAdminController {
         model.addAttribute("teacherQuizzes", teacherQuizzes);
         model.addAttribute("search", search == null ? "" : search);
         model.addAttribute("teacherSearch", teacherSearch == null ? "" : teacherSearch.trim());
+        model.addAttribute("studentSearch", studentSearch == null ? "" : studentSearch.trim());
+        model.addAttribute("quizSearch", quizSearch == null ? "" : quizSearch.trim());
         model.addAttribute("teacherPage", Math.max(0, teacherPage));
         model.addAttribute("teacherSize", Math.max(4, Math.min(teacherSize, 30)));
         model.addAttribute("page", Math.max(0, page));
@@ -1148,12 +1171,15 @@ public class DepartmentAdminController {
                 Integer questionOrder = item.getQuestionOrder();
                 List<String> choices = parseStringListJson(item.getChoicesJson());
                 String answerText = item.getAnswerText() == null || item.getAnswerText().isBlank() ? "-" : item.getAnswerText().trim();
+                String questionText = toPlainText(item.getQuestionText());
+                boolean openEnded = isOpenEndedQuestion(questionText, answerText, choices);
                 questionRow.put("number", questionOrder == null ? Integer.valueOf(index) : questionOrder);
-                questionRow.put("questionText", toPlainText(item.getQuestionText()));
+                questionRow.put("questionText", questionText);
                 questionRow.put("choices", choices);
-                questionRow.put("labeledChoices", buildLabeledChoices(choices));
+                questionRow.put("openEnded", openEnded);
+                questionRow.put("labeledChoices", openEnded ? new ArrayList<>() : buildLabeledChoices(choices));
                 questionRow.put("answerText", answerText);
-                questionRow.put("answerDisplay", resolveAnswerDisplay(answerText, choices));
+                questionRow.put("answerDisplay", openEnded ? answerText : resolveAnswerDisplay(answerText, choices));
                 questionRow.put("difficulty", item.getDifficulty() == null || item.getDifficulty().isBlank() ? "Medium" : item.getDifficulty().trim());
                 selectedQuizQuestions.add(questionRow);
                 index++;
@@ -1239,6 +1265,53 @@ public class DepartmentAdminController {
         }
 
         return answerText.trim();
+    }
+
+    private boolean isOpenEndedQuestion(String questionText, String answerText, List<String> choices) {
+        String normalizedQuestion = questionText == null ? "" : questionText.trim().toLowerCase();
+        if (normalizedQuestion.contains("[essay]")
+            || normalizedQuestion.contains("[open-ended]")
+            || normalizedQuestion.contains("[open ended]")
+            || normalizedQuestion.contains("[text_input]")
+            || normalizedQuestion.contains("[text input]")) {
+            return true;
+        }
+
+        List<String> nonEmptyChoices = choices == null
+            ? new ArrayList<>()
+            : choices.stream()
+                .filter(choice -> choice != null && !choice.trim().isBlank())
+                .toList();
+        if (nonEmptyChoices.isEmpty()) {
+            return true;
+        }
+
+        if (answerText == null || answerText.isBlank() || "-".equals(answerText.trim())) {
+            return false;
+        }
+
+        if (isChoiceMappedAnswer(answerText, nonEmptyChoices)) {
+            return false;
+        }
+
+        int wordCount = answerText.trim().split("\\s+").length;
+        return wordCount >= 4;
+    }
+
+    private boolean isChoiceMappedAnswer(String answerText, List<String> choices) {
+        String normalizedAnswer = normalizeAnswerToken(answerText);
+        if (normalizedAnswer.isBlank() || choices == null || choices.isEmpty()) {
+            return false;
+        }
+
+        for (int index = 0; index < choices.size(); index++) {
+            String label = toOptionLabel(index);
+            String choiceText = choices.get(index) == null ? "" : choices.get(index).trim();
+            if (normalizedAnswer.equalsIgnoreCase(label) || normalizeAnswerToken(choiceText).equalsIgnoreCase(normalizedAnswer)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String normalizeAnswerToken(String value) {

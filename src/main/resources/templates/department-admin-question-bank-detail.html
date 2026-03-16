@@ -57,42 +57,45 @@
                     <span class="fw-semibold"><i class="bi bi-ui-checks-grid me-2"></i>Questions and Answers</span>
                     <small class="text-muted" th:text="${selectedQuizQuestions != null ? selectedQuizQuestions.size() : 0} + ' item(s)'">0 item(s)</small>
                 </div>
-                <div class="card-body p-0">
-                    <div th:if="${selectedQuiz == null}" class="p-3 text-muted small">
+                <div class="card-body p-3 p-lg-4">
+                    <div th:if="${selectedQuiz == null}" class="department-empty-state small">
                         Quiz not found in your department/program scope.
                     </div>
-                    <div th:if="${selectedQuiz != null && (selectedQuizQuestions == null || selectedQuizQuestions.isEmpty())}" class="p-3 text-muted small">
+                    <div th:if="${selectedQuiz != null && (selectedQuizQuestions == null || selectedQuizQuestions.isEmpty())}" class="department-empty-state small">
                         No questions found for this quiz.
                     </div>
-                    <div th:if="${selectedQuiz != null && selectedQuizQuestions != null && !selectedQuizQuestions.isEmpty()}" class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0 department-table">
-                            <thead class="table-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Question</th>
-                                <th>Options</th>
-                                <th>Correct Answer</th>
-                                <th>Difficulty</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr th:each="question : ${selectedQuizQuestions}">
-                                <td th:text="${question.number}">1</td>
-                                <td th:text="${question.questionText}">Question text</td>
-                                <td>
-                                    <ul class="mb-0 ps-3" th:if="${question.labeledChoices != null && !question.labeledChoices.isEmpty()}">
-                                        <li th:each="choice : ${question.labeledChoices}">
-                                            <span class="fw-semibold me-1" th:text="${choice.label} + '.'">A.</span>
-                                            <span th:text="${choice.text}">Choice</span>
-                                        </li>
-                                    </ul>
-                                    <span class="text-muted small" th:if="${question.labeledChoices == null || question.labeledChoices.isEmpty()}">No options</span>
-                                </td>
-                                <td><span class="fw-semibold" th:text="${question.answerDisplay}">A - Choice</span></td>
-                                <td><span class="badge bg-secondary" th:text="${question.difficulty}">Medium</span></td>
-                            </tr>
-                            </tbody>
-                        </table>
+                    <div th:if="${selectedQuiz != null && selectedQuizQuestions != null && !selectedQuizQuestions.isEmpty()}" class="department-question-grid">
+                        <article class="department-question-card" th:each="question : ${selectedQuizQuestions}">
+                            <div class="department-question-card-top">
+                                <span class="department-question-index" th:text="'Q' + ${question.number}">Q1</span>
+                                <span class="department-difficulty-badge" th:text="${question.difficulty}">Medium</span>
+                            </div>
+                            <p class="department-question-text mb-0" th:text="${question.questionText}">Question text</p>
+
+                            <div class="row g-3 mt-1">
+                                <div class="col-12 col-lg-8">
+                                    <div class="department-question-block h-100">
+                                        <h6 class="department-question-block-title mb-2">Options</h6>
+                                        <p class="department-open-ended-note mb-0" th:if="${question.openEnded}">
+                                            <i class="bi bi-pencil-square me-1"></i> Open-ended response
+                                        </p>
+                                        <ul class="mb-0 list-unstyled department-choice-list" th:if="${!question.openEnded && question.labeledChoices != null && !question.labeledChoices.isEmpty()}">
+                                            <li th:each="choice : ${question.labeledChoices}">
+                                                <span class="department-choice-label" th:text="${choice.label}">A</span>
+                                                <span class="department-choice-text" th:text="${choice.text}">Choice</span>
+                                            </li>
+                                        </ul>
+                                        <p class="text-muted small mb-0" th:if="${!question.openEnded && (question.labeledChoices == null || question.labeledChoices.isEmpty())}">No options</p>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="department-question-block department-answer-block h-100">
+                                        <h6 class="department-question-block-title mb-2">Correct Answer</h6>
+                                        <p class="department-answer-text mb-0" th:text="${question.answerDisplay}">A - Choice</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
                     </div>
                 </div>
             </div>
