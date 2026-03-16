@@ -178,6 +178,10 @@
             overflow: hidden;
             transition: transform 0.22s ease, box-shadow 0.22s ease;
             background: #fff;
+            box-shadow: 0 12px 25px rgba(96, 63, 30, 0.12);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
 
         .subject-card:hover {
@@ -191,7 +195,7 @@
             padding: 1.15rem 1.15rem 1rem;
             display: flex;
             flex-direction: column;
-            min-height: 146px;
+            min-height: 114px;
         }
 
         .subject-title {
@@ -205,11 +209,11 @@
         }
 
         .subject-description {
-            margin: 0.45rem 0 0;
+            margin: 0.34rem 0 0;
             font-size: 0.84rem;
             color: rgba(255, 255, 255, 0.78);
             line-height: 1.35;
-            min-height: 2.3em;
+            min-height: 2.1em;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
@@ -229,22 +233,29 @@
         }
 
         .subject-card .card-body {
-            padding: 1rem 1.1rem;
+            padding: 0.82rem 0.95rem;
+            min-height: 148px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .subject-card .card-body > .mt-3 {
+            margin-top: auto !important;
         }
 
         .pending-empty {
             text-align: center;
-            padding: 1.25rem 0.5rem 0.95rem;
+            padding: 0.7rem 0.45rem 0.55rem;
             color: #6b6b6b;
         }
 
         .pending-empty i {
-            font-size: 1.8rem;
+            font-size: 1.45rem;
             color: #506c4a;
         }
 
         .pending-empty p {
-            margin: 0.5rem 0 0;
+            margin: 0.32rem 0 0;
             font-size: 0.93rem;
             font-weight: 600;
             color: #3e4f3b;
@@ -296,7 +307,7 @@
         }
 
         .completed-pill {
-            margin-top: 0.75rem;
+            margin-top: 0.5rem;
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
@@ -311,21 +322,25 @@
         .subject-footer {
             background: #fff;
             border-top: 1px solid #efe2d5;
-            padding: 0.75rem 1.1rem 1rem;
+            padding: 0.62rem 0.95rem 0.8rem;
+            margin-top: auto;
         }
 
         .subject-action-btn {
             width: 100%;
             border-radius: 10px;
-            border-color: #d9c6af;
-            color: #7a1022;
-            font-weight: 600;
+            border: 0;
+            font-weight: 700;
+            background: linear-gradient(130deg, #8f1228, #6f0e20);
+            color: #fff;
+            min-height: 44px;
+            font-size: 0.95rem;
+            padding: 0.58rem 0.9rem;
         }
 
         .subject-action-btn:hover {
-            background: #7a1022;
-            color: #fff;
-            border-color: #7a1022;
+            color: #ffe9b8;
+            background: linear-gradient(130deg, #7b1022, #5f0d1a);
         }
 
         .subjects-toolbar {
@@ -432,6 +447,11 @@
             animation: cardRise 0.38s ease both;
         }
 
+        #subjectsGrid {
+            --bs-gutter-x: 0.9rem;
+            --bs-gutter-y: 0.9rem;
+        }
+
         @keyframes cardRise {
             from {
                 opacity: 0;
@@ -444,7 +464,7 @@
         }
 
         .subject-card-col {
-            display: flex;
+            display: block;
         }
 
         .subject-card-col .subject-card {

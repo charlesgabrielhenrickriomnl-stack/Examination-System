@@ -19,15 +19,9 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                                         HttpServletResponse response,
                                         Authentication authentication)
             throws IOException, ServletException {
-        boolean isTeacher = authentication.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .anyMatch("TEACHER"::equals);
-        boolean isStudent = authentication.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .anyMatch("STUDENT"::equals);
-        boolean isDepartmentAdmin = authentication.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .anyMatch("DEPARTMENT_ADMIN"::equals);
+        boolean isTeacher = hasAuthority(authentication, "TEACHER");
+        boolean isStudent = hasAuthority(authentication, "STUDENT");
+        boolean isDepartmentAdmin = hasAuthority(authentication, "DEPARTMENT_ADMIN");
 
         if (isTeacher) {
             response.sendRedirect("/teacher/loading");
@@ -38,10 +32,23 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             return;
         }
         if (isStudent) {
-            response.sendRedirect("/student/dashboard");
+            response.sendRedirect("/student/loading");
             return;
         }
 
         response.sendRedirect("/dashboard");
+    }
+
+    private boolean hasAuthority(Authentication authentication, String authority) {
+        if (authentication == null || authority == null || authority.isBlank()) {
+            return false;
+        }
+
+        String normalized = authority.trim();
+        String roleVariant = "ROLE_" + normalized;
+
+        return authentication.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .anyMatch(granted -> normalized.equalsIgnoreCase(granted) || roleVariant.equalsIgnoreCase(granted));
     }
 }

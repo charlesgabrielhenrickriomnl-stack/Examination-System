@@ -1,14 +1,20 @@
 package com.exam.service;
 
-import com.exam.entity.User;
-import com.exam.repository.UserRepository;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.UUID;
-import java.util.regex.Pattern;
+import com.exam.config.AcademicCatalog;
+import com.exam.entity.User;
+import com.exam.repository.UserRepository;
 
 @Service
 public class UserService {
@@ -192,5 +198,39 @@ public class UserService {
         user.setProgramName(programName);
         userRepository.save(user);
         return true;
+    }
+
+    public List<String> getRegistrationDepartments() {
+        return new ArrayList<>(getRegistrationProgramsByDepartment().keySet());
+    }
+
+    public Map<String, List<String>> getRegistrationProgramsByDepartment() {
+        Map<String, List<String>> merged = new LinkedHashMap<>();
+        AcademicCatalog.PROGRAMS_BY_DEPARTMENT.forEach((department, programs) ->
+            merged.put(department, new ArrayList<>(programs))
+        );
+
+        for (User user : userRepository.findAll()) {
+            if (user == null) {
+                continue;
+            }
+
+            String department = normalizeValue(user.getDepartmentName());
+            if (department.isBlank()) {
+                continue;
+            }
+
+            List<String> programs = merged.computeIfAbsent(department, key -> new ArrayList<>());
+            String program = normalizeValue(user.getProgramName());
+            if (!program.isBlank() && programs.stream().noneMatch(existing -> existing.equalsIgnoreCase(program))) {
+                programs.add(program);
+            }
+        }
+
+        return merged;
+    }
+
+    private String normalizeValue(String value) {
+        return value == null ? "" : value.trim();
     }
 }

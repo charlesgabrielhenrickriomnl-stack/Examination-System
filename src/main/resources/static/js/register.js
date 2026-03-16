@@ -6,23 +6,64 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmPassword = document.getElementById('confirmPassword');
     const departmentSelect = document.getElementById('departmentName');
     const programSelect = document.getElementById('programName');
+    const roleInputs = Array.from(document.querySelectorAll('input[name="role"]'));
     const passwordHelp = document.getElementById('passwordHelp');
+    const loginLinks = document.querySelectorAll('a[href="/login"]');
+    let exitingToLogin = false;
+
+    loginLinks.forEach(function(link) {
+        link.addEventListener('click', function(event) {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                return;
+            }
+
+            const href = link.getAttribute('href');
+            if (!href || exitingToLogin) {
+                event.preventDefault();
+                return;
+            }
+
+            exitingToLogin = true;
+            event.preventDefault();
+            window.location.assign(href);
+        });
+    });
+
+    function isProgramRequired() {
+        const checkedRole = roleInputs.find(input => input.checked);
+        const role = checkedRole ? checkedRole.value : '';
+        return role === 'TEACHER' || role === 'STUDENT';
+    }
+
+    function getProgramsForDepartment(departmentName) {
+        const target = (departmentName || '').trim().toLowerCase();
+        if (!target) {
+            return [];
+        }
+
+        const programsMap = window.programsByDepartment || {};
+        if (programsMap[departmentName]) {
+            return programsMap[departmentName];
+        }
+
+        const matchingKey = Object.keys(programsMap).find(key => (key || '').trim().toLowerCase() === target);
+        return matchingKey ? (programsMap[matchingKey] || []) : [];
+    }
 
     function syncProgramOptions() {
         if (!departmentSelect || !programSelect) {
             return;
         }
 
-        const selectedDepartment = departmentSelect.value || '';
-        const programsMap = window.programsByDepartment || {};
-        const programs = programsMap[selectedDepartment] || [];
+        const selectedDepartment = (departmentSelect.value || '').trim();
+        const programs = getProgramsForDepartment(selectedDepartment);
 
-        const previousValue = programSelect.value;
+        const previousValue = programSelect.value || '';
         programSelect.innerHTML = '';
 
         const placeholder = document.createElement('option');
         placeholder.value = '';
-        placeholder.textContent = 'Select Program';
+        placeholder.textContent = programs.length > 0 ? 'Select Program' : 'Select Department first';
         programSelect.appendChild(placeholder);
 
         programs.forEach(program => {
@@ -38,13 +79,18 @@ document.addEventListener('DOMContentLoaded', function() {
             programSelect.value = '';
         }
 
-        programSelect.required = programs.length > 0;
+        programSelect.required = isProgramRequired();
+        programSelect.disabled = programs.length === 0;
     }
 
     if (departmentSelect) {
         departmentSelect.addEventListener('change', syncProgramOptions);
         syncProgramOptions();
     }
+
+    roleInputs.forEach(roleInput => {
+        roleInput.addEventListener('change', syncProgramOptions);
+    });
     
     // Password confirmation validation
     confirmPassword.addEventListener('input', function() {
@@ -88,12 +134,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (departmentSelect && programSelect) {
-            const selectedDepartment = departmentSelect.value || '';
-            const programsMap = window.programsByDepartment || {};
-            const programs = programsMap[selectedDepartment] || [];
-            if (programs.length > 0 && !programSelect.value) {
+            const selectedDepartment = (departmentSelect.value || '').trim();
+            const programs = getProgramsForDepartment(selectedDepartment);
+            if (!selectedDepartment) {
                 e.preventDefault();
-                alert('⚠️ Please select a program for your department');
+                alert('Please select your department.');
+                departmentSelect.focus();
+                return false;
+            }
+
+            if (isProgramRequired() && !programSelect.value.trim()) {
+                e.preventDefault();
+                alert('Please select your program.');
+                programSelect.focus();
+                return false;
+            }
+
+            if (isProgramRequired() && programs.length > 0 && !programs.includes(programSelect.value.trim())) {
+                e.preventDefault();
+                alert('Please select a valid program for the selected department.');
                 programSelect.focus();
                 return false;
             }

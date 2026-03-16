@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -176,7 +177,6 @@ public class TeacherController {
             .contentType(MediaType.parseMediaType("text/csv"))
             .body(content);
     }
-
     @GetMapping("/export-exam-with-answers/{format}")
     public ResponseEntity<byte[]> exportExamWithAnswers(@PathVariable("format") String format,
                                                         @RequestParam("examId") String examId,
@@ -293,6 +293,80 @@ public class TeacherController {
         model.addAttribute("enrollmentCountBySubject", enrollmentCountBySubject);
         model.addAttribute("teacherEmail", teacherEmail);
         return "teacher-subjects";
+    }
+
+    @PostMapping("/create-subject")
+    public String createSubject(@RequestParam("subjectName") String subjectName,
+                                @RequestParam(name = "description", required = false) String description,
+                                Principal principal,
+                                RedirectAttributes redirectAttributes) {
+        String teacherEmail = principal != null ? principal.getName() : "";
+        if (teacherEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
+            return "redirect:/teacher/subjects";
+        }
+
+        String normalizedSubjectName = subjectName == null ? "" : subjectName.trim();
+        if (normalizedSubjectName.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject name is required.");
+            return "redirect:/teacher/subjects";
+        }
+
+        boolean duplicateSubject = subjectRepository.findByTeacherEmail(teacherEmail).stream()
+            .map(Subject::getSubjectName)
+            .filter(value -> value != null && !value.isBlank())
+            .anyMatch(value -> value.trim().equalsIgnoreCase(normalizedSubjectName));
+        if (duplicateSubject) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You already have a subject with that name.");
+            return "redirect:/teacher/subjects";
+        }
+
+        String normalizedDescription = description == null ? "" : description.trim();
+        Subject subject = new Subject(normalizedSubjectName,
+            normalizedDescription.isBlank() ? null : normalizedDescription,
+            teacherEmail);
+        subjectRepository.save(subject);
+
+        redirectAttributes.addFlashAttribute("successMessage", "Subject created successfully.");
+        return "redirect:/teacher/subjects";
+    }
+
+    @PostMapping("/delete-subject")
+    public String deleteSubject(@RequestParam("subjectId") Long subjectId,
+                                Principal principal,
+                                RedirectAttributes redirectAttributes) {
+        String teacherEmail = principal != null ? principal.getName() : "";
+        if (teacherEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Optional<Subject> subjectOpt = subjectRepository.findById(subjectId);
+        if (subjectOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject not found.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Subject subject = subjectOpt.get();
+        if (subject.getTeacherEmail() == null || !subject.getTeacherEmail().equalsIgnoreCase(teacherEmail)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You are not allowed to delete this subject.");
+            return "redirect:/teacher/subjects";
+        }
+
+        List<EnrolledStudent> enrollments = enrolledStudentRepository.findBySubjectId(subjectId);
+        int removedEnrollments = enrollments.size();
+        if (!enrollments.isEmpty()) {
+            enrolledStudentRepository.deleteAll(enrollments);
+        }
+        subjectRepository.delete(subject);
+
+        if (removedEnrollments > 0) {
+            redirectAttributes.addFlashAttribute("successMessage",
+                "Subject deleted successfully. " + removedEnrollments + " enrollment(s) removed.");
+        } else {
+            redirectAttributes.addFlashAttribute("successMessage", "Subject deleted successfully.");
+        }
+        return "redirect:/teacher/subjects";
     }
 
     @GetMapping("/students") 
@@ -1127,7 +1201,16 @@ public class TeacherController {
         List<User> allStudents = userRepository.findAll().stream()
             .filter(user -> user != null && user.getRole() == User.Role.STUDENT)
             .toList();
+
+        String currentTeacherDepartment = userRepository.findByEmail(teacherEmail)
+            .map(User::getDepartmentName)
+            .map(String::trim)
+            .orElse("");
+        List<String> currentTeacherPrograms = AcademicCatalog.programsForDepartment(currentTeacherDepartment);
+
         model.addAttribute("allStudents", allStudents);
+        model.addAttribute("currentTeacherDepartment", currentTeacherDepartment);
+        model.addAttribute("currentTeacherPrograms", currentTeacherPrograms);
         model.addAttribute("departmentOptions", DEPARTMENTS);
 
         List<DistributedExam> distributedExams = distributedExamRepository.findAll().stream()
@@ -1162,7 +1245,8 @@ public class TeacherController {
 
     @PostMapping("/enroll-student")
     public String enrollStudent(@RequestParam("subjectId") Long subjectId,
-                                @RequestParam("studentEmail") String studentEmail,
+                                @RequestParam(name = "studentEmail", required = false) String studentEmail,
+                                @RequestParam(name = "selectedStudents", required = false) List<String> selectedStudents,
                                 Principal principal,
                                 RedirectAttributes redirectAttributes) {
         Optional<Subject> subjectOpt = subjectRepository.findById(subjectId);
@@ -1177,37 +1261,70 @@ public class TeacherController {
             return "redirect:/teacher/subjects";
         }
 
-        String normalizedEmail = studentEmail == null ? "" : studentEmail.trim().toLowerCase();
-        if (normalizedEmail.isBlank()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Please select a student.");
+        Set<String> normalizedEmails = new LinkedHashSet<>();
+        if (selectedStudents != null) {
+            selectedStudents.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase())
+                .forEach(normalizedEmails::add);
+        }
+        if (normalizedEmails.isEmpty() && studentEmail != null && !studentEmail.isBlank()) {
+            normalizedEmails.add(studentEmail.trim().toLowerCase());
+        }
+
+        if (normalizedEmails.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please select at least one student.");
             return "redirect:/teacher/subject-classroom/" + subjectId;
         }
 
-        Optional<User> studentOpt = userRepository.findByEmail(normalizedEmail);
-        if (studentOpt.isEmpty() || studentOpt.get().getRole() != User.Role.STUDENT) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Student account not found.");
+        int enrolledCount = 0;
+        int alreadyEnrolledCount = 0;
+        int invalidCount = 0;
+
+        for (String normalizedEmail : normalizedEmails) {
+            Optional<User> studentOpt = userRepository.findByEmail(normalizedEmail);
+            if (studentOpt.isEmpty() || studentOpt.get().getRole() != User.Role.STUDENT) {
+                invalidCount += 1;
+                continue;
+            }
+
+            if (enrolledStudentRepository.findByTeacherEmailAndStudentEmailAndSubjectId(subject.getTeacherEmail(), normalizedEmail, subjectId).isPresent()) {
+                alreadyEnrolledCount += 1;
+                continue;
+            }
+
+            User student = studentOpt.get();
+            String studentName = (student.getFullName() == null || student.getFullName().isBlank())
+                ? normalizedEmail
+                : student.getFullName().trim();
+            EnrolledStudent enrollment = new EnrolledStudent(
+                subject.getTeacherEmail(),
+                normalizedEmail,
+                studentName,
+                subject.getId(),
+                subject.getSubjectName()
+            );
+            enrolledStudentRepository.save(enrollment);
+            enrolledCount += 1;
+        }
+
+        if (enrolledCount == 0) {
+            if (alreadyEnrolledCount > 0 && invalidCount == 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Selected students are already enrolled in this subject.");
+            } else if (alreadyEnrolledCount == 0 && invalidCount > 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "No valid student accounts found in the selected list.");
+            } else {
+                redirectAttributes.addFlashAttribute("errorMessage",
+                    "No students were enrolled. " + alreadyEnrolledCount + " already enrolled, " + invalidCount + " invalid.");
+            }
             return "redirect:/teacher/subject-classroom/" + subjectId;
         }
 
-        if (enrolledStudentRepository.findByTeacherEmailAndStudentEmailAndSubjectId(subject.getTeacherEmail(), normalizedEmail, subjectId).isPresent()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Student is already enrolled in this subject.");
-            return "redirect:/teacher/subject-classroom/" + subjectId;
+        redirectAttributes.addFlashAttribute("successMessage", enrolledCount + " student(s) enrolled successfully.");
+        if (alreadyEnrolledCount > 0 || invalidCount > 0) {
+            redirectAttributes.addFlashAttribute("warningMessage",
+                "Skipped " + alreadyEnrolledCount + " already enrolled and " + invalidCount + " invalid account(s).");
         }
-
-        User student = studentOpt.get();
-        String studentName = (student.getFullName() == null || student.getFullName().isBlank())
-            ? normalizedEmail
-            : student.getFullName().trim();
-        EnrolledStudent enrollment = new EnrolledStudent(
-            subject.getTeacherEmail(),
-            normalizedEmail,
-            studentName,
-            subject.getId(),
-            subject.getSubjectName()
-        );
-        enrolledStudentRepository.save(enrollment);
-
-        redirectAttributes.addFlashAttribute("successMessage", "Student enrolled successfully.");
         return "redirect:/teacher/subject-classroom/" + subjectId;
     }
 

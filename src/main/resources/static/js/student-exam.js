@@ -600,7 +600,7 @@ function displayQuestion() {
     
     // Update navigation buttons
     document.getElementById('backBtn').disabled = (currentPage === 0);
-    document.getElementById('nextBtn').textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next →';
+    document.getElementById('nextBtn').textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next';
 }
 
 /**
@@ -747,7 +747,7 @@ async function navigateNext() {
             } finally {
                 if (nextBtn) {
                     nextBtn.disabled = false;
-                    nextBtn.textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next →';
+                    nextBtn.textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next';
                 }
             }
         }

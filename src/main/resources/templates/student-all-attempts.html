@@ -69,11 +69,17 @@
                                             <span th:text="${submission.submittedAt != null ? #temporals.format(submission.submittedAt, 'MMM dd, yyyy HH:mm') : 'N/A'}">Date</span>
                                         </small>
                                     </td>
-                                    <td>
-                                        <span class="badge badge-score"
-                                              th:classappend="${submission.percentage >= 75 ? 'bg-success' : (submission.percentage >= 50 ? 'bg-warning text-dark' : 'bg-danger')}">
-                                            <span th:text="${submission.score}">0</span>/<span th:text="${submission.totalQuestions}">0</span>
-                                            (<span th:text="${#numbers.formatDecimal(submission.percentage, 1, 1)}">0</span>%)
+                                    <td th:with="displayScore=${submission.isGraded() ? submission.finalScore : submission.score},
+                                                 displayPercentage=${submission.isGraded() ? submission.finalPercentage : submission.percentage}">
+                                        <span th:if="${!submission.isResultsReleased()}" class="badge bg-secondary">
+                                            <i class="bi bi-hourglass-split me-1"></i>
+                                            <span th:text="${submission.isGraded() ? 'Awaiting release' : 'Pending grading'}">Pending grading</span>
+                                        </span>
+                                        <span th:if="${submission.isResultsReleased()}"
+                                              class="badge badge-score"
+                                              th:classappend="${displayPercentage >= 75 ? 'bg-success' : (displayPercentage >= 50 ? 'bg-warning text-dark' : 'bg-danger')}">
+                                            <span th:text="${displayScore}">0</span>/<span th:text="${submission.totalQuestions}">0</span>
+                                            (<span th:text="${#numbers.formatDecimal(displayPercentage, 1, 1)}">0</span>%)
                                         </span>
                                     </td>
                                     <td>

@@ -12,4 +12,5 @@ import com.exam.entity.OriginalProcessedPaper;
 public interface OriginalProcessedPaperRepository extends JpaRepository<OriginalProcessedPaper, Long> {
     Optional<OriginalProcessedPaper> findByExamId(String examId);
     List<OriginalProcessedPaper> findByTeacherEmailOrderByProcessedAtDesc(String teacherEmail);
+    List<OriginalProcessedPaper> findByDepartmentNameIgnoreCaseOrderByProcessedAtDesc(String departmentName);
 }

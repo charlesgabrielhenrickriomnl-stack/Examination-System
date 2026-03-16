@@ -93,6 +93,11 @@ public class StudentController {
         this.irt3PLService = irt3PLService;
     }
 
+    @GetMapping("/loading")
+    public String loading() {
+        return "student-loading";
+    }
+
     @GetMapping("/dashboard")
     public String dashboard(Model model, Principal principal, HttpSession session) {
         String studentEmail = getStudentEmail(principal);
@@ -705,9 +710,26 @@ public class StudentController {
                 .orElse("/student/dashboard");
         }
 
-        boolean resultsLocked = !submission.isResultsReleased();
-        if (resultsLocked) {
-            model.addAttribute("infoMessage", "Your teacher has not released the final results yet.");
+        boolean resultsReleased = submission.isResultsReleased();
+        boolean graded = submission.isGraded();
+        boolean resultsLocked = !resultsReleased;
+
+        String releaseStatus;
+        String releaseStatusText;
+        if (!resultsReleased && !graded) {
+            releaseStatus = "PENDING_GRADING";
+            releaseStatusText = "Pending teacher grading";
+            model.addAttribute("infoMessage", "Your teacher is still reviewing open-ended answers.");
+        } else if (!resultsReleased) {
+            releaseStatus = "AWAITING_RELEASE";
+            releaseStatusText = "Grade finalized, awaiting release";
+            model.addAttribute("infoMessage", "Your grade is finalized, but your teacher has not released the final result yet.");
+        } else if (graded) {
+            releaseStatus = "RELEASED_FINAL";
+            releaseStatusText = "Final result released";
+        } else {
+            releaseStatus = "RELEASED_AUTO";
+            releaseStatusText = "Result released";
         }
 
         Map<String, Object> analytics = new HashMap<>();
@@ -725,6 +747,8 @@ public class StudentController {
 
         model.addAttribute("submission", submission);
         model.addAttribute("resultsLocked", resultsLocked);
+        model.addAttribute("releaseStatus", releaseStatus);
+        model.addAttribute("releaseStatusText", releaseStatusText);
         model.addAttribute("score", submission.getScore());
         model.addAttribute("total", submission.getTotalQuestions());
         model.addAttribute("percentage", submission.getPercentage());

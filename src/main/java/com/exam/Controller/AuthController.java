@@ -76,6 +76,7 @@ public class AuthController {
         String normalizedCampus = (campusName == null || campusName.isBlank()) ? AcademicCatalog.CAMPUS_NAME : campusName.trim();
         String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
         String normalizedProgram = programName == null ? "" : programName.trim();
+        boolean programRequired = "STUDENT".equalsIgnoreCase(role) || "TEACHER".equalsIgnoreCase(role);
 
         if (normalizedDepartment.isBlank()) {
             model.addAttribute("error", "Please select your department.");
@@ -83,24 +84,22 @@ public class AuthController {
             return "register";
         }
 
-        if (!AcademicCatalog.isValidDepartment(normalizedDepartment)) {
-            model.addAttribute("error", "Invalid department selected.");
-            populateRegistrationDefaults(model);
-            return "register";
-        }
-
-        if (!AcademicCatalog.isValidProgram(normalizedDepartment, normalizedProgram)) {
-            model.addAttribute("error", "Please select a valid program for the selected department.");
+        if (programRequired && normalizedProgram.isBlank()) {
+            model.addAttribute("error", "Please select your program.");
             populateRegistrationDefaults(model);
             return "register";
         }
 
         String result = switch (role) {
-            case "STUDENT" -> {
-                model.addAttribute("error", "Student accounts are created by teachers through import. Please contact your teacher.");
-                populateRegistrationDefaults(model);
-                yield null;
-            }
+            case "STUDENT" -> userService.registerStudent(
+                email,
+                password,
+                fullName,
+                normalizedSchool,
+                normalizedCampus,
+                normalizedDepartment,
+                normalizedProgram
+            );
             case "TEACHER" -> userService.registerTeacher(
                 email,
                 password,
@@ -110,11 +109,15 @@ public class AuthController {
                 normalizedDepartment,
                 normalizedProgram
             );
-            case "DEPARTMENT_ADMIN" -> {
-                model.addAttribute("error", "Department Admin uses a built-in account and cannot self-register.");
-                populateRegistrationDefaults(model);
-                yield null;
-            }
+            case "DEPARTMENT_ADMIN" -> userService.registerDepartmentAdmin(
+                email,
+                password,
+                fullName,
+                normalizedSchool,
+                normalizedCampus,
+                normalizedDepartment,
+                normalizedProgram
+            );
             default -> {
                 model.addAttribute("error", "Invalid role selected");
                 populateRegistrationDefaults(model);
@@ -182,13 +185,9 @@ public class AuthController {
             return redirectTo;
         }
 
-        if (!AcademicCatalog.isValidDepartment(normalizedDepartment)) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Invalid department selected.");
-            return redirectTo;
-        }
-
-        if (!AcademicCatalog.isValidProgram(normalizedDepartment, normalizedProgram)) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Please select a valid program for the selected department.");
+        boolean programRequired = user == null || user.getRole() != User.Role.DEPARTMENT_ADMIN;
+        if (programRequired && normalizedProgram.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please select your program.");
             return redirectTo;
         }
 
@@ -210,9 +209,10 @@ public class AuthController {
     }
 
     private void populateRegistrationDefaults(Model model) {
+        var programsByDepartment = userService.getRegistrationProgramsByDepartment();
         model.addAttribute("schoolName", AcademicCatalog.SCHOOL_NAME);
         model.addAttribute("campusName", AcademicCatalog.CAMPUS_NAME);
-        model.addAttribute("departments", AcademicCatalog.DEPARTMENTS);
-        model.addAttribute("programsByDepartment", AcademicCatalog.PROGRAMS_BY_DEPARTMENT);
+        model.addAttribute("departments", userService.getRegistrationDepartments());
+        model.addAttribute("programsByDepartment", programsByDepartment);
     }
 }

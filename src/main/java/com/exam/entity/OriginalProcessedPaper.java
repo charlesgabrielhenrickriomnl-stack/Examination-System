@@ -23,6 +23,9 @@ public class OriginalProcessedPaper {
     @Column(name = "teacher_email", nullable = false)
     private String teacherEmail;
 
+    @Column(name = "department_name")
+    private String departmentName;
+
     @Column(name = "exam_name", nullable = false)
     private String examName;
 
@@ -101,6 +104,9 @@ public class OriginalProcessedPaper {
 
     public String getTeacherEmail() { return teacherEmail; }
     public void setTeacherEmail(String teacherEmail) { this.teacherEmail = teacherEmail; }
+
+    public String getDepartmentName() { return departmentName; }
+    public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
 
     public String getExamName() { return examName; }
     public void setExamName(String examName) { this.examName = examName; }

@@ -180,6 +180,44 @@
         return (root.innerHTML || '').trim();
     }
 
+    function trimLeadingEditorWhitespace(editor) {
+        if (!editor) return;
+
+        const hasSemanticContent = (node) => {
+            if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+            return !!node.querySelector('img, video, audio, iframe, table, ul, ol, li, blockquote, pre, code, math, svg');
+        };
+
+        const isRemovableLeadingNode = (node) => {
+            if (!node) return false;
+            if (node.nodeType === Node.TEXT_NODE) {
+                return !(node.nodeValue || '').replace(/\u00A0/g, ' ').trim();
+            }
+
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+
+            const tagName = (node.tagName || '').toUpperCase();
+            if (tagName === 'BR') {
+                return true;
+            }
+
+            if (hasSemanticContent(node)) {
+                return false;
+            }
+
+            const text = (node.textContent || '').replace(/\u00A0/g, ' ').trim();
+            return !text;
+        };
+
+        while (editor.firstChild && isRemovableLeadingNode(editor.firstChild)) {
+            editor.removeChild(editor.firstChild);
+        }
+    }
+
     function shouldPreferPlainTextPaste(rawHtml, plainText) {
         if (!rawHtml || !rawHtml.trim()) {
             return true;
@@ -198,6 +236,22 @@
 
         const hasComplexMathMarkup = !!body.querySelector('math, mrow, mfrac, msup, msub, msqrt, mtable, svg, mjx-container, .MathJax, .katex, .katex-mathml');
         if (hasComplexMathMarkup) {
+            return true;
+        }
+
+        const hasOfficeMathMarkup = /<\s*(?:m:|o:)?math\b/i.test(rawHtml)
+            || /class\s*=\s*["'][^"']*(?:mathtype|equation|msoequation|katex|mathjax)[^"']*["']/i.test(rawHtml);
+        if (hasOfficeMathMarkup) {
+            return true;
+        }
+
+        const hasSemanticRichContent = !!body.querySelector('img, video, audio, iframe, table, ul, ol, li, blockquote, pre, code');
+        const hasDecorativeBoxStyling = Array.from(body.querySelectorAll('*')).some(el => {
+            const styleValue = (el.getAttribute('style') || '').toLowerCase();
+            if (!styleValue) return false;
+            return /(?:^|;)\s*(?:border(?:-[a-z-]+)?|outline(?:-[a-z-]+)?|box-shadow|mso-border[a-z-]*|mso-outline[a-z-]*)\s*:/.test(styleValue);
+        });
+        if (hasDecorativeBoxStyling && !hasSemanticRichContent) {
             return true;
         }
 
@@ -743,7 +797,12 @@
                     if (attrName.startsWith('on')) {
                         el.removeAttribute(attr.name);
                     }
-                    if (attrName === 'bgcolor') {
+                    if (attrName === 'bgcolor'
+                        || attrName === 'border'
+                        || attrName === 'frame'
+                        || attrName === 'rules'
+                        || attrName === 'cellpadding'
+                        || attrName === 'cellspacing') {
                         el.removeAttribute(attr.name);
                     }
                 });
@@ -759,13 +818,15 @@
                     .filter(Boolean)
                     .filter(rule => {
                         const property = rule.split(':')[0]?.trim().toLowerCase() || '';
-                        return property !== 'background'
-                            && property !== 'background-color'
-                            && property !== 'background-image'
-                            && property !== 'background-repeat'
-                            && property !== 'background-position'
-                            && property !== 'background-size'
-                            && property !== 'mso-highlight';
+                        if (!property) return false;
+                        return !property.startsWith('background')
+                            && !property.startsWith('border')
+                            && !property.startsWith('outline')
+                            && !property.startsWith('margin')
+                            && !property.startsWith('padding')
+                            && !property.startsWith('mso-')
+                            && property !== 'text-indent'
+                            && property !== 'box-shadow';
                     });
 
                 if (filtered.length > 0) {
@@ -788,6 +849,8 @@
             } else if (plainTextFallback) {
                 document.execCommand('insertText', false, plainTextFallback);
             }
+
+            trimLeadingEditorWhitespace(editor);
 
             saveSelection(editor);
             if (editor.id === 'questionEditor') {
@@ -863,6 +926,8 @@
                 saveSelection(editor);
                 updateAllToolbarStatuses();
             });
+
+            trimLeadingEditorWhitespace(editor);
         });
 
         document.querySelectorAll('.editor-toolbar').forEach(toolbar => {

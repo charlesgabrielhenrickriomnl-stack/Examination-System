@@ -28,7 +28,8 @@
                         <i class="bi bi-journal-check me-2"></i>Processed Papers
                         </h4>
                         <p class="processed-papers-note">Teacher-only list of processed exams with subject and upload timestamp.</p>
-                        <p class="processed-papers-note">Imported questions are also copied into the shared question bank, and distributed quizzes keep their own snapshot.</p>
+                        <p class="processed-papers-note">Imported questions are copied into the shared question bank, and distributed quizzes keep their own snapshot.</p>
+                        <p class="processed-papers-note">Department library papers can be pulled into your own workspace before editing.</p>
                         <div class="processed-head-stats">
                             <span class="processed-stat-chip">
                                 <i class="bi bi-collection"></i>
@@ -76,6 +77,8 @@
                             <th>Subject</th>
                             <th>Activity</th>
                             <th>Questions</th>
+                            <th>Owner</th>
+                            <th>Scope</th>
                             <th>Processed At</th>
                             <th class="text-end">Action</th>
                         </tr>
@@ -93,6 +96,14 @@
                                       th:text="${paper.questionBadge}">0 questions</span>
                             </td>
                             <td>
+                                <small class="text-muted" th:text="${paper.ownerEmail != null && !#strings.isEmpty(paper.ownerEmail) ? paper.ownerEmail : '-'}">owner</small>
+                            </td>
+                            <td>
+                                <span class="processed-pill"
+                                      th:classappend="${paper.scopeClass}"
+                                      th:text="${paper.scopeLabel}">My Paper</span>
+                            </td>
+                            <td>
                                 <small class="text-muted"
                                        th:text="${paper.uploadedAt != null ? #temporals.format(paper.uploadedAt, 'MMM dd, yyyy hh:mm a') : '-'}">-</small>
                             </td>
@@ -102,10 +113,20 @@
                                        class="btn btn-primary processed-action-btn processed-view-btn">
                                         <i class="bi bi-eye me-1"></i>View Questions
                                     </a>
+                                    <form th:if="${!paper.isOwnedByCurrentTeacher}"
+                                          th:action="@{/teacher/processed-papers/{examId}/pull(examId=${paper.examId})}"
+                                          method="post"
+                                          onsubmit="return confirm('Pull this department paper to your own workspace for editing?');"
+                                          class="d-inline">
+                                        <button type="submit" class="btn btn-outline-primary processed-action-btn">
+                                            <i class="bi bi-arrow-down-circle me-1"></i>Pull to My Papers
+                                        </button>
+                                    </form>
                                     <form th:action="@{/teacher/processed-papers/{examId}/delete(examId=${paper.examId})}"
                                           method="post"
                                           onsubmit="return confirm('Delete this processed paper? Question-bank copies and already distributed quiz snapshots will remain available.');"
-                                          class="d-inline">
+                                          class="d-inline"
+                                          th:if="${paper.isOwnedByCurrentTeacher}">
                                         <button type="submit" class="btn btn-danger processed-action-btn processed-delete-btn">
                                             <i class="bi bi-trash me-1"></i>Delete
                                         </button>
