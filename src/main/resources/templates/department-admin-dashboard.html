@@ -113,15 +113,15 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="p-3 border-bottom" th:if="${programCards != null && !programCards.isEmpty()}">
-                        <div class="row g-3">
-                            <div class="col-12 col-md-6 col-xl-4"
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6"
                                    th:each="programCard : ${programCards}">
-                                <div class="card department-card h-100">
+                                <div class="card department-card department-program-card">
                                     <div class="department-card-header fw-semibold">
                                         <span class="department-card-header-icon"><i class="bi bi-mortarboard-fill"></i></span>
                                         <span class="department-card-title" th:text="${programCard.programName}">Program</span>
                                     </div>
-                                    <div class="card-body" th:with="teacherOptions=${teacherOptionsByProgram[programCard.programName]}">
+                                    <div class="card-body">
                                         <div class="department-program-metrics mb-2">
                                             <span class="department-pill"><i class="bi bi-person-badge"></i><span th:text="${programCard.teacherCount} + ' teacher(s)'">0 teacher(s)</span></span>
                                             <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${programCard.subjectCount} + ' subject(s)'">0 subject(s)</span></span>
@@ -130,73 +130,8 @@
                                         <div class="department-card-actions">
                                             <a class="btn btn-sm department-btn-outline"
                                                th:href="@{/department-admin/question-bank(page=0,size=15,departmentName=${currentUserDepartment},programName=${programCard.programName})}">
-                                                <i class="bi bi-book me-1"></i>View Quiz List
+                                                <i class="bi bi-eye me-1"></i>View
                                             </a>
-                                            <button type="button"
-                                                    class="btn btn-sm department-btn-outline"
-                                                    th:if="${programCard.unassignedProgram == null || !programCard.unassignedProgram}"
-                                                    data-bs-toggle="collapse"
-                                                    th:attr="data-bs-target=${'#imports-' + programCard.programKey},aria-controls=${'imports-' + programCard.programKey}">
-                                                <i class="bi bi-upload me-1"></i>Manage Imports
-                                            </button>
-                                        </div>
-
-                                        <div class="collapse mt-3"
-                                             th:id="${'imports-' + programCard.programKey}"
-                                             th:if="${programCard.unassignedProgram == null || !programCard.unassignedProgram}">
-                                            <div class="department-import-box">
-                                                <form method="post"
-                                                      enctype="multipart/form-data"
-                                                      th:action="@{/department-admin/import-teachers}"
-                                                      class="department-import-form mb-3">
-                                                    <input type="hidden" name="departmentName" th:value="${currentUserDepartment}">
-                                                    <input type="hidden" name="programName" th:value="${programCard.programName}">
-                                                    <label class="form-label mb-1">Import Teachers CSV</label>
-                                                    <div class="d-flex flex-wrap gap-2">
-                                                        <input type="file" class="form-control form-control-sm" name="teacherListFile" accept=".csv" required>
-                                                        <button type="submit" class="btn btn-sm department-search-btn">
-                                                            <i class="bi bi-person-plus me-1"></i>Import Teachers
-                                                        </button>
-                                                    </div>
-                                                </form>
-
-                                                <form method="post"
-                                                      enctype="multipart/form-data"
-                                                      th:action="@{/department-admin/import-students}"
-                                                      class="department-import-form">
-                                                    <input type="hidden" name="departmentName" th:value="${currentUserDepartment}">
-                                                    <input type="hidden" name="programName" th:value="${programCard.programName}">
-                                                    <label class="form-label mb-1">Import Students CSV</label>
-                                                    <div class="row g-2">
-                                                        <div class="col-lg-4">
-                                                            <select class="form-select form-select-sm" name="teacherEmail" required>
-                                                                <option value="">Select Teacher</option>
-                                                                <option th:each="teacher : ${teacherOptions}"
-                                                                        th:value="${teacher.email}"
-                                                                        th:text="${(teacher.fullName != null && !#strings.isEmpty(teacher.fullName) ? teacher.fullName : teacher.email) + ' (' + teacher.email + ')'}"></option>
-                                                            </select>
-                                                            <small class="text-muted" th:if="${teacherOptions == null || teacherOptions.isEmpty()}">
-                                                                Import teachers first for this program.
-                                                            </small>
-                                                        </div>
-                                                        <div class="col-lg-5">
-                                                            <input type="file" class="form-control form-control-sm" name="studentListFile" accept=".csv" required>
-                                                        </div>
-                                                        <div class="col-lg-3 d-grid">
-                                                            <button type="submit"
-                                                                    class="btn btn-sm department-search-btn"
-                                                                    th:disabled="${teacherOptions == null || teacherOptions.isEmpty()}">
-                                                                <i class="bi bi-people me-1"></i>Import Students
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-
-                                        <div class="department-empty-state mt-3 small"
-                                             th:if="${programCard.unassignedProgram != null && programCard.unassignedProgram}">
-                                            Assign teachers to a program to manage imports here.
                                         </div>
                                     </div>
                                 </div>
@@ -205,7 +140,7 @@
                     </div>
                     <div class="p-3 small department-empty-state" th:if="${programCards == null || programCards.isEmpty()}">
                         <i class="bi bi-info-circle me-1"></i>
-                        No programs found yet. Register or import teachers under your department to populate this view.
+                        No programs found yet. Create one to get started.
                     </div>
                 </div>
             </div>

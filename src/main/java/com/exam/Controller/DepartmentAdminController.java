@@ -133,7 +133,6 @@ public class DepartmentAdminController {
 
         List<String> departmentPrograms = buildProgramOptionsForDepartment(departmentName, teachersInDepartment, currentAdmin);
         List<Map<String, Object>> programCards = new ArrayList<>();
-        Map<String, List<User>> teacherOptionsByProgram = new LinkedHashMap<>();
         for (String programName : departmentPrograms) {
             List<User> programTeachers = teachersInDepartment.stream()
                 .filter(teacher -> sameProgram(teacher.getProgramName(), programName))
@@ -172,8 +171,6 @@ public class DepartmentAdminController {
             card.put("subjectCount", programSubjectCount);
             card.put("studentCount", programStudentCount);
             programCards.add(card);
-
-            teacherOptionsByProgram.put(programName, programTeachers);
         }
 
         List<User> unassignedProgramTeachers = teachersInDepartment.stream()
@@ -209,8 +206,6 @@ public class DepartmentAdminController {
             unassignedCard.put("subjectCount", unassignedSubjectCount);
             unassignedCard.put("studentCount", unassignedStudentCount);
             programCards.add(unassignedCard);
-
-            teacherOptionsByProgram.put("Unassigned Program", unassignedProgramTeachers);
         }
 
         model.addAttribute("departmentName", departmentName.isBlank() ? "Department not set" : departmentName);
@@ -222,7 +217,6 @@ public class DepartmentAdminController {
         model.addAttribute("subjectCountsByTeacher", subjectCountsByTeacher);
         model.addAttribute("studentCountsByTeacher", studentCountsByTeacher);
         model.addAttribute("programCards", programCards);
-        model.addAttribute("teacherOptionsByProgram", teacherOptionsByProgram);
         model.addAttribute("departmentPrograms", departmentPrograms);
         model.addAttribute("currentUserDepartment", departmentName);
         return "department-admin-dashboard";
@@ -299,7 +293,10 @@ public class DepartmentAdminController {
             ? null
             : userRepository.findByEmail(normalizedTeacherEmail).orElse(null);
 
-        String redirectTarget = buildDepartmentViewRedirect();
+        String requestedDepartment = departmentName == null ? "" : departmentName.trim();
+        String requestedProgram = programName == null ? "" : programName.trim();
+        String redirectDepartment = sameDepartment(requestedDepartment, adminDepartment) ? requestedDepartment : adminDepartment;
+        String redirectTarget = buildProgramQuestionBankRedirect(redirectDepartment, requestedProgram);
 
         if (selectedTeacher == null || selectedTeacher.getRole() != User.Role.TEACHER) {
             redirectAttributes.addFlashAttribute("errorMessage", "Please select a valid teacher.");
@@ -317,6 +314,8 @@ public class DepartmentAdminController {
             redirectAttributes.addFlashAttribute("errorMessage", "Selected teacher must have a program before importing students.");
             return redirectTarget;
         }
+
+        redirectTarget = buildProgramQuestionBankRedirect(teacherDepartment, teacherProgram);
 
         List<Subject> teacherSubjects = subjectRepository.findByTeacherEmail(selectedTeacher.getEmail()).stream()
             .filter(subject -> subject != null && subject.getId() != null)
@@ -477,7 +476,11 @@ public class DepartmentAdminController {
 
         String adminDepartment = currentAdmin.getDepartmentName() == null ? "" : currentAdmin.getDepartmentName().trim();
         String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
-        String redirectTarget = buildDepartmentViewRedirect();
+        String normalizedProgram = programName == null ? "" : programName.trim();
+        String redirectTarget = buildProgramQuestionBankRedirect(
+            normalizedDepartment.isBlank() ? adminDepartment : normalizedDepartment,
+            normalizedProgram
+        );
 
         if (!sameDepartment(adminDepartment, normalizedDepartment)) {
             redirectAttributes.addFlashAttribute("errorMessage", "You can import teachers only for your department.");
@@ -494,7 +497,7 @@ public class DepartmentAdminController {
             return redirectTarget;
         }
 
-        String normalizedProgram = programName.trim();
+        normalizedProgram = programName.trim();
         int rowsRead = 0;
         int createdAccounts = 0;
         int updatedAccounts = 0;
@@ -803,6 +806,15 @@ public class DepartmentAdminController {
         model.addAttribute("selectedQuizQuestions", selectedQuizQuestions);
         model.addAttribute("selectedExamId", selectedExamId);
         model.addAttribute("selectedExamName", selectedExamName);
+        List<User> teacherOptions = teachersInDepartment.stream()
+            .sorted(Comparator.comparing(
+                teacher -> teacher.getFullName() == null || teacher.getFullName().isBlank() ? teacher.getEmail() : teacher.getFullName(),
+                String.CASE_INSENSITIVE_ORDER
+            ))
+            .toList();
+        boolean canManageImports = !selectedProgram.isBlank() && !"Unassigned Program".equalsIgnoreCase(selectedProgram);
+        model.addAttribute("teacherOptions", canManageImports ? teacherOptions : new ArrayList<>());
+        model.addAttribute("canManageImports", canManageImports);
         model.addAttribute("search", search == null ? "" : search);
         model.addAttribute("page", safePage);
         model.addAttribute("size", safeSize);
@@ -939,8 +951,19 @@ public class DepartmentAdminController {
         return slug.isBlank() ? "program" : slug;
     }
 
-    private String buildDepartmentViewRedirect() {
-        return "redirect:/department-admin/dashboard";
+    private String buildProgramQuestionBankRedirect(String departmentName, String programName) {
+        String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
+        String normalizedProgram = programName == null ? "" : programName.trim();
+        if (normalizedDepartment.isBlank()) {
+            return "redirect:/department-admin/dashboard";
+        }
+
+        String redirect = "redirect:/department-admin/question-bank?page=0&size=15&departmentName="
+            + java.net.URLEncoder.encode(normalizedDepartment, StandardCharsets.UTF_8);
+        if (!normalizedProgram.isBlank()) {
+            redirect += "&programName=" + java.net.URLEncoder.encode(normalizedProgram, StandardCharsets.UTF_8);
+        }
+        return redirect;
     }
 
     private String[] parseCsvRow(String line) {

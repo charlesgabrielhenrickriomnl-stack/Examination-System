@@ -58,6 +58,54 @@
                 </div>
             </div>
 
+            <div class="card department-panel-card mb-3" th:if="${canManageImports}">
+                <div class="card-header fw-semibold department-panel-header">
+                    <i class="bi bi-upload me-2"></i>
+                    <span th:text="'Manage Imports - ' + ${selectedProgram}">Manage Imports</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-6">
+                            <div class="department-import-box h-100">
+                                <form method="post" enctype="multipart/form-data" th:action="@{/department-admin/import-teachers}" class="department-import-form h-100 d-flex flex-column">
+                                    <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                    <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                    <label class="form-label mb-1">Import Teachers CSV</label>
+                                    <input type="file" class="form-control form-control-sm mb-2" name="teacherListFile" accept=".csv" required>
+                                    <button type="submit" class="btn btn-sm department-search-btn align-self-start mt-auto">
+                                        <i class="bi bi-person-plus me-1"></i>Import Teachers
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6">
+                            <div class="department-import-box h-100">
+                                <form method="post" enctype="multipart/form-data" th:action="@{/department-admin/import-students}" class="department-import-form h-100 d-flex flex-column">
+                                    <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                    <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                    <label class="form-label mb-1">Import Students CSV</label>
+                                    <select class="form-select form-select-sm mb-2" name="teacherEmail" required>
+                                        <option value="">Select Teacher</option>
+                                        <option th:each="teacher : ${teacherOptions}"
+                                                th:value="${teacher.email}"
+                                                th:text="${(teacher.fullName != null && !#strings.isEmpty(teacher.fullName) ? teacher.fullName : teacher.email) + ' (' + teacher.email + ')'}"></option>
+                                    </select>
+                                    <input type="file" class="form-control form-control-sm mb-2" name="studentListFile" accept=".csv" required>
+                                    <small class="text-muted mb-2" th:if="${teacherOptions == null || teacherOptions.isEmpty()}">Import teachers first for this program.</small>
+                                    <button type="submit" class="btn btn-sm department-search-btn align-self-start mt-auto" th:disabled="${teacherOptions == null || teacherOptions.isEmpty()}">
+                                        <i class="bi bi-people me-1"></i>Import Students
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning small" th:if="${!canManageImports}">
+                Select a specific program to manage teacher/student imports.
+            </div>
+
             <div class="card department-panel-card">
                 <div class="card-header d-flex justify-content-between align-items-center department-panel-header">
                     <span class="fw-semibold"><i class="bi bi-journal-richtext me-2"></i>Saved Quiz List</span>
