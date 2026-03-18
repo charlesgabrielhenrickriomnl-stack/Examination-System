@@ -228,7 +228,6 @@ public class DepartmentAdminController {
         model.addAttribute("programCards", programCards);
         model.addAttribute("departmentPrograms", departmentPrograms);
         model.addAttribute("currentUserDepartment", departmentName);
-        model.addAttribute("departmentTeacherPullEnabled", isDepartmentTeacherPullEnabled(departmentName));
         return "department-admin-dashboard";
     }
 
@@ -261,10 +260,148 @@ public class DepartmentAdminController {
         redirectAttributes.addFlashAttribute(
             "successMessage",
             Boolean.TRUE.equals(enabled)
-                ? "Department pull access is ON. Teachers can pull only quizzes that owners marked as shared."
+                ? "Department pull access is ON. Department admins can now choose which quizzes are shared."
                 : "Department pull access is OFF. Shared quizzes are hidden from teachers."
         );
         return "redirect:/department-admin/dashboard";
+    }
+
+    @PostMapping("/question-bank/quiz-sharing")
+    public String updateQuizSharing(@RequestParam(name = "examId", required = false) String examId,
+                                    @RequestParam(name = "enabled", required = false) Boolean enabled,
+                                    @RequestParam(name = "shareScope", required = false) String shareScope,
+                                    @RequestParam(name = "shareProgramName", required = false) String shareProgramName,
+                                    @RequestParam(name = "shareTeacherEmail", required = false) String shareTeacherEmail,
+                                    @RequestParam(name = "search", required = false) String search,
+                                    @RequestParam(name = "departmentName", required = false) String departmentName,
+                                    @RequestParam(name = "programName", required = false) String programName,
+                                    @RequestParam(name = "subject", required = false) String subject,
+                                    @RequestParam(name = "teacherSearch", required = false) String teacherSearch,
+                                    @RequestParam(name = "teacherPage", required = false) Integer teacherPage,
+                                    @RequestParam(name = "teacherSize", required = false) Integer teacherSize,
+                                    @RequestParam(name = "teacherEmail", required = false) String teacherEmail,
+                                    @RequestParam(name = "studentSearch", required = false) String studentSearch,
+                                    @RequestParam(name = "quizSearch", required = false) String quizSearch,
+                                    @RequestParam(name = "page", required = false) Integer page,
+                                    @RequestParam(name = "size", required = false) Integer size,
+                                    Principal principal,
+                                    RedirectAttributes redirectAttributes) {
+        String adminEmail = principal != null ? principal.getName() : "";
+        User currentAdmin = adminEmail.isBlank() ? null : userRepository.findByEmail(adminEmail).orElse(null);
+
+        String normalizedTeacherEmail = normalizeEmail(teacherEmail);
+        addQuestionBankRedirectContext(
+            redirectAttributes,
+            search,
+            departmentName,
+            programName,
+            subject,
+            teacherSearch,
+            teacherPage,
+            teacherSize,
+            page,
+            size,
+            normalizedTeacherEmail,
+            studentSearch,
+            quizSearch
+        );
+
+        if (currentAdmin == null || currentAdmin.getRole() != User.Role.DEPARTMENT_ADMIN) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Only Department Admin can update quiz sharing.");
+            return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+        }
+
+        String normalizedExamId = examId == null ? "" : examId.trim();
+        if (normalizedExamId.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Quiz ID is missing.");
+            return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+        }
+
+        OriginalProcessedPaper paper = resolvePaperForSharingUpdate(normalizedExamId, normalizedTeacherEmail);
+        if (paper == null) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Quiz not found for sharing update.");
+            return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+        }
+
+        String adminDepartment = currentAdmin.getDepartmentName() == null ? "" : currentAdmin.getDepartmentName().trim();
+        String quizDepartment = resolvePaperDepartment(paper);
+        if (!sameDepartment(quizDepartment, adminDepartment)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You can update sharing only for quizzes in your department.");
+            return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+        }
+
+        boolean shareEnabled = Boolean.TRUE.equals(enabled);
+        if (!shareEnabled) {
+            paper.setTeacherPullShared(false);
+            paper.setSharingScope("PRIVATE");
+            paper.setSharedProgramName(null);
+            paper.setSharedTeacherEmail(null);
+        } else {
+            String normalizedScope = normalizeSharingScope(shareScope);
+            switch (normalizedScope) {
+                case "PROGRAM" -> {
+                    String programTarget = shareProgramName == null ? "" : shareProgramName.trim();
+                    if (programTarget.isBlank()) {
+                        redirectAttributes.addFlashAttribute("errorMessage", "Select a target program before sharing.");
+                        return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+                    }
+
+                    paper.setTeacherPullShared(true);
+                    paper.setSharingScope("PROGRAM");
+                    paper.setSharedProgramName(programTarget);
+                    paper.setSharedTeacherEmail(null);
+                }
+                case "TEACHER" -> {
+                    String specificProgramTarget = shareProgramName == null ? "" : shareProgramName.trim();
+                    if (specificProgramTarget.isBlank()) {
+                        redirectAttributes.addFlashAttribute("errorMessage", "Select a target program before choosing teacher.");
+                        return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+                    }
+
+                    String teacherTarget = normalizeEmail(shareTeacherEmail);
+                    User targetTeacher = teacherTarget.isBlank() ? null : userRepository.findByEmail(teacherTarget).orElse(null);
+                    if (targetTeacher == null || targetTeacher.getRole() != User.Role.TEACHER
+                        || !sameDepartment(targetTeacher.getDepartmentName(), adminDepartment)) {
+                        redirectAttributes.addFlashAttribute("errorMessage", "Target teacher must exist and belong to your department.");
+                        return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+                    }
+
+                    String targetTeacherProgram = targetTeacher.getProgramName() == null ? "" : targetTeacher.getProgramName().trim();
+                    boolean programMatches = "Unassigned Program".equalsIgnoreCase(specificProgramTarget)
+                        ? targetTeacherProgram.isBlank()
+                        : sameProgram(targetTeacherProgram, specificProgramTarget);
+                    if (!programMatches) {
+                        redirectAttributes.addFlashAttribute("errorMessage", "Selected teacher must belong to the selected program.");
+                        return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+                    }
+
+                    paper.setTeacherPullShared(true);
+                    paper.setSharingScope("TEACHER");
+                    paper.setSharedProgramName(specificProgramTarget);
+                    paper.setSharedTeacherEmail(teacherTarget);
+                }
+                default -> {
+                    redirectAttributes.addFlashAttribute("errorMessage", "Unsupported sharing mode.");
+                    return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
+                }
+            }
+        }
+        originalProcessedPaperRepository.save(paper);
+
+        String quizName = paper.getExamName() == null || paper.getExamName().isBlank() ? "Untitled Quiz" : paper.getExamName().trim();
+        String sharingLabel = buildSharingLabel(
+            paper.isTeacherPullShared(),
+            paper.getSharingScope(),
+            paper.getSharedProgramName(),
+            paper.getSharedTeacherEmail()
+        );
+        redirectAttributes.addFlashAttribute(
+            "successMessage",
+            shareEnabled
+                ? "Sharing updated for \"" + quizName + "\": " + sharingLabel + "."
+                : "Sharing disabled for \"" + quizName + "\"."
+        );
+        return resolveQuestionBankRedirectTarget(normalizedTeacherEmail);
     }
 
     @PostMapping("/programs/create")
@@ -730,7 +867,16 @@ public class DepartmentAdminController {
             }
         }
 
-        List<QuestionBankItem> temporaryQuestionBank = buildTemporaryQuestionBankItems(originalProcessedPaperRepository.findAll());
+        List<OriginalProcessedPaper> allPapers = originalProcessedPaperRepository.findAll();
+        Map<String, OriginalProcessedPaper> papersByExamId = new HashMap<>();
+        for (OriginalProcessedPaper paper : allPapers) {
+            if (paper == null || paper.getExamId() == null || paper.getExamId().isBlank()) {
+                continue;
+            }
+            papersByExamId.put(paper.getExamId().trim().toLowerCase(), paper);
+        }
+
+        List<QuestionBankItem> temporaryQuestionBank = buildTemporaryQuestionBankItems(allPapers);
 
         List<QuestionBankItem> scopedItems = selectedDepartment.isBlank()
             ? new ArrayList<>()
@@ -774,12 +920,26 @@ public class DepartmentAdminController {
             Map<String, Object> quizRow = quizRowsByKey.get(quizKey);
             if (quizRow == null) {
                 quizRow = new LinkedHashMap<>();
+                String paperKey = resolvedExamId.toLowerCase();
+                OriginalProcessedPaper sourcePaper = paperKey.isBlank() ? null : papersByExamId.get(paperKey);
+                boolean teacherPullShared = sourcePaper != null && sourcePaper.isTeacherPullShared();
+                String sharingScope = sourcePaper == null ? "" : normalizeSharingScope(sourcePaper.getSharingScope());
+                String sharedProgramName = sourcePaper == null || sourcePaper.getSharedProgramName() == null ? "" : sourcePaper.getSharedProgramName().trim();
+                String sharedTeacherEmail = sourcePaper == null || sourcePaper.getSharedTeacherEmail() == null ? "" : sourcePaper.getSharedTeacherEmail().trim();
+                if (teacherPullShared && sharingScope.isBlank()) {
+                    teacherPullShared = false;
+                }
                 quizRow.put("sourceExamId", resolvedExamId);
                 quizRow.put("sourceExamName", resolvedExamName);
                 quizRow.put("subject", item.getSubject() == null ? "" : item.getSubject().trim());
                 quizRow.put("sourceTeacherEmail", sourceTeacherEmail);
                 quizRow.put("sourceTeacherDepartment", resolvedDepartment);
                 quizRow.put("sourceTeacherProgram", resolvedProgram);
+                quizRow.put("teacherPullShared", teacherPullShared);
+                quizRow.put("sharingScope", sharingScope);
+                quizRow.put("sharedProgramName", sharedProgramName);
+                quizRow.put("sharedTeacherEmail", sharedTeacherEmail);
+                quizRow.put("sharingLabel", buildSharingLabel(teacherPullShared, sharingScope, sharedProgramName, sharedTeacherEmail));
                 quizRow.put("questionCount", 0);
                 quizRow.put("createdAt", item.getCreatedAt());
                 quizRowsByKey.put(quizKey, quizRow);
@@ -983,6 +1143,51 @@ public class DepartmentAdminController {
             return "redirect:/department-admin/question-bank";
         }
 
+        List<User> shareTargetTeachers = userRepository.findAll().stream()
+            .filter(user -> user != null && user.getRole() == User.Role.TEACHER)
+            .filter(user -> selectedDepartment.isBlank()
+                || selectedDepartment.equalsIgnoreCase(user.getDepartmentName() == null ? "" : user.getDepartmentName().trim()))
+            .toList();
+
+        Set<String> shareProgramsSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Map<String, List<Map<String, String>>> shareTeachersByProgram = new LinkedHashMap<>();
+        for (User teacher : shareTargetTeachers) {
+            String teacherEmailValue = normalizeEmail(teacher.getEmail());
+            if (teacherEmailValue.isBlank()) {
+                continue;
+            }
+
+            String teacherProgramValue = teacher.getProgramName() == null ? "" : teacher.getProgramName().trim();
+            String programBucket = teacherProgramValue.isBlank() ? "Unassigned Program" : teacherProgramValue;
+            shareProgramsSet.add(programBucket);
+
+            String displayName = teacher.getFullName() == null || teacher.getFullName().isBlank()
+                ? teacherEmailValue
+                : teacher.getFullName().trim() + " (" + teacherEmailValue + ")";
+
+            Map<String, String> teacherOption = new LinkedHashMap<>();
+            teacherOption.put("email", teacherEmailValue);
+            teacherOption.put("label", displayName);
+            shareTeachersByProgram.computeIfAbsent(programBucket, ignored -> new ArrayList<>()).add(teacherOption);
+        }
+
+        List<String> sharePrograms = new ArrayList<>(shareProgramsSet);
+        for (String program : sharePrograms) {
+            List<Map<String, String>> teachers = shareTeachersByProgram.get(program);
+            if (teachers == null) {
+                continue;
+            }
+            teachers.sort(Comparator.comparing(
+                entry -> entry.getOrDefault("label", ""),
+                String.CASE_INSENSITIVE_ORDER
+            ));
+        }
+
+        String defaultShareProgram = selectedProgram;
+        if (defaultShareProgram.isBlank() || !sharePrograms.contains(defaultShareProgram)) {
+            defaultShareProgram = sharePrograms.isEmpty() ? "" : sharePrograms.get(0);
+        }
+
         Map<String, String> studentsByEmail = new LinkedHashMap<>();
         for (EnrolledStudent enrolledStudent : enrolledStudentRepository.findAll()) {
             if (enrolledStudent == null || enrolledStudent.getTeacherEmail() == null) {
@@ -1023,8 +1228,17 @@ public class DepartmentAdminController {
             .sorted(Comparator.comparing(row -> row.getOrDefault("name", ""), String.CASE_INSENSITIVE_ORDER))
             .toList();
 
+        List<OriginalProcessedPaper> allPapers = originalProcessedPaperRepository.findAll();
+        Map<String, OriginalProcessedPaper> papersByExamId = new HashMap<>();
+        for (OriginalProcessedPaper paper : allPapers) {
+            if (paper == null || paper.getExamId() == null || paper.getExamId().isBlank()) {
+                continue;
+            }
+            papersByExamId.put(paper.getExamId().trim().toLowerCase(), paper);
+        }
+
         Map<String, Map<String, Object>> quizzesByKey = new LinkedHashMap<>();
-        for (QuestionBankItem item : buildTemporaryQuestionBankItems(originalProcessedPaperRepository.findAll())) {
+        for (QuestionBankItem item : buildTemporaryQuestionBankItems(allPapers)) {
             if (item == null) {
                 continue;
             }
@@ -1053,9 +1267,23 @@ public class DepartmentAdminController {
             Map<String, Object> quizRow = quizzesByKey.get(quizKey);
             if (quizRow == null) {
                 quizRow = new LinkedHashMap<>();
+                String paperKey = examId.toLowerCase();
+                OriginalProcessedPaper sourcePaper = paperKey.isBlank() ? null : papersByExamId.get(paperKey);
+                boolean teacherPullShared = sourcePaper != null && sourcePaper.isTeacherPullShared();
+                String sharingScope = sourcePaper == null ? "" : normalizeSharingScope(sourcePaper.getSharingScope());
+                String sharedProgramName = sourcePaper == null || sourcePaper.getSharedProgramName() == null ? "" : sourcePaper.getSharedProgramName().trim();
+                String sharedTeacherEmail = sourcePaper == null || sourcePaper.getSharedTeacherEmail() == null ? "" : sourcePaper.getSharedTeacherEmail().trim();
+                if (teacherPullShared && sharingScope.isBlank()) {
+                    teacherPullShared = false;
+                }
                 quizRow.put("sourceExamId", examId);
                 quizRow.put("sourceExamName", examName);
                 quizRow.put("subject", item.getSubject() == null ? "" : item.getSubject().trim());
+                quizRow.put("teacherPullShared", teacherPullShared);
+                quizRow.put("sharingScope", sharingScope);
+                quizRow.put("sharedProgramName", sharedProgramName);
+                quizRow.put("sharedTeacherEmail", sharedTeacherEmail);
+                quizRow.put("sharingLabel", buildSharingLabel(teacherPullShared, sharingScope, sharedProgramName, sharedTeacherEmail));
                 quizRow.put("questionCount", 0);
                 quizRow.put("createdAt", item.getCreatedAt());
                 quizzesByKey.put(quizKey, quizRow);
@@ -1091,6 +1319,9 @@ public class DepartmentAdminController {
         model.addAttribute("teacherSearch", teacherSearch == null ? "" : teacherSearch.trim());
         model.addAttribute("studentSearch", studentSearch == null ? "" : studentSearch.trim());
         model.addAttribute("quizSearch", quizSearch == null ? "" : quizSearch.trim());
+        model.addAttribute("sharePrograms", sharePrograms);
+        model.addAttribute("defaultShareProgram", defaultShareProgram);
+        model.addAttribute("shareTeachersByProgram", shareTeachersByProgram);
         model.addAttribute("teacherPage", Math.max(0, teacherPage));
         model.addAttribute("teacherSize", Math.max(4, Math.min(teacherSize, 30)));
         model.addAttribute("page", Math.max(0, page));
@@ -1676,16 +1907,126 @@ public class DepartmentAdminController {
         return redirect;
     }
 
-    private boolean isDepartmentTeacherPullEnabled(String departmentName) {
-        String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
-        if (normalizedDepartment.isBlank()) {
-            return false;
+    private String resolveQuestionBankRedirectTarget(String teacherEmail) {
+        return teacherEmail == null || teacherEmail.isBlank()
+            ? "redirect:/department-admin/question-bank"
+            : "redirect:/department-admin/question-bank/teacher";
+    }
+
+    private void addQuestionBankRedirectContext(RedirectAttributes redirectAttributes,
+                                                String search,
+                                                String departmentName,
+                                                String programName,
+                                                String subject,
+                                                String teacherSearch,
+                                                Integer teacherPage,
+                                                Integer teacherSize,
+                                                Integer page,
+                                                Integer size,
+                                                String teacherEmail,
+                                                String studentSearch,
+                                                String quizSearch) {
+        if (redirectAttributes == null) {
+            return;
         }
 
-        return departmentSharingSettingRepository
-            .findByDepartmentNameIgnoreCase(normalizedDepartment)
-            .map(DepartmentSharingSetting::isTeacherPullEnabled)
-            .orElse(false);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "search", search);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "departmentName", departmentName);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "programName", programName);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "subject", subject);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "teacherSearch", teacherSearch);
+        if (teacherPage != null) {
+            redirectAttributes.addAttribute("teacherPage", Math.max(0, teacherPage));
+        }
+        if (teacherSize != null) {
+            redirectAttributes.addAttribute("teacherSize", Math.max(4, Math.min(teacherSize, 30)));
+        }
+        if (page != null) {
+            redirectAttributes.addAttribute("page", Math.max(0, page));
+        }
+        if (size != null) {
+            redirectAttributes.addAttribute("size", Math.max(5, Math.min(size, 50)));
+        }
+        addRedirectAttributeIfNotBlank(redirectAttributes, "teacherEmail", teacherEmail);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "studentSearch", studentSearch);
+        addRedirectAttributeIfNotBlank(redirectAttributes, "quizSearch", quizSearch);
+    }
+
+    private void addRedirectAttributeIfNotBlank(RedirectAttributes redirectAttributes, String name, String value) {
+        if (redirectAttributes == null || name == null || name.isBlank() || value == null || value.isBlank()) {
+            return;
+        }
+        redirectAttributes.addAttribute(name, value.trim());
+    }
+
+    private String resolvePaperDepartment(OriginalProcessedPaper paper) {
+        if (paper == null) {
+            return "";
+        }
+
+        String paperDepartment = paper.getDepartmentName() == null ? "" : paper.getDepartmentName().trim();
+        if (!paperDepartment.isBlank()) {
+            return paperDepartment;
+        }
+
+        String ownerEmail = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+        if (ownerEmail.isBlank()) {
+            return "";
+        }
+
+        return userRepository.findByEmail(ownerEmail)
+            .map(User::getDepartmentName)
+            .map(String::trim)
+            .orElse("");
+    }
+
+    private OriginalProcessedPaper resolvePaperForSharingUpdate(String examId, String teacherEmail) {
+        String normalizedExamId = examId == null ? "" : examId.trim();
+        if (normalizedExamId.isBlank()) {
+            return null;
+        }
+
+        OriginalProcessedPaper directMatch = originalProcessedPaperRepository.findByExamId(normalizedExamId).orElse(null);
+        if (directMatch != null) {
+            return directMatch;
+        }
+
+        String normalizedTeacherEmail = normalizeEmail(teacherEmail);
+        return originalProcessedPaperRepository.findAll().stream()
+            .filter(paper -> paper != null && paper.getExamId() != null)
+            .filter(paper -> normalizedExamId.equalsIgnoreCase(paper.getExamId().trim()))
+            .filter(paper -> normalizedTeacherEmail.isBlank()
+                || normalizedTeacherEmail.equals(normalizeEmail(paper.getTeacherEmail())))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private String normalizeSharingScope(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        if ("PROGRAM".equals(normalized) || "TEACHER".equals(normalized)) {
+            return normalized;
+        }
+        return "";
+    }
+
+    private String buildSharingLabel(boolean enabled,
+                                     String scope,
+                                     String sharedProgramName,
+                                     String sharedTeacherEmail) {
+        if (!enabled) {
+            return "Private";
+        }
+
+        String normalizedScope = normalizeSharingScope(scope);
+        if ("PROGRAM".equals(normalizedScope)) {
+            String program = sharedProgramName == null ? "" : sharedProgramName.trim();
+            return program.isBlank() ? "Program" : ("Program: " + program);
+        }
+        if ("TEACHER".equals(normalizedScope)) {
+            String teacher = sharedTeacherEmail == null ? "" : sharedTeacherEmail.trim();
+            return teacher.isBlank() ? "Specific Teacher" : ("Teacher: " + teacher);
+        }
+        return "Shared";
     }
 
     private String[] parseCsvRow(String line) {

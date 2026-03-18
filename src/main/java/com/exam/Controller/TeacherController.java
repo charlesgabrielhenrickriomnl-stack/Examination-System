@@ -54,7 +54,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.HtmlUtils;
 
 import com.exam.config.AcademicCatalog;
-import com.exam.entity.DepartmentSharingSetting;
 import com.exam.entity.DistributedExam;
 import com.exam.entity.EnrolledStudent;
 import com.exam.entity.ExamSubmission;
@@ -62,7 +61,6 @@ import com.exam.entity.OriginalProcessedPaper;
 import com.exam.entity.QuestionBankItem;
 import com.exam.entity.Subject;
 import com.exam.entity.User;
-import com.exam.repository.DepartmentSharingSettingRepository;
 import com.exam.repository.EnrolledStudentRepository;
 import com.exam.repository.ExamSubmissionRepository;
 import com.exam.repository.OriginalProcessedPaperRepository;
@@ -157,9 +155,6 @@ public class TeacherController {
 
     @Autowired
     private UploadStorageService uploadStorageService;
-
-    @Autowired
-    private DepartmentSharingSettingRepository departmentSharingSettingRepository;
 
     @GetMapping("/homepage")
     public String homepage(Model model, Principal principal) {
@@ -426,7 +421,6 @@ public class TeacherController {
             row.put("isOwnedByCurrentTeacher", true);
             row.put("scopeLabel", "My Paper");
             row.put("scopeClass", "processed-scope-owned");
-            row.put("teacherPullShared", paper.isTeacherPullShared());
             processedExams.add(row);
         }
 
@@ -446,42 +440,6 @@ public class TeacherController {
         return "redirect:/teacher/processed-papers";
     }
 
-    @PostMapping("/processed-papers/{examId}/share")
-    public String updateProcessedPaperShare(@PathVariable("examId") String examId,
-                                            @RequestParam(name = "enabled", required = false) Boolean enabled,
-                                            Principal principal,
-                                            RedirectAttributes redirectAttributes) {
-        String currentTeacherEmail = principal == null ? "" : (principal.getName() == null ? "" : principal.getName().trim());
-        if (currentTeacherEmail.isBlank()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
-            return "redirect:/teacher/processed-papers";
-        }
-
-        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
-        if (paperOpt.isEmpty()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Processed paper not found.");
-            return "redirect:/teacher/processed-papers";
-        }
-
-        OriginalProcessedPaper paper = paperOpt.get();
-        if (!matchesTeacherOwner(currentTeacherEmail, paper.getTeacherEmail())) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Only the quiz owner can update sharing for this paper.");
-            return "redirect:/teacher/processed-papers";
-        }
-
-        boolean shareEnabled = Boolean.TRUE.equals(enabled);
-        paper.setTeacherPullShared(shareEnabled);
-        originalProcessedPaperRepository.save(paper);
-
-        redirectAttributes.addFlashAttribute(
-            "successMessage",
-            shareEnabled
-                ? "Quiz sharing is ON for this paper. Teachers in your department can now pull it from Shared Quizzes."
-                : "Quiz sharing is OFF for this paper. It is now hidden from Shared Quizzes."
-        );
-        return "redirect:/teacher/processed-papers";
-    }
-
     @GetMapping("/department-papers")
     public String departmentPapers(@RequestParam(name = "search", required = false) String search,
                                    @RequestParam(name = "page", defaultValue = "0") Integer page,
@@ -490,16 +448,15 @@ public class TeacherController {
                                    Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
         String currentTeacherEmail = teacherEmail == null ? "" : teacherEmail.trim();
-        String currentDepartment = userRepository.findByEmail(currentTeacherEmail)
-            .map(User::getDepartmentName)
-            .map(String::trim)
-            .orElse("");
-        boolean departmentPullEnabled = isDepartmentTeacherPullEnabled(currentDepartment);
+        User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
+        String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
         int safePage = Math.max(0, page == null ? 0 : page);
         int safePageSize = normalizePageSize(size);
         Page<OriginalProcessedPaper> sharedPage = findDepartmentSharedPapersForTeacher(
             currentTeacherEmail,
             currentDepartment,
+            currentProgram,
             search,
             safePage,
             safePageSize
@@ -529,7 +486,6 @@ public class TeacherController {
         model.addAttribute("search", search == null ? "" : search);
         model.addAttribute("sharedExams", sharedExams);
         model.addAttribute("departmentName", currentDepartment);
-        model.addAttribute("departmentPullEnabled", departmentPullEnabled);
         model.addAttribute("totalShared", sharedPage.getTotalElements());
         addPagingAttributes(model, sharedPage, safePageSize);
         return "teacher-department-papers";
@@ -910,12 +866,11 @@ public class TeacherController {
         }
 
         OriginalProcessedPaper paper = paperOpt.get();
-        String currentDepartment = userRepository.findByEmail(currentTeacherEmail)
-            .map(User::getDepartmentName)
-            .map(String::trim)
-            .orElse("");
+        User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
+        String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
 
-        if (!isDepartmentPaperVisibleToTeacher(paper, currentTeacherEmail, currentDepartment, new HashMap<>())) {
+        if (!isDepartmentPaperVisibleToTeacher(paper, currentTeacherEmail, currentDepartment, currentProgram)) {
             return "redirect:/teacher/department-papers";
         }
 
@@ -1032,10 +987,11 @@ public class TeacherController {
 
         User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
         String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
 
         Map<String, String> ownerDepartmentCache = new HashMap<>();
         String sourceDepartment = resolvePaperDepartment(source, ownerDepartmentCache);
-        if (!isDepartmentPaperVisibleToTeacher(source, currentTeacherEmail, currentDepartment, ownerDepartmentCache)) {
+        if (!isDepartmentPaperVisibleToTeacher(source, currentTeacherEmail, currentDepartment, currentProgram)) {
             redirectAttributes.addFlashAttribute("errorMessage", "This paper is not shared with your account.");
             return "redirect:/teacher/department-papers";
         }
@@ -1100,6 +1056,7 @@ public class TeacherController {
         OriginalProcessedPaper source = sourceOpt.get();
         User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
         String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
 
         User owner = source.getTeacherEmail() == null || source.getTeacherEmail().isBlank()
             ? null
@@ -1113,7 +1070,7 @@ public class TeacherController {
         String sourceDepartment = resolvePaperDepartment(source, ownerDepartmentCache);
 
         boolean sameOwner = matchesTeacherOwner(currentTeacherEmail, source.getTeacherEmail());
-        if (!sameOwner && !isDepartmentPaperVisibleToTeacher(source, currentTeacherEmail, currentDepartment, ownerDepartmentCache)) {
+        if (!sameOwner && !isDepartmentPaperVisibleToTeacher(source, currentTeacherEmail, currentDepartment, currentProgram)) {
             redirectAttributes.addFlashAttribute("errorMessage", "This paper is not shared with your account.");
             return "redirect:/teacher/department-papers/" + examId;
         }
@@ -4690,6 +4647,7 @@ public class TeacherController {
 
     private Page<OriginalProcessedPaper> findDepartmentSharedPapersForTeacher(String teacherEmail,
                                                                                String currentDepartment,
+                                                                               String currentProgram,
                                                                                String search,
                                                                                int page,
                                                                                int pageSize) {
@@ -4698,26 +4656,31 @@ public class TeacherController {
             return Page.empty();
         }
 
-        if (!isDepartmentTeacherPullEnabled(currentDepartment)) {
-            return Page.empty();
-        }
-
         Pageable pageable = PageRequest.of(Math.max(0, page), normalizePageSize(pageSize));
+        String normalizedProgram = normalize(currentProgram);
+        boolean hasProgramScope = !normalizedProgram.isBlank();
+        List<String> programScopes = hasProgramScope
+            ? List.of(normalizedProgram)
+            : List.of("__no_program_scope__");
         String normalizedSearch = search == null ? "" : search.trim();
         if (normalizedSearch.isBlank()) {
             return originalProcessedPaperRepository
-                .findByDepartmentNameIgnoreCaseAndTeacherEmailNotIgnoreCaseAndTeacherPullSharedTrueOrderByProcessedAtDesc(
+                .findVisibleSharedPapersForTeacher(
                     currentDepartment,
                     teacherEmail,
+                    hasProgramScope,
+                    programScopes,
                     pageable
                 );
         }
 
         return originalProcessedPaperRepository
-            .findByDepartmentNameIgnoreCaseAndTeacherEmailNotIgnoreCaseAndTeacherPullSharedTrueAndExamNameContainingIgnoreCaseOrderByProcessedAtDesc(
+            .findVisibleSharedPapersForTeacherWithSearch(
                 currentDepartment,
                 teacherEmail,
                 normalizedSearch,
+                hasProgramScope,
+                programScopes,
                 pageable
             );
     }
@@ -4830,17 +4793,13 @@ public class TeacherController {
     private boolean isDepartmentPaperVisibleToTeacher(OriginalProcessedPaper paper,
                                                       String teacherEmail,
                                                       String currentDepartment,
-                                                      Map<String, String> ownerDepartmentCache) {
+                                                      String currentProgram) {
         if (paper == null) {
             return false;
         }
 
         String normalizedTeacherEmail = normalize(teacherEmail);
         if (normalizedTeacherEmail.isBlank() || currentDepartment == null || currentDepartment.isBlank()) {
-            return false;
-        }
-
-        if (!isDepartmentTeacherPullEnabled(currentDepartment)) {
             return false;
         }
 
@@ -4857,19 +4816,19 @@ public class TeacherController {
             return false;
         }
 
-        return true;
-    }
-
-    private boolean isDepartmentTeacherPullEnabled(String departmentName) {
-        String normalizedDepartment = departmentName == null ? "" : departmentName.trim();
-        if (normalizedDepartment.isBlank()) {
-            return false;
+        String sharingScope = paper.getSharingScope() == null ? "" : paper.getSharingScope().trim().toUpperCase();
+        if ("PROGRAM".equals(sharingScope)) {
+            String targetProgram = normalize(paper.getSharedProgramName());
+            String teacherProgram = normalize(currentProgram);
+            return !targetProgram.isBlank() && !teacherProgram.isBlank() && targetProgram.equals(teacherProgram);
         }
 
-        return departmentSharingSettingRepository
-            .findByDepartmentNameIgnoreCase(normalizedDepartment)
-            .map(DepartmentSharingSetting::isTeacherPullEnabled)
-            .orElse(false);
+        if ("TEACHER".equals(sharingScope)) {
+            String targetTeacher = normalize(paper.getSharedTeacherEmail());
+            return !targetTeacher.isBlank() && targetTeacher.equals(normalizedTeacherEmail);
+        }
+
+        return false;
     }
 
     private List<OriginalProcessedPaper> findTeacherProcessedPapers(String teacherEmail) {

@@ -76,6 +76,15 @@ public class OriginalProcessedPaper {
     @Column(name = "teacher_pull_shared", nullable = false)
     private boolean teacherPullShared;
 
+    @Column(name = "sharing_scope", nullable = false, length = 20)
+    private String sharingScope;
+
+    @Column(name = "shared_program_name", length = 255)
+    private String sharedProgramName;
+
+    @Column(name = "shared_teacher_email", length = 255)
+    private String sharedTeacherEmail;
+
     @Convert(converter = CompressedJsonConverter.class)
     @Column(name = "original_questions_json", columnDefinition = "LONGTEXT", nullable = false)
     private String originalQuestionsJson;
@@ -95,6 +104,9 @@ public class OriginalProcessedPaper {
         this.processedAt = LocalDateTime.now();
         this.questionCount = 0;
         this.teacherPullShared = false;
+        this.sharingScope = "DEPARTMENT";
+        this.sharedProgramName = null;
+        this.sharedTeacherEmail = null;
     }
 
     public OriginalProcessedPaper(String examId,
@@ -117,6 +129,9 @@ public class OriginalProcessedPaper {
         this.answerKeyJson = answerKeyJson;
         this.questionCount = 0;
         this.teacherPullShared = false;
+        this.sharingScope = "DEPARTMENT";
+        this.sharedProgramName = null;
+        this.sharedTeacherEmail = null;
         this.processedAt = LocalDateTime.now();
     }
 
@@ -170,6 +185,15 @@ public class OriginalProcessedPaper {
 
     public boolean isTeacherPullShared() { return teacherPullShared; }
     public void setTeacherPullShared(boolean teacherPullShared) { this.teacherPullShared = teacherPullShared; }
+
+    public String getSharingScope() { return sharingScope; }
+    public void setSharingScope(String sharingScope) { this.sharingScope = sharingScope; }
+
+    public String getSharedProgramName() { return sharedProgramName; }
+    public void setSharedProgramName(String sharedProgramName) { this.sharedProgramName = sharedProgramName; }
+
+    public String getSharedTeacherEmail() { return sharedTeacherEmail; }
+    public void setSharedTeacherEmail(String sharedTeacherEmail) { this.sharedTeacherEmail = sharedTeacherEmail; }
 
     public String getOriginalQuestionsJson() { return originalQuestionsJson; }
     public void setOriginalQuestionsJson(String originalQuestionsJson) { this.originalQuestionsJson = originalQuestionsJson; }

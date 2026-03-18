@@ -36,6 +36,15 @@
                 </div>
             </div>
 
+            <div class="mb-3" th:if="${successMessage != null || errorMessage != null}">
+                <div class="alert alert-success py-2 mb-2" role="alert" th:if="${successMessage != null}" th:text="${successMessage}">
+                    Update completed.
+                </div>
+                <div class="alert alert-danger py-2 mb-0" role="alert" th:if="${errorMessage != null}" th:text="${errorMessage}">
+                    Unable to complete update.
+                </div>
+            </div>
+
             <div class="card mb-3 department-filter-card">
                 <div class="card-body">
                     <form class="row g-2" method="get" th:action="@{/department-admin/question-bank}">
@@ -66,7 +75,7 @@
                             <span><i class="bi bi-at me-2"></i>Teacher Directory</span>
                             <small class="text-muted" th:text="${teacherTotal} + ' teacher(s)'">0 teacher(s)</small>
                         </div>
-                        <div class="card-body p-2">
+                        <div class="card-body p-2 department-teacher-directory-body">
                             <form method="get" th:action="@{/department-admin/question-bank}" class="department-teacher-search-form mb-2">
                                 <input type="hidden" name="page" th:value="${page}">
                                 <input type="hidden" name="size" th:value="${size}">
@@ -87,10 +96,10 @@
                             <div class="department-teacher-overview-list" th:if="${teacherInsights != null && !teacherInsights.isEmpty()}">
                                 <div class="department-teacher-overview-item" th:each="insight : ${teacherInsights}">
                                     <div class="department-teacher-overview-row">
-                                        <div class="department-teacher-overview-email-only" th:text="${insight.teacherEmail}">teacher@email.com</div>
-                                        <a class="btn btn-sm department-btn-outline"
+                                        <div class="department-teacher-overview-email-only" th:text="${insight.teacherEmail}" th:title="${insight.teacherEmail}">teacher@email.com</div>
+                                        <a class="btn btn-sm department-btn-outline department-teacher-view-btn"
                                            th:href="@{/department-admin/question-bank/teacher(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize},teacherEmail=${insight.teacherEmail})}">
-                                            <i class="bi bi-box-arrow-up-right me-1"></i>View Details
+                                            <i class="bi bi-box-arrow-up-right"></i><span class="department-teacher-view-label">View Details</span>
                                         </a>
                                     </div>
                                 </div>
@@ -173,14 +182,17 @@
                                         <div class="department-quiz-item-meta">
                                             <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${quiz.subject != null && !#strings.isEmpty(quiz.subject) ? quiz.subject : '-'}">Subject</span></span>
                                             <span class="department-pill"><i class="bi bi-person-badge"></i><span th:text="${quiz.sourceTeacherEmail}">teacher@example.com</span></span>
+                                            <span class="department-pill"><i class="bi" th:classappend="${quiz.teacherPullShared} ? 'bi-unlock' : 'bi-lock'"></i><span th:text="${quiz.sharingLabel}">Private</span></span>
                                             <span class="department-pill"><i class="bi bi-collection"></i><span th:text="${quiz.questionCount} + ' item(s)'">0 item(s)</span></span>
                                             <span class="department-pill"><i class="bi bi-clock-history"></i><span th:text="${quiz.createdAt != null ? #temporals.format(quiz.createdAt, 'MMM dd, yyyy hh:mm a') : '-'}">-</span></span>
                                         </div>
                                     </div>
-                                    <a class="btn btn-sm department-btn-outline"
-                                       th:href="@{/department-admin/question-bank/quiz(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},sourceExamId=${quiz.sourceExamId},sourceExamName=${quiz.sourceExamName})}">
-                                        <i class="bi bi-eye me-1"></i>View
-                                    </a>
+                                    <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                                        <a class="btn btn-sm department-btn-outline"
+                                           th:href="@{/department-admin/question-bank/quiz(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},sourceExamId=${quiz.sourceExamId},sourceExamName=${quiz.sourceExamName})}">
+                                            <i class="bi bi-eye me-1"></i>View
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>

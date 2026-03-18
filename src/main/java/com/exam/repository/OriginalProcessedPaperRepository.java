@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.exam.entity.OriginalProcessedPaper;
@@ -44,5 +46,48 @@ public interface OriginalProcessedPaperRepository extends JpaRepository<Original
         String examName,
         Pageable pageable
     );
+
+    @Query("""
+        SELECT p
+        FROM OriginalProcessedPaper p
+        WHERE LOWER(p.departmentName) = LOWER(:departmentName)
+          AND LOWER(p.teacherEmail) <> LOWER(:teacherEmail)
+          AND p.teacherPullShared = true
+          AND (
+                (UPPER(p.sharingScope) = 'PROGRAM' AND :hasProgramScope = true AND LOWER(p.sharedProgramName) IN :programNames)
+                OR (UPPER(p.sharingScope) = 'TEACHER' AND LOWER(p.sharedTeacherEmail) = LOWER(:teacherEmail))
+          )
+        ORDER BY p.processedAt DESC
+        """)
+    Page<OriginalProcessedPaper> findVisibleSharedPapersForTeacher(
+        @Param("departmentName") String departmentName,
+        @Param("teacherEmail") String teacherEmail,
+        @Param("hasProgramScope") boolean hasProgramScope,
+        @Param("programNames") List<String> programNames,
+        Pageable pageable
+    );
+
+    @Query("""
+        SELECT p
+        FROM OriginalProcessedPaper p
+        WHERE LOWER(p.departmentName) = LOWER(:departmentName)
+          AND LOWER(p.teacherEmail) <> LOWER(:teacherEmail)
+          AND p.teacherPullShared = true
+          AND LOWER(p.examName) LIKE LOWER(CONCAT('%', :examName, '%'))
+          AND (
+                (UPPER(p.sharingScope) = 'PROGRAM' AND :hasProgramScope = true AND LOWER(p.sharedProgramName) IN :programNames)
+                OR (UPPER(p.sharingScope) = 'TEACHER' AND LOWER(p.sharedTeacherEmail) = LOWER(:teacherEmail))
+          )
+        ORDER BY p.processedAt DESC
+        """)
+    Page<OriginalProcessedPaper> findVisibleSharedPapersForTeacherWithSearch(
+        @Param("departmentName") String departmentName,
+        @Param("teacherEmail") String teacherEmail,
+        @Param("examName") String examName,
+        @Param("hasProgramScope") boolean hasProgramScope,
+        @Param("programNames") List<String> programNames,
+        Pageable pageable
+    );
+
     Page<OriginalProcessedPaper> findByQuestionCountIsNull(Pageable pageable);
 }
