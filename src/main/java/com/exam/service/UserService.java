@@ -1,14 +1,21 @@
 package com.exam.service;
 
-import com.exam.entity.User;
-import com.exam.repository.UserRepository;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.UUID;
-import java.util.regex.Pattern;
+import com.exam.config.AcademicCatalog;
+import com.exam.entity.User;
+import com.exam.repository.UserRepository;
 
 @Service
 public class UserService {
@@ -56,15 +63,17 @@ public class UserService {
         student.setDepartmentName(departmentName);
         student.setProgramName(programName);
         student.setRole(User.Role.STUDENT);
-        student.setEnabled(false); // User must verify email first
-        student.setVerificationToken(UUID.randomUUID().toString());
+        student.setEnabled(false);
+
+        String verificationToken = issueVerificationToken(student);
         
         userRepository.save(student);
-        
-        // Send verification email
-        emailService.sendVerificationEmail(email, fullName, student.getVerificationToken());
-        
-        return "SUCCESS: Registration successful! Please check your email to verify your account.";
+        boolean emailSent = emailService.sendVerificationEmail(email, fullName, verificationToken);
+        if (!emailSent) {
+            return "WARN: Account created, but we could not send the verification email link. Please try again later.";
+        }
+
+        return "SUCCESS: Registration successful! Check your email and click the verification link before logging in.";
     }
     
     /**
@@ -92,15 +101,17 @@ public class UserService {
         teacher.setDepartmentName(departmentName);
         teacher.setProgramName(programName);
         teacher.setRole(User.Role.TEACHER);
-        teacher.setEnabled(false); // Teachers also need email verification
-        teacher.setVerificationToken(UUID.randomUUID().toString());
+        teacher.setEnabled(false);
+
+        String verificationToken = issueVerificationToken(teacher);
         
         userRepository.save(teacher);
-        
-        // Send verification email
-        emailService.sendVerificationEmail(email, fullName, teacher.getVerificationToken());
-        
-        return "SUCCESS: Registration successful! Please check your email to verify your account.";
+        boolean emailSent = emailService.sendVerificationEmail(email, fullName, verificationToken);
+        if (!emailSent) {
+            return "WARN: Account created, but we could not send the verification email link. Please try again later.";
+        }
+
+        return "SUCCESS: Registration successful! Check your email and click the verification link before logging in.";
     }
 
     public String registerDepartmentAdmin(String email,
@@ -123,13 +134,14 @@ public class UserService {
         departmentAdmin.setDepartmentName(departmentName);
         departmentAdmin.setProgramName(programName);
         departmentAdmin.setRole(User.Role.DEPARTMENT_ADMIN);
-        departmentAdmin.setEnabled(false);
-        departmentAdmin.setVerificationToken(UUID.randomUUID().toString());
+        departmentAdmin.setEnabled(true);
+        departmentAdmin.setVerificationToken(null);
+        departmentAdmin.setVerificationCodeHash(null);
+        departmentAdmin.setVerificationCodeExpiresAt(null);
+        departmentAdmin.setVerificationCodeSentAt(null);
 
         userRepository.save(departmentAdmin);
-        emailService.sendVerificationEmail(email, fullName, departmentAdmin.getVerificationToken());
-
-        return "SUCCESS: Registration successful! Please check your email to verify your account.";
+        return "SUCCESS: Registration successful! You can now log in.";
     }
     
     /**
@@ -142,11 +154,40 @@ public class UserService {
             User user = userOpt.get();
             user.setEnabled(true);
             user.setVerificationToken(null); // Clear the token after verification
+            user.setVerificationCodeHash(null);
+            user.setVerificationCodeExpiresAt(null);
+            user.setVerificationCodeSentAt(null);
             userRepository.save(user);
             return true;
         }
         
         return false;
+    }
+
+    public VerificationLinkResult resendVerificationLink(String email) {
+        String normalizedEmail = normalizeValue(email).toLowerCase(Locale.ROOT);
+        if (normalizedEmail.isBlank()) {
+            return VerificationLinkResult.invalid("Enter your email to resend the verification link.");
+        }
+
+        Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
+        if (userOpt.isEmpty()) {
+            return VerificationLinkResult.invalid("No account found for that email.");
+        }
+
+        User user = userOpt.get();
+        if (user.isEnabled()) {
+            return VerificationLinkResult.alreadyVerified("This account is already verified. You can log in now.");
+        }
+
+        String verificationToken = issueVerificationToken(user);
+        userRepository.save(user);
+        boolean sent = emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), verificationToken);
+        if (!sent) {
+            return VerificationLinkResult.invalid("Unable to send verification link right now. Please try again in a moment.");
+        }
+
+        return VerificationLinkResult.success("Verification link sent to your email.");
     }
     
     /**
@@ -192,5 +233,62 @@ public class UserService {
         user.setProgramName(programName);
         userRepository.save(user);
         return true;
+    }
+
+    public List<String> getRegistrationDepartments() {
+        return new ArrayList<>(getRegistrationProgramsByDepartment().keySet());
+    }
+
+    public Map<String, List<String>> getRegistrationProgramsByDepartment() {
+        Map<String, List<String>> merged = new LinkedHashMap<>();
+        AcademicCatalog.PROGRAMS_BY_DEPARTMENT.forEach((department, programs) ->
+            merged.put(department, new ArrayList<>(programs))
+        );
+
+        for (User user : userRepository.findAll()) {
+            if (user == null) {
+                continue;
+            }
+
+            String department = normalizeValue(user.getDepartmentName());
+            if (department.isBlank()) {
+                continue;
+            }
+
+            List<String> programs = merged.computeIfAbsent(department, key -> new ArrayList<>());
+            String program = normalizeValue(user.getProgramName());
+            if (!program.isBlank() && programs.stream().noneMatch(existing -> existing.equalsIgnoreCase(program))) {
+                programs.add(program);
+            }
+        }
+
+        return merged;
+    }
+
+    private String normalizeValue(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String issueVerificationToken(User user) {
+        String token = UUID.randomUUID().toString();
+        user.setVerificationToken(token);
+        user.setVerificationCodeHash(null);
+        user.setVerificationCodeExpiresAt(null);
+        user.setVerificationCodeSentAt(null);
+        return token;
+    }
+
+    public record VerificationLinkResult(boolean success, boolean alreadyVerified, String message) {
+        public static VerificationLinkResult success(String message) {
+            return new VerificationLinkResult(true, false, message);
+        }
+
+        public static VerificationLinkResult invalid(String message) {
+            return new VerificationLinkResult(false, false, message);
+        }
+
+        public static VerificationLinkResult alreadyVerified(String message) {
+            return new VerificationLinkResult(false, true, message);
+        }
     }
 }

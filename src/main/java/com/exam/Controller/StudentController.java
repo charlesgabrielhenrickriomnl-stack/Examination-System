@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.HtmlUtils;
 
 import com.exam.entity.DistributedExam;
@@ -43,8 +45,6 @@ import com.exam.repository.ExamSubmissionRepository;
 import com.exam.repository.OriginalProcessedPaperRepository;
 import com.exam.repository.SubjectRepository;
 import com.exam.repository.UserRepository;
-import com.exam.service.FaceVerificationService;
-import com.exam.service.FaceVerificationSessionKeys;
 import com.exam.service.FisherYatesService;
 import com.exam.service.IRT3PLService;
 import com.google.gson.Gson;
@@ -61,8 +61,15 @@ public class StudentController {
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<\\/?[a-z][\\s\\S]*?>", Pattern.CASE_INSENSITIVE);
     private static final Pattern ESCAPED_HTML_TAG_PATTERN = Pattern.compile("&lt;\\/?[a-z][\\s\\S]*?&gt;", Pattern.CASE_INSENSITIVE);
     private static final String CHOICE_LABEL_REGEX = "[A-Z]{1,3}|\\d{1,4}";
+    private static final String INLINE_DOT_CHOICE_LABEL_REGEX = "[A-Z]|\\d{1,4}";
     private static final Pattern CHOICE_LINE_PATTERN = Pattern.compile("^\\s*(?:\\(?(" + CHOICE_LABEL_REGEX + ")\\)|(" + CHOICE_LABEL_REGEX + ")[.)])\\s*(.+)$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern CHOICE_MARKER_PATTERN = Pattern.compile("(?:\\(\\s*(" + CHOICE_LABEL_REGEX + ")\\s*\\)|\\b(" + CHOICE_LABEL_REGEX + ")[.)])\\s*", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CHOICE_MARKER_PATTERN = Pattern.compile(
+        "(?<!\\S)(?:\\(\\s*(" + CHOICE_LABEL_REGEX + ")\\s*\\)|("
+            + CHOICE_LABEL_REGEX
+            + ")\\)|("
+            + INLINE_DOT_CHOICE_LABEL_REGEX
+            + ")\\.)(?=\\s+)",
+        Pattern.CASE_INSENSITIVE);
     private static final Pattern ANSWER_LABEL_TOKEN_PATTERN = Pattern.compile("^\\(?\\s*([A-Z]{1,3})\\s*\\)?[.)-]?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ANSWER_NUMERIC_TOKEN_PATTERN = Pattern.compile("^\\(?\\s*(\\d{1,4})\\s*\\)?[.)-]?$", Pattern.CASE_INSENSITIVE);
     private static final String ACTIVE_EXAM_SESSION_KEY = "ACTIVE_DISTRIBUTED_EXAM_ID";
@@ -73,9 +80,9 @@ public class StudentController {
     private final DistributedExamRepository distributedExamRepository;
     private final OriginalProcessedPaperRepository originalProcessedPaperRepository;
     private final UserRepository userRepository;
-    private final FaceVerificationService faceVerificationService;
     private final FisherYatesService fisherYatesService;
     private final IRT3PLService irt3PLService;
+    private final BCryptPasswordEncoder passwordEncoder;
     private final Gson gson = new Gson();
 
     public StudentController(ExamSubmissionRepository examSubmissionRepository,
@@ -84,18 +91,23 @@ public class StudentController {
                              DistributedExamRepository distributedExamRepository,
                              OriginalProcessedPaperRepository originalProcessedPaperRepository,
                              UserRepository userRepository,
-                             FaceVerificationService faceVerificationService,
                              FisherYatesService fisherYatesService,
-                             IRT3PLService irt3PLService) {
+                             IRT3PLService irt3PLService,
+                             BCryptPasswordEncoder passwordEncoder) {
         this.examSubmissionRepository = examSubmissionRepository;
         this.enrolledStudentRepository = enrolledStudentRepository;
         this.subjectRepository = subjectRepository;
         this.distributedExamRepository = distributedExamRepository;
         this.originalProcessedPaperRepository = originalProcessedPaperRepository;
         this.userRepository = userRepository;
-        this.faceVerificationService = faceVerificationService;
         this.fisherYatesService = fisherYatesService;
         this.irt3PLService = irt3PLService;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @GetMapping("/loading")
+    public String loading() {
+        return "student-loading";
     }
 
     @GetMapping("/dashboard")
@@ -161,11 +173,12 @@ public class StudentController {
                 Comparator.nullsLast(Comparator.reverseOrder())))
             .toList();
 
-        List<Map<String, Object>> pendingExams = distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
-            .filter(item -> sameText(item.getSubject(), subjectName))
-            .filter(item -> !isMissedExam(item))
-            .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
-                Comparator.nullsLast(Comparator.reverseOrder())))
+        List<Map<String, Object>> pendingExams = dedupePendingDistributionsByBatch(
+                distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
+                    .filter(item -> sameText(item.getSubject(), subjectName))
+                    .filter(item -> !isMissedExam(item))
+                    .toList())
+            .stream()
             .map(this::toPendingExamCard)
             .toList();
 
@@ -183,8 +196,11 @@ public class StudentController {
     @GetMapping("/take-exam")
     public String takeExamFirstAvailable(Principal principal, HttpSession session) {
         String studentEmail = getStudentEmail(principal);
-        Optional<DistributedExam> firstPending = distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
-            .filter(item -> !isMissedExam(item))
+        Optional<DistributedExam> firstPending = dedupePendingDistributionsByBatch(
+                distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
+                    .filter(item -> !isMissedExam(item))
+                    .toList())
+            .stream()
             .findFirst();
         if (firstPending.isEmpty()) {
             return "redirect:/student/dashboard";
@@ -236,11 +252,9 @@ public class StudentController {
                 .orElse("redirect:/student/dashboard");
         }
 
-        if (faceVerificationService.isFeatureEnabled() && !isExamFaceVerified(session, distributedExam.getId())) {
-            session.setAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID, distributedExam.getId());
-            session.setAttribute(FaceVerificationSessionKeys.PENDING_FACE_REDIRECT_URL,
-                "/student/take-exam/" + distributedExam.getId());
-            return "redirect:/student/face-verification";
+        if (!isOtpVerified(distributedExam)) {
+            populateOtpEntryModel(model, distributedExam, studentEmail);
+            return "student-exam-otp";
         }
 
         ExamContentSnapshot examContent = loadExamContent(distributedExam);
@@ -355,6 +369,93 @@ public class StudentController {
         return "student-exam-paginated";
     }
 
+    @PostMapping("/take-exam/{distributedExamId}/verify-otp")
+    public String verifyExamOtp(@PathVariable("distributedExamId") Long distributedExamId,
+                                @RequestParam(name = "otpCode", required = false) String otpCode,
+                                Principal principal,
+                                RedirectAttributes redirectAttributes) {
+        String studentEmail = getStudentEmail(principal);
+        DistributedExam distributedExam = distributedExamRepository.findById(distributedExamId).orElse(null);
+        if (distributedExam == null || !sameText(distributedExam.getStudentEmail(), studentEmail)) {
+            return "redirect:/student/dashboard";
+        }
+
+        if (distributedExam.isSubmitted() || isMissedExam(distributedExam)) {
+            return "redirect:/student/dashboard";
+        }
+
+        if (isOtpVerified(distributedExam)) {
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        String submittedCode = otpCode == null ? "" : otpCode.trim();
+        if (submittedCode.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Enter the OTP given by your teacher.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        String otpHash = distributedExam.getAccessOtpHash() == null ? "" : distributedExam.getAccessOtpHash().trim();
+        if (otpHash.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "No OTP is available yet. Ask your teacher to generate one.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        LocalDateTime expiresAt = distributedExam.getAccessOtpExpiresAt();
+        if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())) {
+            distributedExam.setAccessOtpHash(null);
+            distributedExam.setAccessOtpGeneratedAt(null);
+            distributedExam.setAccessOtpExpiresAt(null);
+            distributedExamRepository.save(distributedExam);
+            redirectAttributes.addFlashAttribute("errorMessage", "OTP expired. Ask your teacher for a new code.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        if (!passwordEncoder.matches(submittedCode, otpHash)) {
+            List<DistributedExam> siblingRows = distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
+                .filter(item -> item != null)
+                .filter(item -> item.getId() != null && !item.getId().equals(distributedExamId))
+                .filter(item -> sameDistributionBatch(item, distributedExam))
+                .toList();
+
+            Optional<DistributedExam> matchedSibling = siblingRows.stream()
+                .filter(item -> {
+                    String siblingHash = item.getAccessOtpHash() == null ? "" : item.getAccessOtpHash().trim();
+                    LocalDateTime siblingExpiry = item.getAccessOtpExpiresAt();
+                    return !siblingHash.isBlank()
+                        && siblingExpiry != null
+                        && siblingExpiry.isAfter(LocalDateTime.now())
+                        && passwordEncoder.matches(submittedCode, siblingHash);
+                })
+                .findFirst();
+
+            if (matchedSibling.isPresent()) {
+                List<DistributedExam> toVerify = new ArrayList<>(siblingRows);
+                toVerify.add(distributedExam);
+                LocalDateTime verifiedAt = LocalDateTime.now();
+
+                for (DistributedExam row : toVerify) {
+                    row.setAccessOtpVerifiedAt(verifiedAt);
+                    row.setAccessOtpHash(null);
+                    row.setAccessOtpGeneratedAt(null);
+                    row.setAccessOtpExpiresAt(null);
+                }
+                distributedExamRepository.saveAll(toVerify);
+                return "redirect:/student/take-exam/" + distributedExamId;
+            }
+
+            redirectAttributes.addFlashAttribute("errorMessage", "Invalid OTP. Please ask your teacher and try again.");
+            return "redirect:/student/take-exam/" + distributedExamId;
+        }
+
+        distributedExam.setAccessOtpVerifiedAt(LocalDateTime.now());
+        distributedExam.setAccessOtpHash(null);
+        distributedExam.setAccessOtpGeneratedAt(null);
+        distributedExam.setAccessOtpExpiresAt(null);
+        distributedExamRepository.save(distributedExam);
+
+        return "redirect:/student/take-exam/" + distributedExamId;
+    }
+
     @PostMapping("/adaptive-next")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> adaptiveNext(@RequestParam Map<String, String> formData,
@@ -369,6 +470,10 @@ public class StudentController {
         DistributedExam distributedExam = distributedExamRepository.findById(distributedExamId).orElse(null);
         if (distributedExam == null || !sameText(distributedExam.getStudentEmail(), studentEmail)) {
             return ResponseEntity.status(403).body(Map.of("ok", false, "message", "Exam access denied."));
+        }
+
+        if (!isOtpVerified(distributedExam)) {
+            return ResponseEntity.status(403).body(Map.of("ok", false, "message", "OTP verification is required before starting."));
         }
 
         if (distributedExam.isSubmitted() || isMissedExam(distributedExam)) {
@@ -530,6 +635,11 @@ public class StudentController {
             return "redirect:/student/dashboard";
         }
 
+        if (!isOtpVerified(distributedExam)) {
+            clearActiveExamSession(session, distributedExam.getId());
+            return "redirect:/student/take-exam/" + distributedExam.getId();
+        }
+
         ExamContentSnapshot examContent = loadExamContent(distributedExam);
         if (examContent == null) {
             return "redirect:/student/dashboard";
@@ -661,9 +771,19 @@ public class StudentController {
 
         examSubmissionRepository.save(submission);
 
-        if (incrementExposureCounts(questionRows, questionOrder)) {
-            paper.setOriginalQuestionsJson(gson.toJson(questionRows));
-            originalProcessedPaperRepository.save(paper);
+        boolean questionBankChanged = incrementExposureCounts(questionRows, questionOrder);
+        if (paper != null) {
+            boolean difficultyCalibrated = recalibrateQuestionDifficulties(
+                paper,
+                questionRows,
+                distributedExam.getExamId(),
+                distributedExam.getExamName(),
+                distributedExam.getSubject());
+
+            if (questionBankChanged || difficultyCalibrated) {
+                paper.setOriginalQuestionsJson(gson.toJson(questionRows));
+                originalProcessedPaperRepository.save(paper);
+            }
         }
 
         distributedExam.setSubmitted(true);
@@ -672,6 +792,26 @@ public class StudentController {
 
         model.addAttribute("submission", submission);
         return "student-submission-confirmation";
+    }
+
+    @GetMapping("/submit")
+    public String submitFallbackGet(@RequestParam(name = "distributedExamId", required = false) Long distributedExamId,
+                                    Principal principal,
+                                    RedirectAttributes redirectAttributes) {
+        String studentEmail = getStudentEmail(principal);
+        if (distributedExamId != null) {
+            Optional<DistributedExam> distributionOpt = distributedExamRepository.findById(distributedExamId);
+            if (distributionOpt.isPresent()) {
+                DistributedExam distribution = distributionOpt.get();
+                if (sameText(distribution.getStudentEmail(), studentEmail) && !distribution.isSubmitted()) {
+                    redirectAttributes.addFlashAttribute("errorMessage", "Submission request was interrupted. Please submit your exam again.");
+                    return "redirect:/student/take-exam/" + distributedExamId;
+                }
+            }
+        }
+
+        redirectAttributes.addFlashAttribute("errorMessage", "Exam submit page cannot be opened directly.");
+        return "redirect:/student/dashboard";
     }
 
     @GetMapping("/results/{id}")
@@ -707,9 +847,26 @@ public class StudentController {
                 .orElse("/student/dashboard");
         }
 
-        boolean resultsLocked = !submission.isResultsReleased();
-        if (resultsLocked) {
-            model.addAttribute("infoMessage", "Your teacher has not released the final results yet.");
+        boolean resultsReleased = submission.isResultsReleased();
+        boolean graded = submission.isGraded();
+        boolean resultsLocked = !resultsReleased;
+
+        String releaseStatus;
+        String releaseStatusText;
+        if (!resultsReleased && !graded) {
+            releaseStatus = "PENDING_GRADING";
+            releaseStatusText = "Pending teacher grading";
+            model.addAttribute("infoMessage", "Your teacher is still reviewing open-ended answers.");
+        } else if (!resultsReleased) {
+            releaseStatus = "AWAITING_RELEASE";
+            releaseStatusText = "Grade finalized, awaiting release";
+            model.addAttribute("infoMessage", "Your grade is finalized, but your teacher has not released the final result yet.");
+        } else if (graded) {
+            releaseStatus = "RELEASED_FINAL";
+            releaseStatusText = "Final result released";
+        } else {
+            releaseStatus = "RELEASED_AUTO";
+            releaseStatusText = "Result released";
         }
 
         Map<String, Object> analytics = new HashMap<>();
@@ -727,6 +884,8 @@ public class StudentController {
 
         model.addAttribute("submission", submission);
         model.addAttribute("resultsLocked", resultsLocked);
+        model.addAttribute("releaseStatus", releaseStatus);
+        model.addAttribute("releaseStatusText", releaseStatusText);
         model.addAttribute("score", submission.getScore());
         model.addAttribute("total", submission.getTotalQuestions());
         model.addAttribute("percentage", submission.getPercentage());
@@ -854,19 +1013,18 @@ public class StudentController {
             }
 
             Map<String, Long> pendingByType = new LinkedHashMap<>();
-            distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
-                .filter(item -> sameText(item.getSubject(), subjectName))
-                .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
-                    Comparator.nullsLast(Comparator.reverseOrder())))
-                .forEach(item -> {
-                    if (isMissedExam(item)) {
-                        return;
-                    }
-                    String type = (item.getActivityType() == null || item.getActivityType().isBlank())
-                        ? "Activity"
-                        : item.getActivityType().trim();
-                    pendingByType.merge(type, 1L, Long::sum);
-                });
+            List<DistributedExam> pendingRows = dedupePendingDistributionsByBatch(
+                distributedExamRepository.findByStudentEmailAndSubmittedFalse(studentEmail).stream()
+                    .filter(item -> sameText(item.getSubject(), subjectName))
+                    .filter(item -> !isMissedExam(item))
+                    .toList());
+
+            pendingRows.forEach(item -> {
+                String type = (item.getActivityType() == null || item.getActivityType().isBlank())
+                    ? "Activity"
+                    : item.getActivityType().trim();
+                pendingByType.merge(type, 1L, Long::sum);
+            });
 
             List<Map<String, Object>> pendingSummaries = new ArrayList<>();
             long pendingCount = 0L;
@@ -903,13 +1061,53 @@ public class StudentController {
 
     private Map<String, Object> toPendingExamCard(DistributedExam item) {
         Map<String, Object> card = new HashMap<>();
+        boolean otpVerified = isOtpVerified(item);
         card.put("name", item.getExamName());
         card.put("type", item.getActivityType() == null ? "Exam" : item.getActivityType());
         card.put("questionCount", countQuestions(item));
         card.put("timeLimit", item.getTimeLimit() == null ? 60 : item.getTimeLimit());
         card.put("deadline", formatDeadline(item.getDeadline()));
         card.put("startUrl", "/student/take-exam/" + item.getId());
+        card.put("otpBadge", otpVerified ? "OTP verified" : "Teacher OTP required");
+        card.put("otpBadgeClass", otpVerified ? "bg-success-subtle text-success border" : "bg-warning-subtle text-dark border");
         return card;
+    }
+
+    private void populateOtpEntryModel(Model model, DistributedExam distributedExam, String studentEmail) {
+        if (model == null || distributedExam == null) {
+            return;
+        }
+
+        model.addAttribute("distributedExamId", distributedExam.getId());
+        model.addAttribute("examName", distributedExam.getExamName());
+        model.addAttribute("activityType", distributedExam.getActivityType() == null ? "Exam" : distributedExam.getActivityType());
+        model.addAttribute("subjectName", distributedExam.getSubject());
+        model.addAttribute("timeLimit", distributedExam.getTimeLimit() == null ? 60 : distributedExam.getTimeLimit());
+        model.addAttribute("deadline", formatDeadline(distributedExam.getDeadline()));
+
+        Long classroomId = enrolledStudentRepository.findByStudentEmail(studentEmail).stream()
+            .filter(item -> item.getSubjectId() != null)
+            .filter(item -> sameText(item.getSubjectName(), distributedExam.getSubject()))
+            .map(EnrolledStudent::getSubjectId)
+            .findFirst()
+            .orElse(null);
+
+        String classroomUrl = classroomId == null ? "/student/dashboard" : "/student/classroom/" + classroomId;
+        model.addAttribute("classroomUrl", classroomUrl);
+
+        String hash = distributedExam.getAccessOtpHash() == null ? "" : distributedExam.getAccessOtpHash().trim();
+        LocalDateTime expiresAt = distributedExam.getAccessOtpExpiresAt();
+        if (hash.isBlank()) {
+            model.addAttribute("otpPromptMessage", "Your teacher has not generated an OTP yet. Please ask your teacher in person.");
+        } else if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())) {
+            model.addAttribute("otpPromptMessage", "The previous OTP has expired. Please ask your teacher for a new code.");
+        } else {
+            model.addAttribute("otpExpiresAt", expiresAt.format(DEADLINE_DISPLAY_FORMAT));
+        }
+    }
+
+    private boolean isOtpVerified(DistributedExam distributedExam) {
+        return distributedExam != null && distributedExam.getAccessOtpVerifiedAt() != null;
     }
 
     private int countQuestions(DistributedExam distributedExam) {
@@ -917,16 +1115,12 @@ public class StudentController {
             return 0;
         }
 
-        List<Map<String, Object>> snapshotQuestions = parseQuestionsJson(distributedExam.getQuestionsJson());
-        if (!snapshotQuestions.isEmpty()) {
-            return snapshotQuestions.size();
-        }
-
         String examId = distributedExam.getExamId();
         if (examId == null || examId.isBlank()) {
             return 0;
         }
 
+        // Question items are never stored in DistributedExam; always count from OriginalProcessedPaper.
         return originalProcessedPaperRepository.findByExamId(examId)
             .map(paper -> {
                 int totalQuestions = parseQuestionsJson(paper.getOriginalQuestionsJson()).size();
@@ -1267,6 +1461,163 @@ public class StudentController {
         return changed;
     }
 
+    private boolean recalibrateQuestionDifficulties(OriginalProcessedPaper paper,
+                                                    List<Map<String, Object>> questionRows,
+                                                    String examId,
+                                                    String examName,
+                                                    String subject) {
+        if (paper == null
+            || questionRows == null
+            || questionRows.isEmpty()
+            || examId == null
+            || examId.isBlank()) {
+            return false;
+        }
+
+        List<ExamSubmission> submissions = examSubmissionRepository.findByExamNameAndSubject(examName, subject);
+        if (submissions.isEmpty()) {
+            return false;
+        }
+
+        Map<Integer, int[]> statsBySourceQuestion = new HashMap<>();
+        for (ExamSubmission submission : submissions) {
+            if (submission == null || !matchesSubmissionExamId(submission, examId, examName, subject)) {
+                continue;
+            }
+
+            Set<Integer> countedForSubmission = new HashSet<>();
+            List<Map<String, Object>> finalAnswers = extractAnswerDetails(submission.getAnswerDetailsJson());
+            for (Map<String, Object> answerItem : finalAnswers) {
+                if (answerItem == null) {
+                    continue;
+                }
+
+                String type = String.valueOf(answerItem.getOrDefault("type", ""));
+                if ("OPEN_ENDED".equalsIgnoreCase(type.trim())) {
+                    continue;
+                }
+
+                Integer sourceQuestionNumber = extractInteger(answerItem.get("sourceQuestionNumber"));
+                if (sourceQuestionNumber == null || sourceQuestionNumber <= 0) {
+                    sourceQuestionNumber = extractInteger(answerItem.get("questionNumber"));
+                }
+                if (sourceQuestionNumber == null || sourceQuestionNumber <= 0) {
+                    continue;
+                }
+                if (!countedForSubmission.add(sourceQuestionNumber)) {
+                    continue;
+                }
+
+                Boolean isCorrect = extractBoolean(answerItem.get("isCorrect"));
+                if (isCorrect == null) {
+                    continue;
+                }
+
+                int[] stats = statsBySourceQuestion.computeIfAbsent(sourceQuestionNumber, key -> new int[2]);
+                if (isCorrect) {
+                    stats[0]++;
+                }
+                stats[1]++;
+            }
+        }
+
+        if (statsBySourceQuestion.isEmpty()) {
+            return false;
+        }
+
+        Map<String, String> difficultyMap = parseSimpleMapJson(paper.getDifficultiesJson());
+        Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
+        boolean changed = false;
+
+        for (Map.Entry<Integer, int[]> entry : statsBySourceQuestion.entrySet()) {
+            Integer sourceQuestionNumber = entry.getKey();
+            int[] stats = entry.getValue();
+            if (sourceQuestionNumber == null || sourceQuestionNumber <= 0 || stats == null) {
+                continue;
+            }
+
+            int sourceIndex = sourceQuestionNumber - 1;
+            if (sourceIndex < 0 || sourceIndex >= questionRows.size()) {
+                continue;
+            }
+
+            int total = stats[1];
+            if (total < 3) {
+                continue;
+            }
+
+            Map<String, Object> questionRow = questionRows.get(sourceIndex);
+            if (questionRow == null) {
+                continue;
+            }
+
+            String key = String.valueOf(sourceQuestionNumber);
+            String difficulty = normalizeDifficulty(difficultyMap.getOrDefault(key, "Medium"));
+            String correctAnswerRaw = answerKeyMap.getOrDefault(key, "");
+            String displayQuestion = buildQuestionForDelivery(questionRow, difficulty, correctAnswerRaw, false);
+            List<String> availableChoices = extractChoiceTexts(questionRow, displayQuestion);
+            if (isOpenEndedQuestion(questionRow, displayQuestion, correctAnswerRaw, availableChoices)) {
+                continue;
+            }
+
+            IRT3PLService.ItemParameters params = resolveItemParameters(questionRow, difficulty);
+            double nextDifficulty = estimateNextDifficulty(params, stats[0], total);
+            if (!matchesNumeric(questionRow.get("irtB"), nextDifficulty)) {
+                questionRow.put("irtB", nextDifficulty);
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    private boolean matchesSubmissionExamId(ExamSubmission submission,
+                                            String examId,
+                                            String examName,
+                                            String subject) {
+        if (submission == null || examId == null || examId.isBlank()) {
+            return false;
+        }
+
+        Map<String, Object> payload = parseFlexibleMapJson(submission.getAnswerDetailsJson());
+        Object payloadExamId = payload.get("examId");
+        if (payloadExamId == null || String.valueOf(payloadExamId).isBlank()) {
+            return sameText(submission.getExamName(), examName)
+                && sameText(submission.getSubject(), subject);
+        }
+
+        return sameText(String.valueOf(payloadExamId), examId);
+    }
+
+    private double estimateNextDifficulty(IRT3PLService.ItemParameters params, int correct, int total) {
+        if (params == null || total <= 0) {
+            return 0.0;
+        }
+
+        double a = Math.max(0.30, Math.min(3.00, params.getDiscrimination()));
+        double c = Math.max(0.00, Math.min(0.35, params.getGuessing()));
+        double currentB = Math.max(-3.00, Math.min(3.00, params.getDifficulty()));
+
+        // Laplace smoothing keeps p away from exact 0/1 and stabilizes small cohorts.
+        double observedP = (correct + 0.5) / (total + 1.0);
+        double minP = Math.min(0.95, c + 0.03);
+        double boundedP = clamp(observedP, minP, 0.97);
+
+        double denominator = boundedP - c;
+        if (denominator <= 0.0001) {
+            return currentB;
+        }
+
+        double ratio = ((1.0 - c) / denominator) - 1.0;
+        if (ratio <= 0.0001) {
+            return currentB;
+        }
+
+        double targetB = clamp(Math.log(ratio) / a, -3.00, 3.00);
+        double learningRate = clamp(0.10 + (total * 0.02), 0.10, 0.45);
+        return clamp(currentB + (learningRate * (targetB - currentB)), -3.00, 3.00);
+    }
+
     private IRT3PLService.ItemParameters resolveItemParameters(Map<String, Object> questionRow, String difficulty) {
         IRT3PLService.ItemParameters defaults = buildDefaultItemParamsForDifficulty(difficulty);
         if (questionRow == null || questionRow.isEmpty()) {
@@ -1312,6 +1663,30 @@ public class StudentController {
     private boolean matchesNumeric(Object rawValue, double expected) {
         Double parsed = extractDouble(rawValue);
         return parsed != null && Math.abs(parsed - expected) < 0.00001;
+    }
+
+    private Boolean extractBoolean(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = String.valueOf(value).trim().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return null;
+        }
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
+            return true;
+        }
+        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
+            return false;
+        }
+        return null;
     }
 
     private boolean isOpenEndedQuestion(Map<String, Object> questionRow,
@@ -1616,16 +1991,23 @@ public class StudentController {
         return Math.max(0.0, Math.min(100.0, value));
     }
 
-    private ExamContentSnapshot loadExamContent(DistributedExam distributedExam) {
-        List<Map<String, Object>> questionRows = parseQuestionsJson(distributedExam.getQuestionsJson());
-        Map<String, String> difficultyMap = parseSimpleMapJson(distributedExam.getDifficultiesJson());
-        Map<String, String> answerKeyMap = parseSimpleMapJson(distributedExam.getAnswerKeyJson());
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
 
-        if (!questionRows.isEmpty()) {
-            return new ExamContentSnapshot(questionRows, difficultyMap, answerKeyMap);
+    private ExamContentSnapshot loadExamContent(DistributedExam distributedExam) {
+        if (distributedExam == null) {
+            return null;
         }
 
-        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(distributedExam.getExamId());
+        String examId = distributedExam.getExamId();
+        if (examId == null || examId.isBlank()) {
+            return null;
+        }
+
+        // Question items are never stored in DistributedExam; always load from OriginalProcessedPaper.
+        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
+
         if (paperOpt.isEmpty()) {
             return null;
         }
@@ -1775,85 +2157,104 @@ public class StudentController {
             .replaceAll("\\n{3,}", "\\n\\n");
 
         normalized = normalized
-            .replace("×", "\\times")
-            .replace("÷", "\\div")
-            .replace("≤", "\\le")
-            .replace("≥", "\\ge")
-            .replace("≠", "\\ne")
-            .replace("≈", "\\approx")
-            .replace("∞", "\\infty")
-            .replace("π", "\\pi")
-            .replace("α", "\\alpha")
-            .replace("β", "\\beta")
-            .replace("γ", "\\gamma")
-            .replace("Δ", "\\Delta")
-            .replace("θ", "\\theta")
-            .replace("∑", "\\sum")
-            .replace("∏", "\\prod")
-            .replace("√", "\\sqrt")
-            .replace("∫", "\\int");
+            .replace("\\times", "×")
+            .replace("\\div", "÷")
+            .replace("\\le", "≤")
+            .replace("\\ge", "≥")
+            .replace("\\ne", "≠")
+            .replace("\\approx", "≈")
+            .replace("\\infty", "∞")
+            .replace("\\pi", "π")
+            .replace("\\alpha", "α")
+            .replace("\\beta", "β")
+            .replace("\\gamma", "γ")
+            .replace("\\Delta", "Δ")
+            .replace("\\theta", "θ")
+            .replace("\\sum", "∑")
+            .replace("\\prod", "∏")
+            .replace("\\sqrt", "√")
+            .replace("\\int", "∫");
 
-        StringBuilder rebuilt = new StringBuilder();
-        for (int index = 0; index < normalized.length(); index++) {
-            char ch = normalized.charAt(index);
-            String superscript = toSuperscriptToken(ch);
-            if (superscript != null) {
-                rebuilt.append(superscript);
-                continue;
-            }
-
-            String subscript = toSubscriptToken(ch);
-            if (subscript != null) {
-                rebuilt.append(subscript);
-                continue;
-            }
-
-            rebuilt.append(ch);
-        }
-
-        return rebuilt.toString().trim();
+        return decodeSuperscriptAndSubscriptTokens(normalized).trim();
     }
 
-    private String toSuperscriptToken(char value) {
+    private String decodeSuperscriptAndSubscriptTokens(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        StringBuilder rebuilt = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            if (value.startsWith("^\\circ", index)) {
+                rebuilt.append('\u00B0');
+                index += "^\\circ".length() - 1;
+                continue;
+            }
+
+            char current = value.charAt(index);
+            if (current == '^' && index + 1 < value.length()) {
+                Character superscript = toSuperscriptChar(value.charAt(index + 1));
+                if (superscript != null) {
+                    rebuilt.append(superscript);
+                    index++;
+                    continue;
+                }
+            }
+
+            if (current == '_' && index + 1 < value.length()) {
+                Character subscript = toSubscriptChar(value.charAt(index + 1));
+                if (subscript != null) {
+                    rebuilt.append(subscript);
+                    index++;
+                    continue;
+                }
+            }
+
+            rebuilt.append(current);
+        }
+
+        return rebuilt.toString();
+    }
+
+    private Character toSuperscriptChar(char value) {
         return switch (value) {
-            case '\u00B0' -> "^\\circ";
-            case '\u00B9' -> "^1";
-            case '\u00B2' -> "^2";
-            case '\u00B3' -> "^3";
-            case '\u2070' -> "^0";
-            case '\u2074' -> "^4";
-            case '\u2075' -> "^5";
-            case '\u2076' -> "^6";
-            case '\u2077' -> "^7";
-            case '\u2078' -> "^8";
-            case '\u2079' -> "^9";
-            case '\u207A' -> "^+";
-            case '\u207B' -> "^-";
-            case '\u207C' -> "^=";
-            case '\u207D' -> "^(";
-            case '\u207E' -> "^)";
-            case '\u207F' -> "^n";
+            case '0' -> '\u2070';
+            case '1' -> '\u00B9';
+            case '2' -> '\u00B2';
+            case '3' -> '\u00B3';
+            case '4' -> '\u2074';
+            case '5' -> '\u2075';
+            case '6' -> '\u2076';
+            case '7' -> '\u2077';
+            case '8' -> '\u2078';
+            case '9' -> '\u2079';
+            case '+' -> '\u207A';
+            case '-' -> '\u207B';
+            case '=' -> '\u207C';
+            case '(' -> '\u207D';
+            case ')' -> '\u207E';
+            case 'n', 'N' -> '\u207F';
             default -> null;
         };
     }
 
-    private String toSubscriptToken(char value) {
+    private Character toSubscriptChar(char value) {
         return switch (value) {
-            case '\u2080' -> "_0";
-            case '\u2081' -> "_1";
-            case '\u2082' -> "_2";
-            case '\u2083' -> "_3";
-            case '\u2084' -> "_4";
-            case '\u2085' -> "_5";
-            case '\u2086' -> "_6";
-            case '\u2087' -> "_7";
-            case '\u2088' -> "_8";
-            case '\u2089' -> "_9";
-            case '\u208A' -> "_+";
-            case '\u208B' -> "_-";
-            case '\u208C' -> "_=";
-            case '\u208D' -> "_(";
-            case '\u208E' -> "_)";
+            case '0' -> '\u2080';
+            case '1' -> '\u2081';
+            case '2' -> '\u2082';
+            case '3' -> '\u2083';
+            case '4' -> '\u2084';
+            case '5' -> '\u2085';
+            case '6' -> '\u2086';
+            case '7' -> '\u2087';
+            case '8' -> '\u2088';
+            case '9' -> '\u2089';
+            case '+' -> '\u208A';
+            case '-' -> '\u208B';
+            case '=' -> '\u208C';
+            case '(' -> '\u208D';
+            case ')' -> '\u208E';
             default -> null;
         };
     }
@@ -1974,36 +2375,6 @@ public class StudentController {
                 session.removeAttribute(ACTIVE_EXAM_SESSION_KEY);
             }
         }
-
-        Long verifiedExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID));
-        if (distributedExamId != null && distributedExamId.equals(verifiedExamId)) {
-            session.removeAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID);
-        }
-
-        Long pendingExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID));
-        if (distributedExamId != null && distributedExamId.equals(pendingExamId)) {
-            session.removeAttribute(FaceVerificationSessionKeys.PENDING_FACE_EXAM_ID);
-            session.removeAttribute(FaceVerificationSessionKeys.PENDING_FACE_REDIRECT_URL);
-        }
-    }
-
-    private boolean isExamFaceVerified(HttpSession session, Long distributedExamId) {
-        if (session == null || distributedExamId == null) {
-            return false;
-        }
-
-        Long verifiedExamId = parseSessionLong(session.getAttribute(FaceVerificationSessionKeys.FACE_VERIFIED_EXAM_ID));
-        return distributedExamId.equals(verifiedExamId);
-    }
-
-    private Long parseSessionLong(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        if (raw instanceof Number number) {
-            return number.longValue();
-        }
-        return parseLong(String.valueOf(raw));
     }
 
     private boolean sameText(String left, String right) {
@@ -2011,6 +2382,55 @@ public class StudentController {
             return false;
         }
         return left.trim().equalsIgnoreCase(right.trim());
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private String buildDistributionBatchKey(DistributedExam item) {
+        if (item == null) {
+            return "";
+        }
+
+        String examIdentity = normalizeText(item.getExamId()).isBlank()
+            ? "name:" + normalizeText(item.getExamName())
+            : "id:" + normalizeText(item.getExamId());
+
+        return String.join("|",
+            normalizeText(item.getSubject()),
+            examIdentity,
+            normalizeText(item.getActivityType()),
+            String.valueOf(item.getTimeLimit() == null ? 60 : item.getTimeLimit()),
+            normalizeText(item.getDeadline()));
+    }
+
+    private boolean sameDistributionBatch(DistributedExam left, DistributedExam right) {
+        String leftKey = buildDistributionBatchKey(left);
+        String rightKey = buildDistributionBatchKey(right);
+        return !leftKey.isBlank() && leftKey.equals(rightKey);
+    }
+
+    private List<DistributedExam> dedupePendingDistributionsByBatch(List<DistributedExam> rows) {
+        List<DistributedExam> sorted = new ArrayList<>(rows == null ? new ArrayList<>() : rows);
+        sorted.sort(Comparator.comparing(DistributedExam::getDistributedAt,
+            Comparator.nullsLast(Comparator.reverseOrder())));
+
+        Map<String, DistributedExam> latestByBatch = new LinkedHashMap<>();
+        for (DistributedExam row : sorted) {
+            if (row == null) {
+                continue;
+            }
+
+            String batchKey = buildDistributionBatchKey(row);
+            if (batchKey.isBlank()) {
+                continue;
+            }
+
+            latestByBatch.putIfAbsent(batchKey, row);
+        }
+
+        return new ArrayList<>(latestByBatch.values());
     }
 
     private Long parseLong(String value) {

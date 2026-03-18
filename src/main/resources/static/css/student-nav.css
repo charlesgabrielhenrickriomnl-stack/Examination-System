@@ -1,18 +1,14 @@
-.student-topbar {
-            width: min(980px, calc(100% - 5.5in));
-            margin: 0 auto;
-        }
+.student-navbar .teacher-nav-menu {
+    flex-wrap: wrap;
+}
 
-        @media (max-width: 1300px) {
-            .student-topbar {
-                width: calc(100% - 2.5rem);
-                margin: 0 1.25rem;
-            }
-        }
+.student-navbar .teacher-nav-item {
+    min-width: 132px;
+    justify-content: center;
+}
 
-        @media (max-width: 768px) {
-            .student-topbar {
-                width: calc(100% - 1rem);
-                margin: 0 0.5rem;
-            }
-        }
+@media (max-width: 576px) {
+    .student-navbar .teacher-nav-item {
+        min-width: 0;
+    }
+}

@@ -3,40 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
-    <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png"><title>Subject Management - ALGO</title>
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <title>Subject Management - Adaptive Examination System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-subjects.css}">
 </head>
-<body class="homepage-page subject-management-page">
+<body class="teacher-dashboard-page subject-management-page">
 
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
     <div class="teacher-content-wrapper">
         <div class="container-fluid subject-management-container">
-                    <div class="subject-management-head d-flex justify-content-between align-items-start flex-wrap gap-3">
-                        <div class="subject-management-copy">
-                            <p class="subject-management-kicker mb-1">Teacher Workspace</p>
-                            <h2 class="subject-management-title mb-1">Subject Management</h2>
-                            <p class="subject-management-subtitle mb-0">Manage subjects and enrolled students</p>
-
-                            <div th:if="${!#lists.isEmpty(subjects)}" class="subject-search-inline mt-3">
-                                <div class="input-group subject-search-group">
-                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" id="subjectSearchInput" class="form-control"
-                                           placeholder="Search subject name or description...">
-                                </div>
-                            </div>
-                        </div>
-                        <button class="btn btn-primary subject-create-btn" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
-                            <i class="bi bi-plus-circle"></i> Create New Subject
-                        </button>
-                    </div>
+            <section class="subject-management-head dashboard-reveal">
+                <div class="subject-management-copy">
+                    <p class="subject-management-kicker mb-1">Teacher Workspace</p>
+                    <h2 class="subject-management-title mb-1">Subject Management</h2>
+                    <p class="subject-management-subtitle mb-0">Manage subjects, monitor enrollments, and keep classrooms organized at scale.</p>
+                </div>
+                <button class="btn btn-primary subject-create-btn" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
+                    <i class="bi bi-plus-circle"></i> Create New Subject
+                </button>
+            </section>
 
                     <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
                         <i class="bi bi-check-circle"></i> <span th:text="${successMessage}"></span>
@@ -48,18 +43,52 @@
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
 
-                    <div th:if="${#lists.isEmpty(subjects)}" class="card upload-card p-5 text-center">
+                    <div th:if="${#lists.isEmpty(subjects)}" class="card upload-card subject-empty-state p-5 text-center dashboard-reveal">
                         <i class="bi bi-inbox display-1 text-muted mb-3"></i>
                         <h4 class="text-muted">No Subjects Yet</h4>
                         <p class="text-muted">Create your first subject to get started</p>
-                        <button class="btn btn-primary subject-create-btn mt-2" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
-                            <i class="bi bi-plus-circle"></i> Create First Subject
-                        </button>
                     </div>
 
-                    <div th:if="${!#lists.isEmpty(subjects)}" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xxl-4 g-4 subject-grid">
-                        <div th:each="subject : ${subjects}" class="col subject-card-item"
-                             th:attr="data-search=${(subject.subjectName ?: '') + ' ' + (subject.description ?: '')}">
+                    <div th:if="${!#lists.isEmpty(subjects)}" class="subject-ops-bar dashboard-reveal">
+                        <div class="subject-ops-search">
+                            <div class="input-group subject-search-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" id="subjectSearchInput" class="form-control"
+                                       placeholder="Search subject name or description...">
+                            </div>
+                        </div>
+
+                        <p class="subject-ops-summary mb-0">
+                            Showing <strong id="subjectVisibleCount" th:text="${#lists.size(subjects)}">0</strong> of
+                            <strong id="subjectTotalCount" th:text="${#lists.size(subjects)}">0</strong> subjects
+                        </p>
+
+                        <div class="subject-ops-controls">
+                            <div class="subject-control-group">
+                                <label for="subjectSortSelect" class="subject-ops-label">Sort</label>
+                                <select id="subjectSortSelect" class="form-select form-select-sm subject-ops-select">
+                                    <option value="name-asc">Name A-Z</option>
+                                    <option value="name-desc">Name Z-A</option>
+                                    <option value="students-desc">Most Students</option>
+                                    <option value="students-asc">Fewest Students</option>
+                                </select>
+                            </div>
+
+                            <div class="subject-control-group">
+                                <label for="subjectPageSizeSelect" class="subject-ops-label">Per Page</label>
+                                <select id="subjectPageSizeSelect" class="form-select form-select-sm subject-ops-select">
+                                    <option value="8">8</option>
+                                    <option value="12" selected>12</option>
+                                    <option value="24">24</option>
+                                    <option value="48">48</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${!#lists.isEmpty(subjects)}" id="subjectGrid" class="subject-grid dashboard-reveal">
+                        <article th:each="subject : ${subjects}" class="subject-card-item"
+                                 th:attr="data-search=${(subject.subjectName ?: '') + ' ' + (subject.description ?: '')},data-name=${subject.subjectName ?: ''},data-students=${enrollmentCountBySubject[subject.id] ?: 0}">
                             <div class="card upload-card h-100 subject-card">
                                 <div class="card-body d-flex flex-column subject-card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-3 gap-2">
@@ -93,12 +122,22 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </article>
                     </div>
 
-                    <div th:if="${!#lists.isEmpty(subjects)}" id="subjectSearchEmptyState" class="card upload-card p-4 text-center mt-3" style="display: none;">
+                    <div th:if="${!#lists.isEmpty(subjects)}" id="subjectSearchEmptyState" class="card upload-card subject-empty-state p-4 text-center mt-3" style="display: none;">
                         <i class="bi bi-search text-muted mb-2"></i>
                         <p class="mb-0 text-muted">No subjects match your search.</p>
+                    </div>
+
+                    <div th:if="${!#lists.isEmpty(subjects)}" id="subjectPaginationWrap" class="subject-pagination-wrap dashboard-reveal">
+                        <button id="subjectPrevBtn" type="button" class="btn btn-outline-secondary subject-page-btn">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </button>
+                        <span id="subjectPageLabel" class="subject-page-label">Page 1 of 1</span>
+                        <button id="subjectNextBtn" type="button" class="btn btn-outline-secondary subject-page-btn">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
                     </div>
         </div>
     </div>
@@ -133,8 +172,6 @@
         </div>
     </div>
 </div>
-
-    <link rel="stylesheet" th:href="@{/css/teacher-subjects.css}">
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script th:src="@{/js/teacher-subjects.js}"></script>

@@ -15,7 +15,7 @@
     <div class="login-container">
         <div class="content">
             <aside class="register-hero" aria-label="Registration information">
-                <div class="register-hero-topline">Teacher Registration</div>
+                <div class="register-hero-topline">Account Registration</div>
                 <h2 class="register-hero-title">EXAMINATION ACCOUNT</h2>
                 <p class="register-hero-text">
                     Complete your details to access classrooms, create and upload questions, and publish exams.
@@ -48,7 +48,7 @@
 
                 <div class="register-hero-president" aria-hidden="true">
                     <img class="register-hero-building-image" th:src="@{/images/EACBuilding.png}" src="/images/EACBuilding.png" alt="">
-                    <img class="register-hero-president-image" th:src="@{/images/presaguinaldo.png}" src="/images/presaguinaldo.png" alt="">
+                    <img class="register-hero-president-image" th:src="@{/images/sirrante.png}" src="/images/sirrante.png" alt="">
                 </div>
             </aside>
 
@@ -56,7 +56,7 @@
                 <div class="eac-header">
                     <h1 class="eac-title">EMILIO AGUINALDO COLLEGE</h1>
                     <p class="aes-subtitle">1113-1117 San Marcelino St., Paco, Manila, Philippines, 1007</p>
-                    <p class="register-intro">Fill in the details below to create a teacher account.</p>
+                    <p class="register-intro">Fill in the details below to create your account.</p>
                 </div>
 
                 <div th:if="${error}" class="login-inline-alert" role="alert" aria-live="polite">
@@ -106,9 +106,10 @@
 
                         <div class="mb-3">
                             <label for="programName" class="form-label">Program</label>
-                            <select class="form-select" id="programName" name="programName" required>
+                            <select class="form-select" id="programName" name="programName">
                                 <option value="">Select Program</option>
                             </select>
+                            <small class="text-muted">Required for Teacher and Student accounts.</small>
                         </div>
                     </div>
 
@@ -118,7 +119,7 @@
                             <label for="email" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="email" name="email"
                                    placeholder="your.email@school.edu" autocomplete="email" required>
-                            <div class="form-text">Use your teacher registration email.</div>
+                            <div class="form-text">Use your school email address.</div>
                         </div>
 
                         <div class="row g-3">
@@ -147,7 +148,21 @@
                                 Teacher
                             </label>
                         </div>
-                        <small class="text-muted">Student accounts are created by teachers through classroom import. Department Admin uses a built-in account.</small>
+                        <div class="form-check register-role-card mt-2">
+                            <input class="form-check-input" type="radio" name="role" id="roleStudent"
+                                   value="STUDENT">
+                            <label class="form-check-label" for="roleStudent">
+                                Student
+                            </label>
+                        </div>
+                        <div class="form-check register-role-card mt-2">
+                            <input class="form-check-input" type="radio" name="role" id="roleDepartmentAdmin"
+                                   value="DEPARTMENT_ADMIN">
+                            <label class="form-check-label" for="roleDepartmentAdmin">
+                                Department Admin
+                            </label>
+                        </div>
+                        <small class="text-muted">Department Admin can create and manage one department scope.</small>
                     </div>
 
                     <button type="submit" class="btn btn-eac-red w-100 mb-2 register-submit register-form-submit">

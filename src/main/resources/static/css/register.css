@@ -186,9 +186,11 @@ body.login-page.register-page::after {
 
 .register-hero-president {
     position: absolute;
-    right: -10px;
+    left: 50%;
+    right: auto;
     bottom: -2px;
-    width: min(78%, 325px);
+    width: min(52%, 220px);
+    transform: translateX(-50%);
     pointer-events: none;
     z-index: 1;
     opacity: 0.97;
@@ -199,7 +201,7 @@ body.login-page.register-page::after {
     height: auto;
     display: block;
     object-fit: contain;
-    object-position: right bottom;
+    object-position: center bottom;
 }
 
 .register-hero > *:not(.register-hero-president) {
@@ -416,6 +418,27 @@ body.login-page.register-page::after {
     }
 }
 
+body.login-page.register-page.register-page-exit .login-container {
+    animation: registerPageExit 80ms linear forwards;
+}
+
+@keyframes registerPageExit {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(3px) scale(0.998);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.login-page.register-page.register-page-exit .login-container {
+        animation: none;
+    }
+}
+
 @media (max-width: 1024px) {
     .register-page .login-container {
         width: min(97vw, 900px);
@@ -458,9 +481,11 @@ body.login-page.register-page::after {
     }
 
     .register-hero-president {
-        width: min(70%, 240px);
-        right: -8px;
+        width: min(48%, 180px);
+        left: 50%;
+        right: auto;
         bottom: -2px;
+        transform: translateX(-50%);
         opacity: 0.94;
     }
 
@@ -758,10 +783,10 @@ body.login-page.register-page::after {
 
 .register-hero-president .register-hero-president-image {
     position: absolute;
-    left: 65%;
+    left: 58%;
     right: auto;
-    bottom: -6px;
-    width: min(92%, 530px);
+    bottom: 19.5px;
+    width: min(65%, 850px);
     height: auto;
     display: block;
     object-fit: contain;
@@ -828,9 +853,9 @@ body.login-page.register-page::after {
     }
 
     .register-hero-president .register-hero-president-image {
-        left: 64%;
+        left: 50%;
         right: auto;
-        width: min(88%, 440px);
+        width: min(52%, 250px);
         transform: translateX(-50%);
     }
 }
@@ -901,8 +926,8 @@ body.login-page.register-page::after {
     }
 
     .register-hero-president .register-hero-president-image {
-        width: min(82%, 330px);
-        left: 63%;
+        width: min(46%, 178px);
+        left: 50%;
         right: auto;
         transform: translateX(-50%);
     }

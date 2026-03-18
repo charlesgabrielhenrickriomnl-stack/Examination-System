@@ -1,10 +1,25 @@
 package com.exam.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    indexes = {
+        @Index(name = "idx_users_role_department", columnList = "role, department_name"),
+        @Index(name = "idx_users_department_program", columnList = "department_name, program_name")
+    }
+)
 public class User {
     
     @Id
@@ -40,15 +55,12 @@ public class User {
     
     private String verificationToken;
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
-    private String faceReferenceImageBase64;
+    @Column(length = 120)
+    private String verificationCodeHash;
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
-    private String faceReferenceDescriptorJson;
+    private LocalDateTime verificationCodeExpiresAt;
 
-    private LocalDateTime faceReferenceCreatedAt;
+    private LocalDateTime verificationCodeSentAt;
     
     private LocalDateTime createdAt;
     
@@ -99,14 +111,14 @@ public class User {
     public String getVerificationToken() { return verificationToken; }
     public void setVerificationToken(String token) { this.verificationToken = token; }
 
-    public String getFaceReferenceImageBase64() { return faceReferenceImageBase64; }
-    public void setFaceReferenceImageBase64(String faceReferenceImageBase64) { this.faceReferenceImageBase64 = faceReferenceImageBase64; }
+    public String getVerificationCodeHash() { return verificationCodeHash; }
+    public void setVerificationCodeHash(String verificationCodeHash) { this.verificationCodeHash = verificationCodeHash; }
 
-    public String getFaceReferenceDescriptorJson() { return faceReferenceDescriptorJson; }
-    public void setFaceReferenceDescriptorJson(String faceReferenceDescriptorJson) { this.faceReferenceDescriptorJson = faceReferenceDescriptorJson; }
+    public LocalDateTime getVerificationCodeExpiresAt() { return verificationCodeExpiresAt; }
+    public void setVerificationCodeExpiresAt(LocalDateTime verificationCodeExpiresAt) { this.verificationCodeExpiresAt = verificationCodeExpiresAt; }
 
-    public LocalDateTime getFaceReferenceCreatedAt() { return faceReferenceCreatedAt; }
-    public void setFaceReferenceCreatedAt(LocalDateTime faceReferenceCreatedAt) { this.faceReferenceCreatedAt = faceReferenceCreatedAt; }
+    public LocalDateTime getVerificationCodeSentAt() { return verificationCodeSentAt; }
+    public void setVerificationCodeSentAt(LocalDateTime verificationCodeSentAt) { this.verificationCodeSentAt = verificationCodeSentAt; }
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

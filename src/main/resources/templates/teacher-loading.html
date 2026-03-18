@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading - Adaptive Examination System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="stylesheet" th:href="@{/css/teacher-loading.css}">
+</head>
+<body class="teacher-loading-page">
+    <main class="teacher-loading-wrap" role="status" aria-live="polite" aria-label="Loading teacher dashboard">
+        <section class="teacher-loading-card">
+            <div class="teacher-loading-stage" aria-hidden="true">
+                <div class="teacher-loading-flight">
+                    <img class="teacher-loading-logo" th:src="@{/images/EAC_Emblem.png}" src="/images/EAC_Emblem.png" alt="EAC Emblem">
+                </div>
+            </div>
+
+            <h1 class="teacher-loading-college">Emilio Aguinaldo College</h1>
+            <p class="teacher-loading-text">Loading...</p>
+
+            <div class="teacher-loading-bar" aria-hidden="true">
+                <span class="teacher-loading-bar-fill"></span>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        var loadingDurationMs = 4200;
+        window.setTimeout(function () {
+            window.location.replace('/teacher/department-dashboard');
+        }, loadingDurationMs);
+    </script>
+</body>
+</html>

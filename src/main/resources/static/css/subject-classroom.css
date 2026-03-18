@@ -9,11 +9,12 @@
     --sc-brand: #7a1022;
     --sc-brand-2: #99172e;
     --sc-accent: #d4a32a;
-    --sc-shadow: 0 14px 34px rgba(60, 36, 13, 0.09);
+    --sc-shadow: 0 16px 34px rgba(60, 36, 13, 0.12);
+    font-family: 'Space Grotesk', 'Manrope', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .subject-classroom-page .teacher-content-wrapper {
-    padding-top: clamp(1rem, 2vw, 1.6rem);
+    padding-top: clamp(1.15rem, 2.2vw, 1.75rem);
 }
 
 .main-container {
@@ -62,9 +63,9 @@
 
 .classroom-header {
     background:
-        linear-gradient(180deg, #fffdfa 0%, #fff8ef 100%);
+        linear-gradient(160deg, rgba(255, 251, 245, 0.96), rgba(252, 245, 235, 0.92));
     border: 1px solid var(--sc-border);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 1.4rem 1.6rem;
     margin-bottom: 1.2rem;
     box-shadow: var(--sc-shadow);
@@ -78,7 +79,7 @@
 .section-card {
     background: var(--sc-surface);
     border: 1px solid var(--sc-border);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 1.25rem;
     margin-bottom: 1.2rem;
     box-shadow: var(--sc-shadow);
@@ -99,14 +100,153 @@
 }
 
 .section-head .form-control.form-control-sm {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+    border-radius: 10px;
+    border-color: #d8cdbd;
 }
 
 .section-head {
     border-bottom: 1px solid var(--sc-border);
     padding-bottom: 0.8rem;
+}
+
+.distribution-toolbar-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.distribution-toolbar-two-column {
+    display: grid;
+    grid-template-columns: minmax(260px, max-content) minmax(230px, 320px);
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.distribution-toolbar-two-column .otp-bulk-form {
+    margin: 0;
+}
+
+.distribution-search-input {
+    width: min(320px, 100%);
+}
+
+.otp-bulk-btn {
+    font-weight: 700;
+    padding: 0.5rem 0.86rem;
+    border-radius: 11px;
+    white-space: nowrap;
+    box-shadow: 0 7px 16px rgba(40, 40, 40, 0.15);
+}
+
+.otp-display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-bottom: 0.5rem;
+}
+
+.otp-visibility-controls {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.otp-toggle-all-btn,
+.otp-row-toggle-btn {
+    border-color: #cdbb99;
+    color: #5e4528;
+    font-weight: 700;
+    background: #fffdfa;
+}
+
+.otp-toggle-all-btn:hover,
+.otp-toggle-all-btn:focus,
+.otp-row-toggle-btn:hover,
+.otp-row-toggle-btn:focus {
+    border-color: #b38f4a;
+    color: #4d330d;
+    background: #fff3d9;
+}
+
+.otp-display-panel {
+    border: 1px solid #e7d7b4;
+    background: linear-gradient(180deg, #fff9e8 0%, #fff6db 100%);
+    border-radius: 14px;
+    padding: 0.75rem 0.9rem;
+}
+
+.otp-display-title {
+    color: #6b4e0e;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.otp-display-table-wrap {
+    border: 1px solid #e4d5b9;
+    border-radius: 11px;
+    background: #fffdf8;
+    box-shadow: none;
+    max-height: none;
+}
+
+.otp-display-table thead th {
+    background: #f9efcf;
+    color: #614308;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e7d7b4;
+}
+
+.otp-display-table td {
+    font-size: 0.95rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+}
+
+.otp-display-table .badge {
+    font-size: 0.9rem;
+    padding: 0.3rem 0.56rem;
+    letter-spacing: 0.02em;
+}
+
+.otp-code-chip.is-masked {
+    background: #59606b !important;
+    letter-spacing: 0.08em;
+}
+
+.otp-inline-wrap {
+    margin-top: 0.38rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.32rem;
+}
+
+.otp-inline-code {
+    font-size: 0.88rem;
+    padding: 0.24rem 0.5rem;
+}
+
+.otp-inline-meta {
+    width: 100%;
+    color: #6f634f;
+    font-size: 0.78rem;
+    line-height: 1.25;
+}
+
+.otp-inline-toggle-btn {
+    padding: 0.22rem 0.45rem;
+    font-size: 0.74rem;
 }
 
 .section-divider {
@@ -124,10 +264,14 @@
 }
 
 .classroom-list-link-btn {
-    min-width: 250px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.38rem;
+    text-align: center;
     font-size: 0.98rem;
     padding: 0.5rem 0.95rem;
     white-space: nowrap;
@@ -136,6 +280,7 @@
 
 .classroom-list-link-btn i {
     line-height: 1;
+    margin-right: 0;
 }
 
 .classroom-stats-row {
@@ -158,6 +303,34 @@
         width: 100%;
         min-width: 0;
         justify-self: stretch;
+    }
+
+    .distribution-toolbar-controls {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .distribution-toolbar-two-column {
+        grid-template-columns: 1fr;
+    }
+
+    .distribution-toolbar-controls > form,
+    .distribution-toolbar-controls .otp-bulk-btn,
+    .distribution-search-input {
+        width: 100%;
+    }
+
+    .otp-display-header {
+        align-items: stretch;
+    }
+
+    .otp-visibility-controls {
+        width: 100%;
+    }
+
+    .otp-visibility-controls .btn {
+        flex: 1;
+        min-width: 0;
     }
 }
 
@@ -265,6 +438,42 @@
     background: #fff;
 }
 
+#enrolledStudentsTable,
+#distributionStudentsTable,
+#distributedExamsTable {
+    min-width: 980px;
+}
+
+.subject-classroom-page #enrolledStudentsTable,
+.subject-classroom-page #distributionStudentsTable,
+.subject-classroom-page #distributedExamsTable {
+    font-size: 0.92rem;
+}
+
+.subject-classroom-page #enrolledStudentsTable thead th,
+.subject-classroom-page #distributionStudentsTable thead th,
+.subject-classroom-page #distributedExamsTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.subject-classroom-page #enrolledStudentsTable,
+.subject-classroom-page #distributionStudentsTable,
+.subject-classroom-page #distributedExamsTable {
+    border-collapse: separate;
+}
+
+.subject-classroom-page #enrolledStudentsTable,
+.subject-classroom-page #distributionStudentsTable,
+.subject-classroom-page #distributedExamsTable {
+    width: 100%;
+}
+
+.subject-classroom-page .table-responsive {
+    max-height: min(68vh, 760px);
+}
+
 .student-list-table {
     width: 100%;
     border-collapse: separate;
@@ -303,7 +512,7 @@
 .student-list-table td {
     padding: 0.8rem 0.86rem;
     vertical-align: middle;
-    font-size: 0.98rem;
+    font-size: 0.9rem;
     color: #3f3326;
 }
 
@@ -315,8 +524,8 @@
 }
 
 .student-list-table .btn.btn-sm {
-    font-size: 0.96rem;
-    padding: 0.45rem 0.8rem;
+    font-size: 0.86rem;
+    padding: 0.4rem 0.72rem;
 }
 
 .student-list-table .btn i {
@@ -347,18 +556,133 @@
 #distributionStudentsTable td:last-child .d-flex > a.btn,
 #distributionStudentsTable td:last-child .d-flex > form .btn,
 #distributionStudentsTable td:last-child .d-flex > button.btn {
-    width: auto;
+    width: 122px;
     min-width: 122px;
+    max-width: 122px;
+    min-height: 36px;
+    padding: 0.4rem 0.62rem;
     justify-content: center;
     display: inline-flex;
     align-items: center;
+    gap: 0.2rem;
     text-align: center;
     white-space: nowrap;
 }
 
 #distributionStudentsTable td:last-child .d-flex > form {
-    display: inline-block;
+    display: inline-flex;
     margin: 0;
+}
+
+#distributionStudentsTable td:last-child .d-flex > a.btn i,
+#distributionStudentsTable td:last-child .d-flex > form .btn i,
+#distributionStudentsTable td:last-child .d-flex > button.btn i {
+    font-size: 0.9rem;
+}
+
+#distributionStudentsTable .distribution-grade-btn {
+    border: 1px solid #d79f12;
+    background: linear-gradient(135deg, #ffd35a 0%, #f4b90c 100%);
+    color: #4b3300;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(145, 101, 4, 0.22);
+}
+
+#distributionStudentsTable .distribution-paper-btn {
+    border: 1px solid #3e78de;
+    background: linear-gradient(135deg, #f7fbff 0%, #e5f0ff 100%);
+    color: #2458b5;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(37, 92, 186, 0.14);
+}
+
+#distributionStudentsTable .distribution-release-btn {
+    border-width: 1px;
+    font-weight: 700;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+#distributionStudentsTable .distribution-release-btn.is-hidden {
+    border-color: #57a489;
+    background: linear-gradient(135deg, #f5fbf8 0%, #e8f6ef 100%);
+    color: #2b7e61;
+    box-shadow: 0 2px 8px rgba(39, 130, 99, 0.14);
+}
+
+#distributionStudentsTable .distribution-release-btn.is-released {
+    border-color: #8a98a6;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef1f4 100%);
+    color: #5c6772;
+    box-shadow: 0 2px 8px rgba(72, 83, 94, 0.12);
+}
+
+#distributionStudentsTable .distribution-release-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+#distributionStudentsTable .distribution-paper-btn:hover,
+#distributionStudentsTable .distribution-paper-btn:focus {
+    border-color: #2e63c5;
+    background: linear-gradient(135deg, #eef6ff 0%, #d8e9ff 100%);
+    color: #18479a;
+    transform: translateY(-1px);
+}
+
+#distributionStudentsTable .distribution-grade-btn:hover,
+#distributionStudentsTable .distribution-grade-btn:focus {
+    border-color: #c28c09;
+    background: linear-gradient(135deg, #ffcc43 0%, #e6aa06 100%);
+    color: #362400;
+    transform: translateY(-1px);
+}
+
+#distributionStudentsTable .distribution-grade-btn:active {
+    transform: translateY(0);
+}
+
+#distributionStudentsTable .distribution-release-btn:not(:disabled):hover,
+#distributionStudentsTable .distribution-release-btn:not(:disabled):focus {
+    transform: translateY(-1px);
+}
+
+#distributionStudentsTable .distribution-retake-btn {
+    border: 1px solid #d79f12;
+    background: linear-gradient(135deg, #fff9ea 0%, #fff2cf 100%);
+    color: #b07c07;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(145, 101, 4, 0.14);
+}
+
+#distributionStudentsTable .distribution-retake-btn:hover,
+#distributionStudentsTable .distribution-retake-btn:focus {
+    border-color: #c28c09;
+    background: linear-gradient(135deg, #fff4d6 0%, #ffe9b0 100%);
+    color: #976806;
+    transform: translateY(-1px);
+}
+
+#distributionStudentsTable .distribution-otp-btn {
+    border: 1px solid #7b5d11;
+    background: linear-gradient(135deg, #fff0b5 0%, #f2c752 100%);
+    color: #4c3500;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(108, 78, 5, 0.2);
+}
+#distributionStudentsTable .distribution-otp-btn:hover,
+#distributionStudentsTable .distribution-otp-btn:focus {
+    border-color: #674b09;
+    background: linear-gradient(135deg, #ffe18b 0%, #e7b639 100%);
+    color: #352300;
+    transform: translateY(-1px);
+}
+
+#distributionStudentsTable .distribution-paper-btn:active,
+#distributionStudentsTable .distribution-release-btn:active,
+#distributionStudentsTable .distribution-retake-btn:active,
+#distributionStudentsTable .distribution-otp-btn:active {
+    transform: translateY(0);
 }
 
 #distributedExamsTable td:last-child .d-inline-flex {
@@ -472,6 +796,81 @@
     border-radius: 16px;
     border: 1px solid #e5d9c8;
     box-shadow: 0 18px 42px rgba(47, 34, 17, 0.2);
+}
+
+.subject-classroom-page #enrollModal .modal-content {
+    border: 0 !important;
+    outline: 0;
+    overflow: hidden;
+    box-shadow: 0 22px 46px rgba(47, 34, 17, 0.28);
+}
+
+.manual-enroll-checklist {
+    max-height: min(46vh, 360px);
+    min-height: 220px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    scrollbar-gutter: stable both-edges;
+    border: 1px solid #d8cdbd;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.35rem 0.45rem;
+}
+
+.manual-enroll-checklist::-webkit-scrollbar {
+    width: 11px;
+}
+
+.manual-enroll-checklist::-webkit-scrollbar-track {
+    background: #f3ebde;
+    border-radius: 999px;
+}
+
+.manual-enroll-checklist::-webkit-scrollbar-thumb {
+    background: #cfb891;
+    border-radius: 999px;
+    border: 2px solid #f3ebde;
+}
+
+.manual-enroll-option {
+    border-bottom: 1px solid #efe5d8;
+    padding: 0.58rem 0.1rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: 0.48rem;
+}
+
+.manual-enroll-option:last-of-type {
+    border-bottom: 0;
+}
+
+.manual-enroll-option .manual-enroll-student-checkbox {
+    width: 1.04rem;
+    height: 1.04rem;
+    margin-top: 0.23rem;
+    accent-color: #7a1022;
+}
+
+.manual-enroll-option .form-check-label {
+    cursor: pointer;
+    width: 100%;
+}
+
+.manual-enroll-name {
+    font-weight: 600;
+    color: #3f3326;
+}
+
+.manual-enroll-select-all-wrap {
+    padding-right: 0.1rem;
+}
+
+.manual-enroll-toolbar {
+    border: 1px solid #e6dac8;
+    border-radius: 9px;
+    padding: 0.36rem 0.55rem;
+    background: linear-gradient(180deg, #fffefb 0%, #fbf6ee 100%);
 }
 
 /* Prevent Bootstrap scrollbar compensation from creating a right-side stripe. */

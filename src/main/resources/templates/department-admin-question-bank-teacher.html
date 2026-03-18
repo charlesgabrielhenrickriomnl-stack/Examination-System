@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <title>Teacher Overview</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher-dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/department-admin-dashboard.css}">
+</head>
+<body class="teacher-dashboard-page department-dashboard-page">
+<div class="teacher-layout">
+    <div th:replace="~{department-admin-nav :: departmentAdminNav}"></div>
+
+    <div class="teacher-content-wrapper">
+        <div class="container py-4">
+            <div class="department-program-banner mb-3">
+                <div class="department-program-banner-main">
+                    <h3 class="department-page-title mb-1">
+                        <span class="department-title-icon department-title-icon-lg"><i class="bi bi-person-lines-fill"></i></span>
+                        <span th:text="${selectedTeacherName}">Teacher Name</span>
+                    </h3>
+                    <p class="department-page-subtitle mb-0" th:text="${selectedTeacherEmail + ' • ' + selectedProgram}">teacher@email.com</p>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <a class="btn btn-sm department-btn-outline"
+                       th:href="@{/department-admin/question-bank(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize})}">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Program Quiz List
+                    </a>
+                </div>
+            </div>
+
+            <div class="mb-3" th:if="${successMessage != null || errorMessage != null}">
+                <div class="alert alert-success py-2 mb-2" role="alert" th:if="${successMessage != null}" th:text="${successMessage}">
+                    Sharing updated.
+                </div>
+                <div class="alert alert-danger py-2 mb-0" role="alert" th:if="${errorMessage != null}" th:text="${errorMessage}">
+                    Unable to update sharing.
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-stretch">
+                <div class="col-12 col-xl-6">
+                    <div class="card department-panel-card department-teacher-detail-card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center department-panel-header">
+                            <span class="fw-semibold"><i class="bi bi-people me-2"></i>Enrolled Students</span>
+                            <small class="text-muted" th:text="${enrolledStudents != null ? enrolledStudents.size() : 0} + ' student(s)'">0 student(s)</small>
+                        </div>
+                        <div class="card-body p-2 d-flex flex-column">
+                            <form method="get" th:action="@{/department-admin/question-bank/teacher}" class="department-teacher-search-form mb-2">
+                                <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                <input type="hidden" name="teacherEmail" th:value="${selectedTeacherEmail}">
+                                <input type="hidden" name="subject" th:value="${selectedSubject}">
+                                <input type="hidden" name="search" th:value="${search}">
+                                <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                                <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                                <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                                <input type="hidden" name="page" th:value="${page}">
+                                <input type="hidden" name="size" th:value="${size}">
+                                <input type="hidden" name="quizSearch" th:value="${quizSearch}">
+                                <input type="text" name="studentSearch" class="form-control form-control-sm" th:value="${studentSearch}" placeholder="Search students by name or email...">
+                                <button type="submit" class="btn btn-sm department-btn-outline">Search</button>
+                            </form>
+                            <div class="department-teacher-detail-scroll">
+                            <div class="department-empty-state small" th:if="${enrolledStudents == null || enrolledStudents.isEmpty()}">
+                                No students enrolled under this teacher yet.
+                            </div>
+                            <ul class="department-overview-list" th:if="${enrolledStudents != null && !enrolledStudents.isEmpty()}">
+                                <li th:each="student : ${enrolledStudents}">
+                                    <span th:text="${student.name}">Student Name</span>
+                                    <small class="text-muted" th:text="${student.email}">student@email.com</small>
+                                </li>
+                            </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-6">
+                    <div class="card department-panel-card department-teacher-detail-card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center department-panel-header">
+                            <span class="fw-semibold"><i class="bi bi-journal-richtext me-2"></i>Quizzes Given</span>
+                            <small class="text-muted" th:text="${teacherQuizzes != null ? teacherQuizzes.size() : 0} + ' quiz(es)'">0 quiz(es)</small>
+                        </div>
+                        <div class="card-body p-2 d-flex flex-column">
+                            <form method="get" th:action="@{/department-admin/question-bank/teacher}" class="department-teacher-search-form mb-2">
+                                <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                <input type="hidden" name="teacherEmail" th:value="${selectedTeacherEmail}">
+                                <input type="hidden" name="subject" th:value="${selectedSubject}">
+                                <input type="hidden" name="search" th:value="${search}">
+                                <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                                <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                                <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                                <input type="hidden" name="page" th:value="${page}">
+                                <input type="hidden" name="size" th:value="${size}">
+                                <input type="hidden" name="studentSearch" th:value="${studentSearch}">
+                                <input type="text" name="quizSearch" class="form-control form-control-sm" th:value="${quizSearch}" placeholder="Search quizzes by name or subject...">
+                                <button type="submit" class="btn btn-sm department-btn-outline">Search</button>
+                            </form>
+
+                            <div class="department-teacher-detail-scroll">
+                                <div class="department-empty-state small" th:if="${teacherQuizzes == null || teacherQuizzes.isEmpty()}">
+                                    No quizzes uploaded by this teacher yet.
+                                </div>
+                                <div class="department-quiz-list" th:if="${teacherQuizzes != null && !teacherQuizzes.isEmpty()}">
+                                    <div class="department-quiz-item" th:each="quiz : ${teacherQuizzes}">
+                                        <div>
+                                            <p class="department-quiz-item-title mb-1" th:text="${quiz.sourceExamName}">Quiz Name</p>
+                                            <div class="department-quiz-item-meta">
+                                                <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${quiz.subject != null && !#strings.isEmpty(quiz.subject) ? quiz.subject : '-'}">Subject</span></span>
+                                                <span class="department-pill"><i class="bi" th:classappend="${quiz.teacherPullShared} ? 'bi-unlock' : 'bi-lock'"></i><span th:text="${quiz.sharingLabel}">Private</span></span>
+                                                <span class="department-pill"><i class="bi bi-collection"></i><span th:text="${quiz.questionCount} + ' item(s)'">0 item(s)</span></span>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                                            <form method="post" th:action="@{/department-admin/question-bank/quiz-sharing}" th:if="${quiz.sourceExamId != null && !#strings.isEmpty(quiz.sourceExamId)}">
+                                                <input type="hidden" name="examId" th:value="${quiz.sourceExamId}">
+                                                <input type="hidden" name="enabled" value="false">
+                                                <input type="hidden" name="search" th:value="${search}">
+                                                <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                                                <input type="hidden" name="programName" th:value="${selectedProgram}">
+                                                <input type="hidden" name="subject" th:value="${selectedSubject}">
+                                                <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                                                <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                                                <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                                                <input type="hidden" name="page" th:value="${page}">
+                                                <input type="hidden" name="size" th:value="${size}">
+                                                <input type="hidden" name="teacherEmail" th:value="${selectedTeacherEmail}">
+                                                <input type="hidden" name="studentSearch" th:value="${studentSearch}">
+                                                <input type="hidden" name="quizSearch" th:value="${quizSearch}">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                        th:classappend="${!quiz.teacherPullShared} ? ' active' : ''">
+                                                    <i class="bi bi-lock me-1"></i>Private
+                                                </button>
+                                            </form>
+                                                <button type="button" class="btn btn-sm department-share-teacher-btn"
+                                                    th:if="${quiz.sourceExamId != null && !#strings.isEmpty(quiz.sourceExamId)}"
+                                                    th:classappend="${quiz.teacherPullShared and quiz.sharingScope == 'TEACHER'} ? ' department-share-teacher-btn-active' : ''"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#shareTeacherModal"
+                                                    th:attr="data-exam-id=${quiz.sourceExamId},data-quiz-name=${quiz.sourceExamName},data-current-program=${quiz.sharedProgramName},data-current-teacher=${quiz.sharedTeacherEmail}">
+                                                <i class="bi bi-person-check me-1"></i>Choose Teacher
+                                            </button>
+                                            <a class="btn btn-sm department-btn-outline"
+                                               th:href="@{/department-admin/question-bank/quiz(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},sourceExamId=${quiz.sourceExamId},sourceExamName=${quiz.sourceExamName})}">
+                                                <i class="bi bi-eye me-1"></i>View Quiz
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="shareTeacherModal" tabindex="-1" aria-labelledby="shareTeacherModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" th:action="@{/department-admin/question-bank/quiz-sharing}" id="shareTeacherForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="shareTeacherModalLabel">Share With Specific Teacher</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">
+                        Select a program first, then choose a teacher in that program.
+                    </p>
+                    <p class="small mb-3"><strong>Quiz:</strong> <span id="shareTeacherQuizName">-</span></p>
+
+                    <input type="hidden" name="examId" id="shareTeacherExamId">
+                    <input type="hidden" name="enabled" value="true">
+                    <input type="hidden" name="shareScope" value="TEACHER">
+                    <input type="hidden" name="search" th:value="${search}">
+                    <input type="hidden" name="departmentName" th:value="${selectedDepartment}">
+                    <input type="hidden" name="programName" th:value="${selectedProgram}">
+                    <input type="hidden" name="subject" th:value="${selectedSubject}">
+                    <input type="hidden" name="teacherSearch" th:value="${teacherSearch}">
+                    <input type="hidden" name="teacherPage" th:value="${teacherPage}">
+                    <input type="hidden" name="teacherSize" th:value="${teacherSize}">
+                    <input type="hidden" name="page" th:value="${page}">
+                    <input type="hidden" name="size" th:value="${size}">
+                    <input type="hidden" name="teacherEmail" th:value="${selectedTeacherEmail}">
+                    <input type="hidden" name="studentSearch" th:value="${studentSearch}">
+                    <input type="hidden" name="quizSearch" th:value="${quizSearch}">
+
+                    <div class="mb-3">
+                        <label for="shareProgramSelect" class="form-label">Program</label>
+                        <select class="form-select" id="shareProgramSelect" name="shareProgramName" required>
+                            <option value="">Select program</option>
+                            <option th:each="program : ${sharePrograms}"
+                                    th:value="${program}"
+                                    th:text="${program}"
+                                    th:selected="${defaultShareProgram != null and defaultShareProgram.equals(program)}">Program</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="shareTeacherSelect" class="form-label">Teacher</label>
+                        <select class="form-select" id="shareTeacherSelect" name="shareTeacherEmail" required>
+                            <option value="">Select teacher</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm department-btn-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm department-search-btn">
+                        <i class="bi bi-check2-circle me-1"></i>Apply Share
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+(() => {
+    const modalElement = document.getElementById('shareTeacherModal');
+    if (!modalElement) {
+        return;
+    }
+
+    const teachersByProgram = /*[[${shareTeachersByProgram}]]*/ {};
+    const examIdInput = document.getElementById('shareTeacherExamId');
+    const quizNameElement = document.getElementById('shareTeacherQuizName');
+    const programSelect = document.getElementById('shareProgramSelect');
+    const teacherSelect = document.getElementById('shareTeacherSelect');
+
+    function setTeacherOptions(programName, selectedTeacherEmail) {
+        const targetProgram = (programName || '').trim();
+        const teacherRows = Array.isArray(teachersByProgram[targetProgram]) ? teachersByProgram[targetProgram] : [];
+        const selectedEmail = (selectedTeacherEmail || '').trim().toLowerCase();
+
+        teacherSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = teacherRows.length > 0 ? 'Select teacher' : 'No teachers in selected program';
+        placeholder.selected = true;
+        placeholder.disabled = teacherRows.length === 0;
+        teacherSelect.appendChild(placeholder);
+
+        teacherRows.forEach((teacherRow) => {
+            const teacherEmail = teacherRow && teacherRow.email ? String(teacherRow.email).trim().toLowerCase() : '';
+            if (!teacherEmail) {
+                return;
+            }
+
+            const option = document.createElement('option');
+            option.value = teacherEmail;
+            option.textContent = teacherRow && teacherRow.label ? String(teacherRow.label) : teacherEmail;
+            option.selected = selectedEmail && selectedEmail === teacherEmail;
+            teacherSelect.appendChild(option);
+        });
+
+        if (selectedEmail) {
+            teacherSelect.value = selectedEmail;
+        }
+    }
+
+    if (programSelect) {
+        programSelect.addEventListener('change', () => {
+            setTeacherOptions(programSelect.value, '');
+        });
+    }
+
+    modalElement.addEventListener('show.bs.modal', (event) => {
+        document.body.style.paddingRight = '0px';
+        const trigger = event.relatedTarget;
+        if (!trigger) {
+            return;
+        }
+
+        const examId = trigger.getAttribute('data-exam-id') || '';
+        const quizName = trigger.getAttribute('data-quiz-name') || 'Selected quiz';
+        const currentProgram = trigger.getAttribute('data-current-program') || '';
+        const currentTeacher = trigger.getAttribute('data-current-teacher') || '';
+
+        examIdInput.value = examId.trim();
+        quizNameElement.textContent = quizName;
+
+        if (currentProgram) {
+            programSelect.value = currentProgram;
+        }
+
+        if (!programSelect.value && programSelect.options.length > 1) {
+            programSelect.selectedIndex = 1;
+        }
+
+        setTeacherOptions(programSelect.value, currentTeacher);
+    });
+
+    if (programSelect && programSelect.value) {
+        setTeacherOptions(programSelect.value, '');
+    }
+
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        document.body.style.paddingRight = '';
+    });
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

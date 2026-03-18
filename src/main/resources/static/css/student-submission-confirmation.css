@@ -1,89 +1,164 @@
+body.homepage-page {
+    background-color: #f2e4cc;
+    background-image:
+        linear-gradient(rgba(247, 240, 227, 0.72), rgba(241, 230, 211, 0.74)),
+        url('/images/EACBG.png');
+    background-size: cover;
+    background-position: center 84%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    position: relative;
+}
+
+body.homepage-page::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(90deg, rgba(166, 58, 33, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(166, 58, 33, 0.03) 1px, transparent 1px);
+    background-size: 44px 44px;
+}
+
+.teacher-content-wrapper {
+    position: relative;
+    z-index: 1;
+}
+
 .submission-shell {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0.5rem 0 2rem;
-        }
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0.6rem 0 2.1rem;
+}
 
-        .submission-hero {
-            background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
-            color: #fff;
-            border-radius: 14px;
-            padding: 1.4rem 1.6rem;
-            margin-bottom: 1rem;
-        }
+.submission-hero {
+    background:
+        radial-gradient(circle at 85% -40%, rgba(255, 223, 167, 0.22), transparent 52%),
+        linear-gradient(135deg, #8f1228 0%, #6f0e20 54%, #4f0a16 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 12px 30px rgba(84, 10, 27, 0.26);
+}
 
-        .submission-card {
-            border: 1px solid var(--eac-border);
-            border-radius: 14px;
-            background: #fffdfa;
-            padding: 1.35rem;
-        }
+.submission-card {
+    border: 1px solid #e8dccb;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 249, 239, 0.96));
+    padding: 1.35rem;
+    box-shadow: 0 16px 30px rgba(60, 36, 13, 0.11);
+}
 
-        .submission-check {
-            width: 68px;
-            height: 68px;
-            border-radius: 50%;
-            margin: 0 auto 0.8rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            color: #fff;
-            background: linear-gradient(145deg, #1f8f4f 0%, #2ea760 100%);
-        }
+.submission-check {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    margin: 0 auto 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.05rem;
+    color: #fff;
+    background: linear-gradient(145deg, #1d9050 0%, #26ad62 100%);
+    box-shadow: 0 10px 20px rgba(30, 150, 83, 0.26);
+}
 
-        .submission-title {
-            color: var(--eac-maroon);
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 1rem;
-        }
+.submission-title {
+    color: var(--eac-maroon);
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 1.05rem;
+    font-size: clamp(1.7rem, 1.4rem + 1.1vw, 2.05rem);
+    letter-spacing: 0.2px;
+}
 
-        .submission-note {
-            border: 1px solid #d8ecfa;
-            background: #ecf8ff;
-            border-radius: 10px;
-            padding: 0.9rem;
-            color: #125e82;
-            margin-bottom: 0.8rem;
-        }
+.submission-summary {
+    border: 1px solid #eadfce;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0.85rem 0.95rem;
+    margin-bottom: 1rem;
+}
 
-        .submission-note-warning {
-            border-color: #f2e2b8;
-            background: #fff8e7;
-            color: #7a5a00;
-        }
+.submission-summary .label {
+    color: #7a7a7a;
+    font-size: 0.77rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
 
-        .submission-summary {
-            border: 1px solid var(--eac-border);
-            border-radius: 10px;
-            background: #fff;
-            padding: 0.8rem 0.95rem;
-            margin-bottom: 1rem;
-        }
+.submission-summary .value {
+    color: #272727;
+    font-weight: 700;
+    font-size: 1.03rem;
+}
 
-        .submission-summary .label {
-            color: #6b6b6b;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
+.submission-note {
+    border: 1px solid #d2e7f7;
+    background: linear-gradient(130deg, #edf8ff, #e7f4fb);
+    border-radius: 12px;
+    padding: 0.9rem;
+    color: #155a79;
+    margin-bottom: 0.78rem;
+}
 
-        .submission-summary .value {
-            color: #272727;
-            font-weight: 600;
-        }
+.submission-note-warning {
+    border-color: #ecd9ab;
+    background: linear-gradient(130deg, #fff9eb, #fff3dc);
+    color: #7a5a00;
+}
 
-        .submission-actions {
-            display: flex;
-            justify-content: center;
-            gap: 0.7rem;
-            flex-wrap: wrap;
-        }
+.submission-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-top: 0.15rem;
+}
 
-        .thank-you {
-            text-align: center;
-            margin-top: 0.8rem;
-            color: #6f6f6f;
-            font-size: 0.88rem;
-        }
+.submission-actions .btn-primary {
+    border: 0;
+    border-radius: 11px;
+    min-height: 46px;
+    min-width: 220px;
+    font-weight: 700;
+    background: linear-gradient(130deg, #8f1228, #6f0e20);
+    box-shadow: 0 10px 20px rgba(84, 10, 27, 0.22);
+}
+
+.submission-actions .btn-primary:hover {
+    color: #ffe9b8;
+    background: linear-gradient(130deg, #7b1022, #5f0d1a);
+}
+
+.thank-you {
+    text-align: center;
+    margin-top: 0.9rem;
+    color: #6b6b6b;
+    font-size: 0.91rem;
+}
+
+@media (max-width: 768px) {
+    .submission-shell {
+        padding-top: 0.45rem;
+    }
+
+    .submission-hero,
+    .submission-card {
+        border-radius: 14px;
+    }
+
+    .submission-card {
+        padding: 1rem;
+    }
+
+    .submission-actions .btn-primary {
+        width: 100%;
+        min-width: 0;
+    }
+}

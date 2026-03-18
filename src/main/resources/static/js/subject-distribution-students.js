@@ -10,6 +10,45 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        const maskedToken = '••••••';
+
+        function setOtpVisibility(codeChip, rowButton, showCode) {
+            if (!codeChip) {
+                return;
+            }
+
+            const actualCode = codeChip.getAttribute('data-otp-code') || '';
+            codeChip.textContent = showCode ? actualCode : maskedToken;
+            codeChip.classList.toggle('is-masked', !showCode);
+
+            if (rowButton) {
+                rowButton.setAttribute('data-otp-row-toggle', showCode ? 'hide' : 'show');
+                rowButton.innerHTML = showCode
+                    ? '<i class="bi bi-eye-slash me-1"></i>Hide'
+                    : '<i class="bi bi-eye me-1"></i>Show';
+            }
+        }
+
+        document.querySelectorAll('.otp-row-toggle-btn, .otp-inline-toggle-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const row = this.closest('tr');
+                const codeChip = row ? row.querySelector('.otp-code-chip') : this.closest('.otp-inline-wrap')?.querySelector('.otp-code-chip');
+                const shouldShow = this.getAttribute('data-otp-row-toggle') === 'show';
+                setOtpVisibility(codeChip, this, shouldShow);
+            });
+        });
+
+        document.querySelectorAll('.otp-toggle-all-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const showCode = this.getAttribute('data-otp-toggle-all') === 'show';
+                document.querySelectorAll('.otp-code-chip').forEach(codeChip => {
+                    const row = codeChip.closest('tr');
+                    const rowButton = row ? row.querySelector('.otp-row-toggle-btn, .otp-inline-toggle-btn') : null;
+                    setOtpVisibility(codeChip, rowButton, showCode);
+                });
+            });
+        });
+
         const reopenModalEl = document.getElementById('reopenStudentModal');
         if (reopenModalEl && reopenModalEl.parentElement !== document.body) {
             document.body.appendChild(reopenModalEl);
@@ -21,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const reopenTitle = document.getElementById('reopenStudentModalTitle');
         const reopenStudentName = document.getElementById('reopenStudentName');
         const studentEmailInput = document.getElementById('reopenStudentEmailInput');
+        const distributionIdInput = document.getElementById('reopenStudentDistributionId');
         const presetSelect = document.getElementById('reopenPreset');
         const customWrap = document.getElementById('customDeadlineWrap');
         const customInput = document.getElementById('customDeadline');
@@ -48,6 +88,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const studentEmail = trigger.getAttribute('data-student-email') || '';
             const studentName = trigger.getAttribute('data-student-name') || 'Student';
+            const distributionId = trigger.getAttribute('data-distribution-id') || '';
             const reopenLabel = trigger.getAttribute('data-reopen-label') || 'Re-open';
 
             if (reopenTitle) {
@@ -58,6 +99,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             if (studentEmailInput) {
                 studentEmailInput.value = studentEmail;
+            }
+            if (distributionIdInput) {
+                distributionIdInput.value = distributionId;
             }
             if (presetSelect) {
                 presetSelect.value = '24h';

@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
+    <link rel="icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png">
     <link rel="shortcut icon" type="image/png" th:href="@{/images/EAC_Emblem.png}" href="/images/EAC_Emblem.png"><title th:text="${subject.subjectName} + ' - Student Tracking'">Student Tracking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link th:href="@{/css/style.css}" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/teacher-dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/subject-classroom.css}">
 </head>
-<body class="teacher-wide-page subject-classroom-page homepage-page">
+<body class="teacher-dashboard-page teacher-wide-page subject-classroom-page">
 <div class="teacher-layout">
     <div th:replace="~{teacher-nav :: teacherNav}"></div>
 
@@ -56,14 +60,31 @@
 
             <div class="section-card">
                 <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+                <div th:if="${warningMessage}" class="alert alert-warning" th:text="${warningMessage}"></div>
                 <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
                 <div class="section-head d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div class="section-title mb-0">
                         <i class="bi bi-list-ul"></i> Student Tracking List
                     </div>
-                    <input type="text" id="distributionSearch" class="form-control form-control-sm"
-                           placeholder="Search student name or email..." style="max-width:280px;">
+                    <div class="distribution-toolbar-controls distribution-toolbar-two-column">
+                        <form th:if="${totalTrackedCount > 0}"
+                              th:action="@{/teacher/subject-classroom/{id}/distribution-students/generate-otp-all(id=${subject.id})}"
+                              method="post"
+                              class="otp-bulk-form">
+                            <input type="hidden" name="distributionId" th:value="${distributionId}">
+                            <input type="hidden" name="filterExamId" th:value="${filterExamId}">
+                            <input type="hidden" name="filterExamName" th:value="${filterExamName}">
+                            <input type="hidden" name="filterActivityType" th:value="${filterActivityType}">
+                            <input type="hidden" name="filterTimeLimit" th:value="${filterTimeLimit}">
+                            <input type="hidden" name="filterDeadline" th:value="${filterDeadline}">
+                            <button type="submit" class="btn btn-sm btn-dark otp-bulk-btn" title="Generate or regenerate OTP for all tracked students in this quiz">
+                                <i class="bi bi-shield-lock me-1"></i> Generate / Regenerate OTP for All
+                            </button>
+                        </form>
+                        <input type="text" id="distributionSearch" class="form-control form-control-sm distribution-search-input"
+                               placeholder="Search student name or email...">
+                    </div>
                 </div>
 
                 <div th:if="${totalTrackedCount == 0}" class="empty-state">
@@ -86,6 +107,7 @@
                             <th>Open-Ended</th>
                             <th>Grade</th>
                             <th>Release</th>
+                            <th>Access OTP</th>
                             <th>Action</th>
                         </tr>
                         </thead>
@@ -116,17 +138,32 @@
                                 <span th:if="${!item.resultsReleased}" class="badge bg-secondary">Hidden</span>
                             </td>
                             <td>
+                                <span class="badge" th:classappend="${item.otpStatusClass}" th:text="${item.otpStatusLabel}">Not generated</span>
+                                <div class="otp-inline-wrap"
+                                     th:if="${item.generatedOtpCode != null and !#strings.isEmpty(item.generatedOtpCode)}">
+                                    <span class="badge bg-dark otp-code-chip otp-inline-code"
+                                          th:attr="data-otp-code=${item.generatedOtpCode}"
+                                          th:text="${item.generatedOtpCode}">000000</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary otp-inline-toggle-btn" data-otp-row-toggle="hide">
+                                        <i class="bi bi-eye-slash me-1"></i>Hide
+                                    </button>
+                                    <small class="otp-inline-meta"
+                                           th:if="${item.generatedOtpExpiresAt != null and !#strings.isEmpty(item.generatedOtpExpiresAt)}"
+                                           th:text="'Valid until: ' + ${item.generatedOtpExpiresAt}">Valid until</small>
+                                </div>
+                            </td>
+                            <td>
                                 <div class="d-flex gap-1 flex-wrap">
                                     <a th:if="${item.submissionId != null}"
                                        th:href="${item.viewResultUrl}"
-                                       class="btn btn-sm btn-outline-primary"
+                                                    class="btn btn-sm distribution-paper-btn"
                                        title="View submitted exam paper">
                                         <i class="bi bi-file-earmark-text me-1"></i>Paper
                                     </a>
 
                                     <a th:if="${item.submissionId != null and item.needsManualGrading}"
-                                       th:href="@{/teacher/grade/{id}(id=${item.submissionId})}"
-                                       class="btn btn-sm btn-warning"
+                                                    th:href="${item.viewGradeUrl}"
+                                       class="btn btn-sm distribution-grade-btn"
                                        title="Grade open-ended answers">
                                         <i class="bi bi-pencil-square me-1"></i>Grade
                                     </a>
@@ -137,13 +174,15 @@
                                           class="d-inline">
                                         <input type="hidden" name="redirectTo" value="distribution">
                                         <input type="hidden" name="subjectId" th:value="${subject.id}">
+                                        <input type="hidden" name="filterExamId" th:value="${filterExamId}">
                                         <input type="hidden" name="filterExamName" th:value="${filterExamName}">
                                         <input type="hidden" name="filterActivityType" th:value="${filterActivityType}">
                                         <input type="hidden" name="filterTimeLimit" th:value="${filterTimeLimit}">
                                         <input type="hidden" name="filterDeadline" th:value="${filterDeadline}">
+                                        <input type="hidden" name="distributionId" th:value="${item.distributionId}">
                                         <button type="submit"
-                                                class="btn btn-sm"
-                                                th:classappend="${item.resultsReleased ? 'btn-outline-secondary' : 'btn-outline-success'}"
+                                            class="btn btn-sm distribution-release-btn"
+                                            th:classappend="${item.resultsReleased ? 'is-released' : 'is-hidden'}"
                                                 th:disabled="${item.needsManualGrading}"
                                                 th:title="${item.needsManualGrading ? 'Complete open-ended grading before release' : (item.resultsReleased ? 'Hide grade from student' : 'Release grade to student')}">
                                             <i th:class="${item.resultsReleased ? 'bi bi-eye-slash me-1' : 'bi bi-eye me-1'}"></i>
@@ -153,10 +192,10 @@
 
                                     <button th:if="${deadlinePassed}"
                                             type="button"
-                                            class="btn btn-sm btn-outline-warning open-reopen-student-modal"
+                                            class="btn btn-sm distribution-retake-btn open-reopen-student-modal"
                                             data-bs-toggle="modal"
                                             data-bs-target="#reopenStudentModal"
-                                            th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-reopen-label='Allow Retake'"
+                                            th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-distribution-id=${item.distributionId},data-reopen-label='Allow Retake'"
                                             title="Create a custom retake schedule for this student">
                                         <i class="bi bi-arrow-clockwise me-1"></i>Allow Retake
                                     </button>
@@ -185,15 +224,50 @@
                             </td>
                             <td><span class="badge bg-secondary">Hidden</span></td>
                             <td>
-                                <button th:if="${deadlinePassed}"
-                                        type="button"
-                                        class="btn btn-sm btn-outline-warning open-reopen-student-modal"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#reopenStudentModal"
-                                        th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-reopen-label='Re-open'">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Re-open
-                                </button>
-                                <span th:if="${!deadlinePassed}" class="text-muted small">No paper yet</span>
+                                <span class="badge" th:classappend="${item.otpStatusClass}" th:text="${item.otpStatusLabel}">Not generated</span>
+                                <div class="otp-inline-wrap"
+                                     th:if="${item.generatedOtpCode != null and !#strings.isEmpty(item.generatedOtpCode)}">
+                                    <span class="badge bg-dark otp-code-chip otp-inline-code"
+                                          th:attr="data-otp-code=${item.generatedOtpCode}"
+                                          th:text="${item.generatedOtpCode}">000000</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary otp-inline-toggle-btn" data-otp-row-toggle="hide">
+                                        <i class="bi bi-eye-slash me-1"></i>Hide
+                                    </button>
+                                    <small class="otp-inline-meta"
+                                           th:if="${item.generatedOtpExpiresAt != null and !#strings.isEmpty(item.generatedOtpExpiresAt)}"
+                                           th:text="'Valid until: ' + ${item.generatedOtpExpiresAt}">Valid until</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <form th:if="${item.otpAvailableForGeneration}"
+                                          th:action="@{/teacher/subject-classroom/{id}/distribution-students/generate-otp(id=${subject.id})}"
+                                          method="post"
+                                          class="d-inline">
+                                        <input type="hidden" name="studentEmail" th:value="${item.studentEmail}">
+                                        <input type="hidden" name="distributionId" th:value="${item.distributionId}">
+                                        <input type="hidden" name="filterExamId" th:value="${filterExamId}">
+                                        <input type="hidden" name="filterExamName" th:value="${filterExamName}">
+                                        <input type="hidden" name="filterActivityType" th:value="${filterActivityType}">
+                                        <input type="hidden" name="filterTimeLimit" th:value="${filterTimeLimit}">
+                                        <input type="hidden" name="filterDeadline" th:value="${filterDeadline}">
+                                        <button type="submit"
+                                                formmethod="post"
+                                                class="btn btn-sm distribution-otp-btn"
+                                                title="Generate or regenerate code for this student">
+                                            <i class="bi bi-key me-1"></i>Generate Code
+                                        </button>
+                                    </form>
+                                    <button th:if="${deadlinePassed}"
+                                            type="button"
+                                            class="btn btn-sm distribution-retake-btn open-reopen-student-modal"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#reopenStudentModal"
+                                            th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-distribution-id=${item.distributionId},data-reopen-label='Re-open'">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Re-open
+                                    </button>
+                                    <span th:if="${!deadlinePassed}" class="text-muted small">No paper yet</span>
+                                </div>
                             </td>
                         </tr>
 
@@ -218,15 +292,50 @@
                             </td>
                             <td><span class="badge bg-secondary">Hidden</span></td>
                             <td>
-                                <button th:if="${deadlinePassed}"
-                                        type="button"
-                                        class="btn btn-sm btn-outline-warning open-reopen-student-modal"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#reopenStudentModal"
-                                        th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-reopen-label='Re-open'">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Re-open
-                                </button>
-                                <span th:if="${!deadlinePassed}" class="text-muted small">Waiting</span>
+                                <span class="badge" th:classappend="${item.otpStatusClass}" th:text="${item.otpStatusLabel}">Not generated</span>
+                                <div class="otp-inline-wrap"
+                                     th:if="${item.generatedOtpCode != null and !#strings.isEmpty(item.generatedOtpCode)}">
+                                    <span class="badge bg-dark otp-code-chip otp-inline-code"
+                                          th:attr="data-otp-code=${item.generatedOtpCode}"
+                                          th:text="${item.generatedOtpCode}">000000</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary otp-inline-toggle-btn" data-otp-row-toggle="hide">
+                                        <i class="bi bi-eye-slash me-1"></i>Hide
+                                    </button>
+                                    <small class="otp-inline-meta"
+                                           th:if="${item.generatedOtpExpiresAt != null and !#strings.isEmpty(item.generatedOtpExpiresAt)}"
+                                           th:text="'Valid until: ' + ${item.generatedOtpExpiresAt}">Valid until</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <form th:if="${item.otpAvailableForGeneration}"
+                                          th:action="@{/teacher/subject-classroom/{id}/distribution-students/generate-otp(id=${subject.id})}"
+                                          method="post"
+                                          class="d-inline">
+                                        <input type="hidden" name="studentEmail" th:value="${item.studentEmail}">
+                                        <input type="hidden" name="distributionId" th:value="${item.distributionId}">
+                                        <input type="hidden" name="filterExamId" th:value="${filterExamId}">
+                                        <input type="hidden" name="filterExamName" th:value="${filterExamName}">
+                                        <input type="hidden" name="filterActivityType" th:value="${filterActivityType}">
+                                        <input type="hidden" name="filterTimeLimit" th:value="${filterTimeLimit}">
+                                        <input type="hidden" name="filterDeadline" th:value="${filterDeadline}">
+                                        <button type="submit"
+                                                formmethod="post"
+                                                class="btn btn-sm distribution-otp-btn"
+                                                title="Generate or regenerate code for this student">
+                                            <i class="bi bi-key me-1"></i>Generate Code
+                                        </button>
+                                    </form>
+                                    <button th:if="${deadlinePassed}"
+                                            type="button"
+                                            class="btn btn-sm distribution-retake-btn open-reopen-student-modal"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#reopenStudentModal"
+                                            th:attr="data-student-email=${item.studentEmail},data-student-name=${item.studentName},data-distribution-id=${item.distributionId},data-reopen-label='Re-open'">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Re-open
+                                    </button>
+                                    <span th:if="${!deadlinePassed}" class="text-muted small">Waiting</span>
+                                </div>
                             </td>
                         </tr>
                         </tbody>
@@ -247,10 +356,12 @@
                                 <div class="fw-semibold mb-3" id="reopenStudentName">Student</div>
 
                                 <input type="hidden" name="studentEmail" id="reopenStudentEmailInput">
+                                <input type="hidden" name="filterExamId" th:value="${filterExamId}">
                                 <input type="hidden" name="filterExamName" th:value="${filterExamName}">
                                 <input type="hidden" name="filterActivityType" th:value="${filterActivityType}">
                                 <input type="hidden" name="filterTimeLimit" th:value="${filterTimeLimit}">
                                 <input type="hidden" name="filterDeadline" th:value="${filterDeadline}">
+                                <input type="hidden" name="distributionId" id="reopenStudentDistributionId" th:value="${distributionId}">
 
                                 <div class="mb-3">
                                     <label for="reopenPreset" class="form-label">Re-open Window</label>

@@ -1,78 +1,168 @@
-/* Student Exam Page Styles */
+/* Student exam page redesign aligned with login visual language */
 
-.student-header {
-    background: linear-gradient(135deg, var(--eac-maroon) 0%, #8f1a2e 100%);
-    color: white;
-    padding: 1.5rem;
-    border-radius: 14px;
-    margin-bottom: 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.12);
+body.homepage-page {
+    background-color: #f2e4cc;
+    background-image:
+        linear-gradient(rgba(247, 240, 227, 0.72), rgba(241, 230, 211, 0.74)),
+        url('/images/EACBG.png');
+    background-size: cover;
+    background-position: center 84%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    position: relative;
 }
 
-.question-card {
-    min-height: 400px;
-    transition: all 0.3s ease;
-    border: 1px solid var(--eac-border) !important;
-    border-radius: 14px !important;
-    background: #fffdfa;
+body.homepage-page::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(90deg, rgba(166, 58, 33, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(166, 58, 33, 0.03) 1px, transparent 1px);
+    background-size: 44px 44px;
+}
+
+.main-content {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-bottom: 132px;
+    position: relative;
+    z-index: 1;
+}
+
+.student-header {
+    background:
+        radial-gradient(circle at 88% -35%, rgba(255, 223, 167, 0.26), transparent 52%),
+        linear-gradient(135deg, #8f1228 0%, #6f0e20 54%, #4f0a16 100%);
+    color: #fff;
+    padding: 1.45rem 1.35rem;
+    border-radius: 16px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.23);
+    box-shadow: 0 16px 34px rgba(84, 10, 27, 0.25);
+}
+
+.student-header h4 {
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.student-header .badge.bg-light {
+    border-radius: 9px;
+    border: 1px solid rgba(122, 16, 34, 0.2);
+}
+
+.student-header .badge.bg-warning {
+    border-radius: 9px;
+}
+
+#timerDisplay {
+    background: linear-gradient(120deg, #1f9f62, #158e54) !important;
+    border-radius: 8px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.deadline-info {
+    font-size: 0.86rem;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .progress-indicator {
     font-size: 0.9rem;
-    margin-bottom: 1rem;
-    background: #fff;
-    border: 1px solid var(--eac-border);
+    margin-bottom: 0.95rem;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #eadfce;
+    border-radius: 14px;
+    padding: 0.88rem 0.95rem;
+    box-shadow: 0 10px 20px rgba(60, 36, 13, 0.09);
+    backdrop-filter: blur(2px);
+}
+
+.progress-indicator .progress {
+    border-radius: 999px;
+    background: #e6eaf1;
+}
+
+.progress-indicator .progress-bar {
+    background: linear-gradient(120deg, #1f6ad2, #258be8);
+    border-radius: 999px;
+}
+
+.question-card {
+    min-height: 430px;
+    transition: box-shadow 220ms ease, transform 220ms ease;
+    border: 1px solid var(--eac-border) !important;
+    border-radius: 16px !important;
+    background: linear-gradient(175deg, #ffffff 0%, #fffaf1 100%);
+    box-shadow: 0 12px 28px rgba(60, 36, 13, 0.11);
+}
+
+.question-card:hover {
+    box-shadow: 0 16px 34px rgba(60, 36, 13, 0.14);
+}
+
+#questionContainer h5 {
+    color: #162436;
+    font-weight: 700;
+    margin-bottom: 1rem !important;
+}
+
+#questionContainer .lead {
+    color: #1f2f43;
+    font-size: 1.08rem;
+    line-height: 1.62;
+}
+
+#questionContainer .form-label {
+    color: #5f0d1a;
+}
+
+#questionContainer textarea.form-control {
+    border: 1px solid #dfd2c0;
     border-radius: 12px;
-    padding: 0.9rem 1rem;
-    box-shadow: 0 6px 16px rgba(60, 36, 13, 0.08);
+    box-shadow: inset 0 1px 2px rgba(38, 27, 18, 0.06);
+}
+
+#questionContainer textarea.form-control:focus {
+    border-color: #be8e25;
+    box-shadow: 0 0 0 0.2rem rgba(212, 163, 42, 0.2);
 }
 
 .choice-btn {
     text-align: left;
-    margin-bottom: 0.75rem;
-    padding: 1rem;
-    border: 1px solid #e3dacb;
+    margin-bottom: 0.72rem;
+    padding: 1rem 1rem;
+    border: 1px solid #e2d6c5;
     transition: all 0.2s;
-    border-radius: 10px;
+    border-radius: 12px;
     background: #fff;
+    color: #1d2734;
 }
 
 .choice-btn:hover {
-    border-color: var(--eac-gold);
-    background-color: #fdf7ec;
+    border-color: #c8921a;
+    background: linear-gradient(120deg, #fffdfa, #fff5e5);
+    transform: translateY(-1px);
 }
 
 .choice-btn.selected {
-    border-color: var(--eac-maroon);
-    background-color: #fff2f4;
-    box-shadow: 0 0 0 1px rgba(122, 16, 34, 0.08);
-}
-
-.navigation-btns {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #ffffff;
-    padding: 1rem;
-    border-top: 1px solid var(--eac-border);
-    box-shadow: 0 -8px 18px rgba(60, 36, 13, 0.08);
-    z-index: 1000;
-}
-
-.main-content {
-    padding-bottom: 100px;
+    border-color: #7a1022;
+    background: linear-gradient(130deg, #fff2f4, #ffe8ec);
+    box-shadow: 0 0 0 1px rgba(122, 16, 34, 0.1);
 }
 
 .submitted-status-card {
-    background: #fff8f2;
-    border: 1px solid #f0d8b2;
+    background: linear-gradient(140deg, #fff8ef, #fff3df);
+    border: 1px solid #efd7ac;
     border-left: 4px solid var(--eac-gold);
     color: #5b4630;
     border-radius: 12px;
-    padding: 0.85rem 1rem;
+    padding: 0.82rem 0.95rem;
     margin-bottom: 1rem;
+    box-shadow: 0 5px 14px rgba(113, 84, 41, 0.11);
 }
 
 .submitted-status-card i {
@@ -82,29 +172,70 @@
 .submitted-title {
     font-weight: 700;
     color: #6e4d20;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
 }
 
 .submitted-meta {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
+}
+
+.navigation-btns {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(5px);
+    padding: 0.82rem 0.9rem;
+    border-top: 1px solid var(--eac-border);
+    box-shadow: 0 -10px 20px rgba(60, 36, 13, 0.11);
+    z-index: 1000;
+}
+
+.navigation-btns .container {
+    max-width: 1120px;
+}
+
+#backBtn,
+#nextBtn {
+    min-height: 44px;
+    border-radius: 10px;
+    font-weight: 700;
+}
+
+#nextBtn {
+    border: 0;
+    background: linear-gradient(130deg, #8f1228, #6f0e20);
+}
+
+#nextBtn:hover {
+    color: #ffe9b8;
+    background: linear-gradient(130deg, #7b1022, #5f0d1a);
+}
+
+#questionNumber {
+    color: #1f2f43;
+    font-size: 1.02rem;
 }
 
 .auto-save-indicator {
     position: fixed;
-    top: 20px;
+    top: 22px;
     right: 20px;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    background: #28a745;
-    color: white;
-    font-size: 0.85rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 999px;
+    background: linear-gradient(120deg, #1f9f62, #158e54);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
     display: none;
     z-index: 1001;
+    box-shadow: 0 8px 16px rgba(15, 122, 71, 0.22);
 }
 
 .difficulty-easy {
     background-color: #267a4b;
-    color: white;
+    color: #fff;
 }
 
 .difficulty-medium {
@@ -114,7 +245,7 @@
 
 .difficulty-hard {
     background-color: #b02a37;
-    color: white;
+    color: #fff;
 }
 
 .timer-warning {
@@ -126,16 +257,11 @@
     50% { opacity: 0.7; }
 }
 
-.deadline-info {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.88);
-}
-
 .violation-counter {
     position: fixed;
     top: 84px;
     right: 16px;
-    padding: 0.35rem 0.6rem;
+    padding: 0.35rem 0.62rem;
     background: #fff8f8;
     color: #7a1022;
     border: 1px solid #f1c7cf;
@@ -143,7 +269,7 @@
     font-size: 0.82rem;
     display: none;
     z-index: 1001;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .cheating-modal {
@@ -152,7 +278,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0, 0, 0, 0.78);
     display: none;
     justify-content: center;
     align-items: center;
@@ -160,23 +286,18 @@
 }
 
 .cheating-modal-content {
-    background: white;
+    background: #fff;
     padding: 1.25rem;
     border-radius: 12px;
     max-width: 360px;
     text-align: center;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .cheating-modal-content h3 {
     color: #dc3545;
     margin-bottom: 0.6rem;
     font-size: 1.05rem;
-}
-
-.cheating-modal-content .warning-icon {
-    font-size: 2rem;
-    color: #ffc107;
 }
 
 .violation-max-overlay {
@@ -259,12 +380,14 @@
     font-weight: 700;
 }
 
-/* Responsive tweaks for exam layout */
-
 @media (max-width: 768px) {
+    .main-content {
+        padding-bottom: 118px;
+    }
+
     .student-header {
         padding: 1rem;
-        margin-bottom: 1.25rem;
+        margin-bottom: 0.95rem;
     }
 
     .progress-indicator {
@@ -273,20 +396,34 @@
 
     .question-card {
         min-height: auto;
+        padding: 1.05rem !important;
     }
 
     .navigation-btns {
-        padding: 0.75rem;
+        padding: 0.68rem;
+    }
+
+    .navigation-btns .row {
+        align-items: center;
     }
 }
 
 @media (max-width: 576px) {
     .choice-btn {
-        padding: 0.75rem;
+        padding: 0.82rem;
         font-size: 0.95rem;
     }
 
     .deadline-info {
-        font-size: 0.8rem;
+        font-size: 0.79rem;
+    }
+
+    .student-header .col-md-4 {
+        margin-top: 0.7rem;
+        text-align: left !important;
+    }
+
+    #questionNumber {
+        font-size: 0.94rem;
     }
 }

@@ -90,7 +90,7 @@
         return map[ch] || null;
     }
 
-    function normalizeEquationArtifactsText(rawText, trimResult = true) {
+    function normalizeEquationArtifactsText(rawText, trimResult = true, convertEquationTokens = false) {
         if (rawText == null) {
             return '';
         }
@@ -125,21 +125,23 @@
 
         let rebuilt = '';
         for (const ch of normalized) {
-            const superscript = toSuperscriptToken(ch);
-            if (superscript) {
-                rebuilt += superscript;
-                continue;
-            }
+            if (convertEquationTokens) {
+                const superscript = toSuperscriptToken(ch);
+                if (superscript) {
+                    rebuilt += superscript;
+                    continue;
+                }
 
-            const subscript = toSubscriptToken(ch);
-            if (subscript) {
-                rebuilt += subscript;
-                continue;
-            }
+                const subscript = toSubscriptToken(ch);
+                if (subscript) {
+                    rebuilt += subscript;
+                    continue;
+                }
 
-            if (symbolMap[ch]) {
-                rebuilt += symbolMap[ch];
-                continue;
+                if (symbolMap[ch]) {
+                    rebuilt += symbolMap[ch];
+                    continue;
+                }
             }
 
             rebuilt += ch;
@@ -153,7 +155,7 @@
         return trimResult ? normalizedWhitespace.trim() : normalizedWhitespace;
     }
 
-    function normalizeEquationArtifactsInHtml(rawHtml) {
+    function normalizeEquationArtifactsInHtml(rawHtml, convertEquationTokens = false) {
         if (!rawHtml) {
             return '';
         }
@@ -162,7 +164,7 @@
         const doc = parser.parseFromString(`<div id="mq-normalize-root">${rawHtml}</div>`, 'text/html');
         const root = doc.getElementById('mq-normalize-root');
         if (!root) {
-            return normalizeEquationArtifactsText(rawHtml);
+            return normalizeEquationArtifactsText(rawHtml, true, convertEquationTokens);
         }
 
         const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -172,10 +174,94 @@
         }
 
         textNodes.forEach(node => {
-            node.nodeValue = normalizeEquationArtifactsText(node.nodeValue || '', false);
+            node.nodeValue = normalizeEquationArtifactsText(node.nodeValue || '', false, convertEquationTokens);
         });
 
         return (root.innerHTML || '').trim();
+    }
+
+    function trimLeadingEditorWhitespace(editor) {
+        if (!editor) return;
+
+        const hasSemanticContent = (node) => {
+            if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+            return !!node.querySelector('img, video, audio, iframe, table, ul, ol, li, blockquote, pre, code, math, svg');
+        };
+
+        const isRemovableLeadingNode = (node) => {
+            if (!node) return false;
+            if (node.nodeType === Node.TEXT_NODE) {
+                return !(node.nodeValue || '').replace(/\u00A0/g, ' ').trim();
+            }
+
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+
+            const tagName = (node.tagName || '').toUpperCase();
+            if (tagName === 'BR') {
+                return true;
+            }
+
+            if (hasSemanticContent(node)) {
+                return false;
+            }
+
+            const text = (node.textContent || '').replace(/\u00A0/g, ' ').trim();
+            return !text;
+        };
+
+        while (editor.firstChild && isRemovableLeadingNode(editor.firstChild)) {
+            editor.removeChild(editor.firstChild);
+        }
+    }
+
+    function shouldPreferPlainTextPaste(rawHtml, plainText) {
+        if (!rawHtml || !rawHtml.trim()) {
+            return true;
+        }
+
+        if (!plainText || !plainText.trim()) {
+            return false;
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(rawHtml, 'text/html');
+        const body = doc && doc.body ? doc.body : null;
+        if (!body) {
+            return true;
+        }
+
+        const hasComplexMathMarkup = !!body.querySelector('math, mrow, mfrac, msup, msub, msqrt, mtable, svg, mjx-container, .MathJax, .katex, .katex-mathml');
+        if (hasComplexMathMarkup) {
+            return true;
+        }
+
+        const hasOfficeMathMarkup = /<\s*(?:m:|o:)?math\b/i.test(rawHtml)
+            || /class\s*=\s*["'][^"']*(?:mathtype|equation|msoequation|katex|mathjax)[^"']*["']/i.test(rawHtml);
+        if (hasOfficeMathMarkup) {
+            return true;
+        }
+
+        const hasSemanticRichContent = !!body.querySelector('img, video, audio, iframe, table, ul, ol, li, blockquote, pre, code');
+        const hasDecorativeBoxStyling = Array.from(body.querySelectorAll('*')).some(el => {
+            const styleValue = (el.getAttribute('style') || '').toLowerCase();
+            if (!styleValue) return false;
+            return /(?:^|;)\s*(?:border(?:-[a-z-]+)?|outline(?:-[a-z-]+)?|box-shadow|mso-border[a-z-]*|mso-outline[a-z-]*)\s*:/.test(styleValue);
+        });
+        if (hasDecorativeBoxStyling && !hasSemanticRichContent) {
+            return true;
+        }
+
+        const htmlText = (body.textContent || '').replace(/\s+/g, ' ').trim();
+        const plain = String(plainText || '').replace(/\s+/g, ' ').trim();
+        if (!htmlText && plain) {
+            return true;
+        }
+
+        return false;
     }
 
     function toggleAddQuestionTypeFields() {
@@ -356,8 +442,9 @@
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
         removeBtn.className = 'btn btn-sm choice-remove-btn';
-        removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
         removeBtn.title = 'Remove Choice';
+        removeBtn.setAttribute('aria-label', 'Remove Choice');
         removeBtn.addEventListener('click', function () {
             row.remove();
             syncAddChoicesText();
@@ -457,7 +544,30 @@
         }
 
         const savedRanges = new WeakMap();
+        const pendingSelectApply = new WeakSet();
         const DEFAULT_FONT_SIZE = '11pt';
+
+        function getContainingEditor(node) {
+            if (!node) return null;
+            const elementNode = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+            return elementNode ? elementNode.closest('.rich-editor') : null;
+        }
+
+        function markSelectPending(selectEl) {
+            if (selectEl) {
+                pendingSelectApply.add(selectEl);
+            }
+        }
+
+        function clearSelectPending(selectEl) {
+            if (selectEl) {
+                pendingSelectApply.delete(selectEl);
+            }
+        }
+
+        function isSelectPending(selectEl) {
+            return !!(selectEl && pendingSelectApply.has(selectEl));
+        }
 
         function saveSelection(editor) {
             if (!editor) return;
@@ -474,8 +584,12 @@
             if (!saved) return;
             const selection = window.getSelection();
             if (!selection) return;
-            selection.removeAllRanges();
-            selection.addRange(saved);
+            try {
+                selection.removeAllRanges();
+                selection.addRange(saved.cloneRange());
+            } catch (error) {
+                savedRanges.delete(editor);
+            }
         }
 
         function focusEditor(editor) {
@@ -683,7 +797,12 @@
                     if (attrName.startsWith('on')) {
                         el.removeAttribute(attr.name);
                     }
-                    if (attrName === 'bgcolor') {
+                    if (attrName === 'bgcolor'
+                        || attrName === 'border'
+                        || attrName === 'frame'
+                        || attrName === 'rules'
+                        || attrName === 'cellpadding'
+                        || attrName === 'cellspacing') {
                         el.removeAttribute(attr.name);
                     }
                 });
@@ -699,13 +818,15 @@
                     .filter(Boolean)
                     .filter(rule => {
                         const property = rule.split(':')[0]?.trim().toLowerCase() || '';
-                        return property !== 'background'
-                            && property !== 'background-color'
-                            && property !== 'background-image'
-                            && property !== 'background-repeat'
-                            && property !== 'background-position'
-                            && property !== 'background-size'
-                            && property !== 'mso-highlight';
+                        if (!property) return false;
+                        return !property.startsWith('background')
+                            && !property.startsWith('border')
+                            && !property.startsWith('outline')
+                            && !property.startsWith('margin')
+                            && !property.startsWith('padding')
+                            && !property.startsWith('mso-')
+                            && property !== 'text-indent'
+                            && property !== 'box-shadow';
                     });
 
                 if (filtered.length > 0) {
@@ -729,6 +850,8 @@
                 document.execCommand('insertText', false, plainTextFallback);
             }
 
+            trimLeadingEditorWhitespace(editor);
+
             saveSelection(editor);
             if (editor.id === 'questionEditor') {
                 updateMathPreview();
@@ -741,17 +864,34 @@
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
+                markSelectPending(this);
             });
             selectEl.addEventListener('focus', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
             });
+            selectEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    markSelectPending(this);
+                }
+            });
             selectEl.addEventListener('change', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 if (!this.value) return;
                 applyFontFamily(editor, this.value);
+                clearSelectPending(this);
+            });
+            selectEl.addEventListener('blur', function () {
+                if (!isSelectPending(this) || !this.value) {
+                    clearSelectPending(this);
+                    return;
+                }
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                applyFontFamily(editor, this.value);
+                clearSelectPending(this);
             });
         });
 
@@ -762,8 +902,12 @@
                 const rawHtml = clipboard ? clipboard.getData('text/html') : '';
                 const plainText = clipboard ? clipboard.getData('text/plain') : '';
                 const cleanHtml = sanitizePastedHtml(rawHtml);
-                const normalizedHtml = normalizeEquationArtifactsInHtml(cleanHtml);
-                const normalizedText = normalizeEquationArtifactsText(plainText);
+                const normalizedHtml = normalizeEquationArtifactsInHtml(cleanHtml, false);
+                const normalizedText = normalizeEquationArtifactsText(plainText, true, false);
+                if (shouldPreferPlainTextPaste(cleanHtml, normalizedText)) {
+                    insertEditorContent(editor, '', normalizedText);
+                    return;
+                }
                 insertEditorContent(editor, normalizedHtml, normalizedText);
             });
             editor.addEventListener('mouseup', function () {
@@ -782,6 +926,8 @@
                 saveSelection(editor);
                 updateAllToolbarStatuses();
             });
+
+            trimLeadingEditorWhitespace(editor);
         });
 
         document.querySelectorAll('.editor-toolbar').forEach(toolbar => {
@@ -795,6 +941,14 @@
         });
 
         document.addEventListener('selectionchange', function () {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const editor = getContainingEditor(range.commonAncestorContainer);
+                if (editor) {
+                    saveSelection(editor);
+                }
+            }
             updateAllToolbarStatuses();
         });
 
@@ -823,17 +977,34 @@
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
+                markSelectPending(this);
             });
             selectEl.addEventListener('focus', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 saveSelection(editor);
             });
+            selectEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    markSelectPending(this);
+                }
+            });
             selectEl.addEventListener('change', function () {
                 const toolbar = this.closest('.editor-toolbar');
                 const editor = getToolbarEditor(toolbar);
                 if (!this.value) return;
                 applyFontSize(editor, this.value);
+                clearSelectPending(this);
+            });
+            selectEl.addEventListener('blur', function () {
+                if (!isSelectPending(this) || !this.value) {
+                    clearSelectPending(this);
+                    return;
+                }
+                const toolbar = this.closest('.editor-toolbar');
+                const editor = getToolbarEditor(toolbar);
+                applyFontSize(editor, this.value);
+                clearSelectPending(this);
             });
         });
 

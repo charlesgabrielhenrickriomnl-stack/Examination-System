@@ -12,11 +12,31 @@
 }
 
 body.bg-light {
-    background: #f7f3ec !important;
+    background-color: #f2e4cc !important;
+    background-image:
+        linear-gradient(rgba(247, 240, 227, 0.72), rgba(241, 230, 211, 0.74)),
+        url('/images/EACBG.png') !important;
+    background-size: cover !important;
+    background-position: center 84% !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
     color: var(--eac-ink);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     min-height: 100vh;
+    position: relative;
+}
+
+body.bg-light::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(90deg, rgba(166, 58, 33, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(166, 58, 33, 0.03) 1px, transparent 1px);
+    background-size: 44px 44px;
 }
 
 .results-stage {
@@ -28,6 +48,8 @@ body.bg-light {
     padding-bottom: 1.2rem;
     display: flex;
     align-items: center;
+    position: relative;
+    z-index: 1;
 }
 
 .results-card {
@@ -184,10 +206,16 @@ body.bg-light {
 }
 
 .performance-badge {
-    font-size: 1rem;
-    padding: 0.38rem 0.8rem;
-    border-radius: 8px;
+    font-size: 0.96rem;
+    border-radius: 10px;
     letter-spacing: 0.01em;
+    min-height: 44px;
+    min-width: 220px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.52rem 0.9rem;
+    text-align: center;
 }
 
 .analytics-chart-btn,
@@ -196,8 +224,15 @@ body.bg-light {
     border: none;
     color: #fff;
     border-radius: 10px;
-    font-weight: 650;
+    font-weight: 700;
     box-shadow: 0 4px 14px rgba(95, 13, 26, 0.22);
+    min-height: 44px;
+    min-width: 220px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.52rem 0.9rem;
+    text-align: center;
 }
 
 .analytics-chart-btn:hover,
@@ -220,6 +255,16 @@ body.bg-light {
     border-color: var(--eac-maroon);
     background: #fff6ec;
     color: var(--eac-maroon);
+}
+
+@media (max-width: 768px) {
+    .analytics-toolbar .performance-badge,
+    .analytics-toolbar .analytics-chart-btn,
+    .analytics-toolbar #renderRadarBtn,
+    .analytics-toolbar .analytics-back-btn {
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 .performance-summary-box {

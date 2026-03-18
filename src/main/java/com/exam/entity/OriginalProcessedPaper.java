@@ -3,14 +3,25 @@ package com.exam.entity;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
+import com.exam.persistence.CompressedJsonConverter;
+
 @Entity
-@Table(name = "processed_papers_original")
+@Table(
+    name = "processed_papers_original",
+    indexes = {
+        @Index(name = "idx_processed_papers_teacher_processed", columnList = "teacher_email, processed_at"),
+        @Index(name = "idx_processed_papers_department_processed", columnList = "department_name, processed_at"),
+        @Index(name = "idx_processed_papers_dept_shared_processed", columnList = "department_name, teacher_pull_shared, processed_at")
+    }
+)
 public class OriginalProcessedPaper {
 
     @Id
@@ -22,6 +33,9 @@ public class OriginalProcessedPaper {
 
     @Column(name = "teacher_email", nullable = false)
     private String teacherEmail;
+
+    @Column(name = "department_name")
+    private String departmentName;
 
     @Column(name = "exam_name", nullable = false)
     private String examName;
@@ -56,12 +70,30 @@ public class OriginalProcessedPaper {
     @Column(name = "answer_key_file_size")
     private Long answerKeyFileSize;
 
+    @Column(name = "question_count")
+    private Integer questionCount;
+
+    @Column(name = "teacher_pull_shared", nullable = false)
+    private boolean teacherPullShared;
+
+    @Column(name = "sharing_scope", nullable = false, length = 20)
+    private String sharingScope;
+
+    @Column(name = "shared_program_name", length = 255)
+    private String sharedProgramName;
+
+    @Column(name = "shared_teacher_email", length = 255)
+    private String sharedTeacherEmail;
+
+    @Convert(converter = CompressedJsonConverter.class)
     @Column(name = "original_questions_json", columnDefinition = "LONGTEXT", nullable = false)
     private String originalQuestionsJson;
 
+    @Convert(converter = CompressedJsonConverter.class)
     @Column(name = "difficulties_json", columnDefinition = "LONGTEXT")
     private String difficultiesJson;
 
+    @Convert(converter = CompressedJsonConverter.class)
     @Column(name = "answer_key_json", columnDefinition = "LONGTEXT")
     private String answerKeyJson;
 
@@ -70,6 +102,11 @@ public class OriginalProcessedPaper {
 
     public OriginalProcessedPaper() {
         this.processedAt = LocalDateTime.now();
+        this.questionCount = 0;
+        this.teacherPullShared = false;
+        this.sharingScope = "DEPARTMENT";
+        this.sharedProgramName = null;
+        this.sharedTeacherEmail = null;
     }
 
     public OriginalProcessedPaper(String examId,
@@ -90,6 +127,11 @@ public class OriginalProcessedPaper {
         this.originalQuestionsJson = originalQuestionsJson;
         this.difficultiesJson = difficultiesJson;
         this.answerKeyJson = answerKeyJson;
+        this.questionCount = 0;
+        this.teacherPullShared = false;
+        this.sharingScope = "DEPARTMENT";
+        this.sharedProgramName = null;
+        this.sharedTeacherEmail = null;
         this.processedAt = LocalDateTime.now();
     }
 
@@ -101,6 +143,9 @@ public class OriginalProcessedPaper {
 
     public String getTeacherEmail() { return teacherEmail; }
     public void setTeacherEmail(String teacherEmail) { this.teacherEmail = teacherEmail; }
+
+    public String getDepartmentName() { return departmentName; }
+    public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
 
     public String getExamName() { return examName; }
     public void setExamName(String examName) { this.examName = examName; }
@@ -134,6 +179,21 @@ public class OriginalProcessedPaper {
 
     public Long getAnswerKeyFileSize() { return answerKeyFileSize; }
     public void setAnswerKeyFileSize(Long answerKeyFileSize) { this.answerKeyFileSize = answerKeyFileSize; }
+
+    public Integer getQuestionCount() { return questionCount; }
+    public void setQuestionCount(Integer questionCount) { this.questionCount = questionCount; }
+
+    public boolean isTeacherPullShared() { return teacherPullShared; }
+    public void setTeacherPullShared(boolean teacherPullShared) { this.teacherPullShared = teacherPullShared; }
+
+    public String getSharingScope() { return sharingScope; }
+    public void setSharingScope(String sharingScope) { this.sharingScope = sharingScope; }
+
+    public String getSharedProgramName() { return sharedProgramName; }
+    public void setSharedProgramName(String sharedProgramName) { this.sharedProgramName = sharedProgramName; }
+
+    public String getSharedTeacherEmail() { return sharedTeacherEmail; }
+    public void setSharedTeacherEmail(String sharedTeacherEmail) { this.sharedTeacherEmail = sharedTeacherEmail; }
 
     public String getOriginalQuestionsJson() { return originalQuestionsJson; }
     public void setOriginalQuestionsJson(String originalQuestionsJson) { this.originalQuestionsJson = originalQuestionsJson; }

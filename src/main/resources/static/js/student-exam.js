@@ -30,7 +30,9 @@ let tabSwitchCount = 0;
 let isExamActive = true;
 let isSubmitting = false;
 let isNavigationLocked = false;
+let autoSubmitScheduled = false;
 const CHOICE_LABEL_REGEX = '(?:[A-Z]{1,3}|\\d{1,4})';
+const INLINE_DOT_CHOICE_LABEL_REGEX = '(?:[A-Z]|\\d{1,4})';
 
 function decodeHtmlEntities(value) {
     const textarea = document.createElement('textarea');
@@ -149,14 +151,20 @@ function extractQuestionParts(rawQuestion) {
         }
     }
 
-    const markerPattern = new RegExp(`(?:\\(\\s*(${CHOICE_LABEL_REGEX})\\s*\\)|\\b(${CHOICE_LABEL_REGEX})[.)])\\s*`, 'gi');
+    const markerPattern = new RegExp(
+        `(?:^|\\s)(?:\\(\\s*(${CHOICE_LABEL_REGEX})\\s*\\)|(${CHOICE_LABEL_REGEX})\\)|(${INLINE_DOT_CHOICE_LABEL_REGEX})\\.)(?=\\s+)`,
+        'gi'
+    );
     const markers = [];
     let match;
     while ((match = markerPattern.exec(plain)) !== null) {
+        const fullMatch = match[0] || '';
+        const markerToken = fullMatch.trimStart();
+        const markerIndex = match.index + (fullMatch.length - markerToken.length);
         markers.push({
-            index: match.index,
-            endIndex: markerPattern.lastIndex,
-            label: (match[1] || match[2] || '').toUpperCase()
+            index: markerIndex,
+            endIndex: markerIndex + markerToken.length,
+            label: (match[1] || match[2] || match[3] || '').toUpperCase()
         });
     }
 
@@ -397,6 +405,55 @@ function appendExamMetaInputs(form) {
     }
 }
 
+function getOrCreateExamSubmitForm() {
+    let form = document.getElementById('examForm');
+    if (!form) {
+        form = document.createElement('form');
+        form.id = 'examForm';
+        document.body.appendChild(form);
+    }
+
+    form.setAttribute('action', '/student/submit');
+    form.setAttribute('method', 'post');
+    form.setAttribute('accept-charset', 'UTF-8');
+    form.innerHTML = '';
+    return form;
+}
+
+function appendAnswerInputs(form) {
+    for (const [key, value] of Object.entries(answers)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    }
+
+    appendExamMetaInputs(form);
+}
+
+function submitExamFormNow(clearLocalStorage) {
+    if (isSubmitting) {
+        return;
+    }
+
+    isSubmitting = true;
+    isExamActive = false;
+
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+
+    const form = getOrCreateExamSubmitForm();
+    appendAnswerInputs(form);
+
+    if (clearLocalStorage) {
+        localStorage.removeItem('examAnswers');
+    }
+
+    form.submit();
+}
+
 function lockNavigationDuringExam() {
     if (isNavigationLocked) {
         return;
@@ -600,7 +657,7 @@ function displayQuestion() {
     
     // Update navigation buttons
     document.getElementById('backBtn').disabled = (currentPage === 0);
-    document.getElementById('nextBtn').textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next →';
+    document.getElementById('nextBtn').textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next';
 }
 
 /**
@@ -747,7 +804,7 @@ async function navigateNext() {
             } finally {
                 if (nextBtn) {
                     nextBtn.disabled = false;
-                    nextBtn.textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next →';
+                    nextBtn.textContent = (currentPage === totalQuestions - 1) ? 'Submit' : 'Next';
                 }
             }
         }
@@ -769,32 +826,7 @@ function submitExam() {
     isExamActive = false;
 
     if (confirm('Are you sure you want to submit your exam? You cannot change your answers after submission.')) {
-        // Clear timer
-        if (timerInterval) {
-            clearInterval(timerInterval);
-        }
-
-        // Mark as submitting so beforeunload doesn't show "Leave site?"
-        isSubmitting = true;
-
-        // Create form and submit
-        const form = document.getElementById('examForm');
-        form.innerHTML = '';
-        
-        for (const [key, value] of Object.entries(answers)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-
-        appendExamMetaInputs(form);
-        
-        // Clear localStorage
-        localStorage.removeItem('examAnswers');
-        
-        form.submit();
+        submitExamFormNow(true);
     } else {
         // Student cancelled — re-enable anti-cheat
         isExamActive = true;
@@ -914,6 +946,13 @@ function checkDeadline(deadlineDate) {
  * Auto-submit exam when time expires
  */
 function autoSubmitExam() {
+    if (isSubmitting || autoSubmitScheduled) {
+        return;
+    }
+
+    autoSubmitScheduled = true;
+    isExamActive = false;
+
     // Show time's up modal
     showTimesUpModal();
     
@@ -921,24 +960,7 @@ function autoSubmitExam() {
     setTimeout(() => {
         console.log('⏰ Time expired - force submitting exam');
         
-        // Suppress "Leave site?" dialog on auto-submit
-        isSubmitting = true;
-
-        // Create form and submit without confirmation
-        const form = document.getElementById('examForm');
-        form.innerHTML = '';
-        
-        for (const [key, value] of Object.entries(answers)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-
-        appendExamMetaInputs(form);
-        
-        form.submit();
+        submitExamFormNow(false);
     }, 3000);
 }
 

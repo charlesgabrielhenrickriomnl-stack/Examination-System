@@ -1,6 +1,7 @@
 package com.exam.Controller;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -10,13 +11,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -24,7 +28,19 @@ import java.util.stream.Collectors;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -48,18 +64,26 @@ import com.exam.entity.User;
 import com.exam.repository.EnrolledStudentRepository;
 import com.exam.repository.ExamSubmissionRepository;
 import com.exam.repository.OriginalProcessedPaperRepository;
-import com.exam.repository.QuestionBankItemRepository;
 import com.exam.repository.SubjectRepository;
 import com.exam.repository.UserRepository;
 import com.exam.service.FisherYatesService;
 import com.exam.service.UploadStorageService;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.lowagie.text.Chunk;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 
 @Controller
 @RequestMapping("/teacher")
 @SuppressWarnings("all")
 public class TeacherController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TeacherController.class);
+
     @Autowired
     private com.exam.repository.DistributedExamRepository distributedExamRepository;
 
@@ -68,6 +92,10 @@ public class TeacherController {
     private static final String SCHOOL_NAME = "Emilio Aguinaldo College";
     private static final String CAMPUS_NAME = "Manila";
     private static final String DEFAULT_IMPORTED_STUDENT_PASSWORD = "Student123!";
+    private static final int ACCESS_OTP_LENGTH = 6;
+    private static final long ACCESS_OTP_VALID_MINUTES = 10L;
+    private static final int DEFAULT_LIST_PAGE_SIZE = 20;
+    private static final int MAX_LIST_PAGE_SIZE = 100;
     private static final List<String> DEPARTMENTS = List.of(
         "ETEEAP",
         "Arts & Sciences",
@@ -117,9 +145,6 @@ public class TeacherController {
     private OriginalProcessedPaperRepository originalProcessedPaperRepository;
 
     @Autowired
-    private QuestionBankItemRepository questionBankItemRepository;
-
-    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -136,6 +161,60 @@ public class TeacherController {
         return "redirect:/teacher/department-dashboard";
     }
 
+    @GetMapping("/loading")
+    public String loading() {
+        return "teacher-loading";
+    }
+
+    @GetMapping("/csv-template")
+    public ResponseEntity<byte[]> downloadCsvTemplate() {
+        String template = String.join("\n",
+            "ID,Difficulty,Question_Text,Choice_A,Choice_B,Choice_C,Choice_D,Correct_Answer",
+            "1,Easy,What does 'URL' stand for?,\"Uniform Resource Locator\",\"Universal Resource Link\",,,A",
+            "2,Medium,Which is an input device?,\"Monitor\",\"Keyboard\",\"Printer\",\"Speaker\",B",
+            "3,Hard,Define 'Software' in your own words.,,,,,\"A set of instructions or programs that tell hardware what to do.\""
+        ) + "\n";
+
+        byte[] content = template.getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=exam-upload-template.csv")
+            .contentType(MediaType.parseMediaType("text/csv"))
+            .body(content);
+    }
+    @GetMapping("/export-exam-with-answers/{format}")
+    public ResponseEntity<byte[]> exportExamWithAnswers(@PathVariable("format") String format,
+                                                        @RequestParam("examId") String examId,
+                                                        Principal principal) {
+        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
+        if (paperOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        OriginalProcessedPaper paper = paperOpt.get();
+        if (!isOwner(principal, paper.getTeacherEmail())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        List<ExportQuestionRow> rows = buildExportQuestionRows(paper);
+        String normalizedFormat = format == null ? "" : format.trim().toLowerCase();
+
+        try {
+            return switch (normalizedFormat) {
+                case "csv" -> buildCsvExportResponse(paper, rows);
+                case "pdf" -> buildPdfExportResponse(paper, rows);
+                case "docx", "word" -> buildDocxExportResponse(paper, rows);
+                default -> ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("Unsupported export format.".getBytes(StandardCharsets.UTF_8));
+            };
+        } catch (Exception exception) {
+            LOGGER.error("Failed to export exam. examId={}, format={}", examId, format, exception);
+            return ResponseEntity.internalServerError()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body("Failed to export exam right now. Please try again.".getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     @GetMapping("/department-dashboard")
     public String departmentDashboard(Model model, Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
@@ -144,6 +223,14 @@ public class TeacherController {
             : subjectRepository.findByTeacherEmail(teacherEmail);
 
         User currentTeacher = teacherEmail.isBlank() ? null : userRepository.findByEmail(teacherEmail).orElse(null);
+        String teacherFullName = currentTeacher == null ? "" : (currentTeacher.getFullName() == null ? "" : currentTeacher.getFullName().trim());
+        if (teacherFullName.isBlank() && !teacherEmail.isBlank()) {
+            int atPos = teacherEmail.indexOf('@');
+            teacherFullName = atPos > 0 ? teacherEmail.substring(0, atPos) : teacherEmail;
+        }
+        if (teacherFullName.isBlank()) {
+            teacherFullName = "Teacher";
+        }
         String departmentName = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
 
         int departmentQuestionCount = 0;
@@ -170,9 +257,16 @@ public class TeacherController {
                 .toList();
 
             if (!departmentTeacherEmails.isEmpty()) {
-                departmentQuestionCount = (int) questionBankItemRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
-                    .filter(item -> item.getSourceTeacherEmail() != null && !item.getSourceTeacherEmail().isBlank())
-                    .filter(item -> departmentTeacherEmails.stream().anyMatch(email -> email.equalsIgnoreCase(item.getSourceTeacherEmail().trim())))
+                Set<String> normalizedDepartmentTeacherEmails = departmentTeacherEmails.stream()
+                    .map(this::normalize)
+                    .filter(value -> !value.isBlank())
+                    .collect(Collectors.toSet());
+
+                departmentQuestionCount = (int) buildTemporaryQuestionBankItems(originalProcessedPaperRepository.findAll()).stream()
+                    .map(QuestionBankItem::getSourceTeacherEmail)
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(this::normalize)
+                    .filter(normalizedDepartmentTeacherEmails::contains)
                     .count();
             }
         }
@@ -181,7 +275,7 @@ public class TeacherController {
         model.addAttribute("teacherSubjectCount", teacherSubjects.size());
         model.addAttribute("departmentSubjects", departmentSubjects);
         model.addAttribute("teacherEmail", teacherEmail);
-        model.addAttribute("teacherName", currentTeacher != null && currentTeacher.getFullName() != null ? currentTeacher.getFullName() : teacherEmail);
+        model.addAttribute("teacherFullName", teacherFullName);
         model.addAttribute("departmentName", departmentName);
         model.addAttribute("departmentTeacherCount", departmentTeacherCount);
         model.addAttribute("departmentQuestionCount", departmentQuestionCount);
@@ -193,7 +287,7 @@ public class TeacherController {
     public String subjects(Model model, Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
         List<Subject> subjects = teacherEmail.isBlank()
-            ? new ArrayList<>()
+            ? new ArrayList<>() 
             : subjectRepository.findByTeacherEmail(teacherEmail);
 
         Map<Long, Integer> enrollmentCountBySubject = new HashMap<>();
@@ -212,46 +306,128 @@ public class TeacherController {
         return "teacher-subjects";
     }
 
-    @GetMapping("/students")
+    @PostMapping("/create-subject")
+    public String createSubject(@RequestParam("subjectName") String subjectName,
+                                @RequestParam(name = "description", required = false) String description,
+                                Principal principal,
+                                RedirectAttributes redirectAttributes) {
+        String teacherEmail = principal != null ? principal.getName() : "";
+        if (teacherEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
+            return "redirect:/teacher/subjects";
+        }
+
+        String normalizedSubjectName = subjectName == null ? "" : subjectName.trim();
+        if (normalizedSubjectName.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject name is required.");
+            return "redirect:/teacher/subjects";
+        }
+
+        boolean duplicateSubject = subjectRepository.findByTeacherEmail(teacherEmail).stream()
+            .map(Subject::getSubjectName)
+            .filter(value -> value != null && !value.isBlank())
+            .anyMatch(value -> value.trim().equalsIgnoreCase(normalizedSubjectName));
+        if (duplicateSubject) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You already have a subject with that name.");
+            return "redirect:/teacher/subjects";
+        }
+
+        String normalizedDescription = description == null ? "" : description.trim();
+        Subject subject = new Subject(normalizedSubjectName,
+            normalizedDescription.isBlank() ? null : normalizedDescription,
+            teacherEmail);
+        subjectRepository.save(subject);
+
+        redirectAttributes.addFlashAttribute("successMessage", "Subject created successfully.");
+        return "redirect:/teacher/subjects";
+    }
+
+    @PostMapping("/delete-subject")
+    public String deleteSubject(@RequestParam("subjectId") Long subjectId,
+                                Principal principal,
+                                RedirectAttributes redirectAttributes) {
+        String teacherEmail = principal != null ? principal.getName() : "";
+        if (teacherEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Optional<Subject> subjectOpt = subjectRepository.findById(subjectId);
+        if (subjectOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject not found.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Subject subject = subjectOpt.get();
+        if (subject.getTeacherEmail() == null || !subject.getTeacherEmail().equalsIgnoreCase(teacherEmail)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You are not allowed to delete this subject.");
+            return "redirect:/teacher/subjects";
+        }
+
+        List<EnrolledStudent> enrollments = enrolledStudentRepository.findBySubjectId(subjectId);
+        int removedEnrollments = enrollments.size();
+        if (!enrollments.isEmpty()) {
+            enrolledStudentRepository.deleteAll(enrollments);
+        }
+        subjectRepository.delete(subject);
+
+        if (removedEnrollments > 0) {
+            redirectAttributes.addFlashAttribute("successMessage",
+                "Subject deleted successfully. " + removedEnrollments + " enrollment(s) removed.");
+        } else {
+            redirectAttributes.addFlashAttribute("successMessage", "Subject deleted successfully.");
+        }
+        return "redirect:/teacher/subjects";
+    }
+
+    @GetMapping("/students") 
     public String studentsAlias() {
         return "redirect:/teacher/subjects";
     }
 
     @GetMapping("/processed-papers")
-    public String processedPapers(@RequestParam(name = "search", required = false) String search, Model model, Principal principal) {
+    public String processedPapers(@RequestParam(name = "search", required = false) String search,
+                                  @RequestParam(name = "page", defaultValue = "0") Integer page,
+                                  @RequestParam(name = "size", defaultValue = "20") Integer size,
+                                  Model model,
+                                  Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
-        List<OriginalProcessedPaper> papers = teacherEmail.isBlank()
-            ? new ArrayList<>()
-            : originalProcessedPaperRepository.findByTeacherEmailOrderByProcessedAtDesc(teacherEmail);
+        int safePage = Math.max(0, page == null ? 0 : page);
+        int safePageSize = normalizePageSize(size);
+        Page<OriginalProcessedPaper> paperPage = findTeacherProcessedPapersPage(teacherEmail, search, safePage, safePageSize);
 
-        String normalizedSearch = normalize(search);
         List<Map<String, Object>> processedExams = new ArrayList<>();
 
-        for (OriginalProcessedPaper paper : papers) {
-            List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
-            if (normalizeQuestionRowsInPlace(questions)) {
-                paper.setOriginalQuestionsJson(gson.toJson(questions));
-                originalProcessedPaperRepository.save(paper);
-            }
-            String combinedText = normalize(paper.getExamName());
-
-            if (!normalizedSearch.isEmpty() && !combinedText.contains(normalizedSearch)) {
-                continue;
-            }
+        for (OriginalProcessedPaper paper : paperPage.getContent()) {
+            String subjectDisplay = paper.getSubject() == null || paper.getSubject().isBlank()
+                ? "Unassigned"
+                : paper.getSubject().trim();
+            int questionCount = resolveStoredQuestionCount(paper);
+            String questionCountLabel = questionCount + " questions";
 
             Map<String, Object> row = new HashMap<>();
+            String ownerEmail = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
             row.put("examId", paper.getExamId());
             row.put("examName", paper.getExamName());
             row.put("subject", paper.getSubject());
+            row.put("subjectDisplay", subjectDisplay);
+            row.put("subjectBadge", subjectDisplay);
             row.put("activityType", paper.getActivityType());
             row.put("uploadedAt", paper.getProcessedAt());
-            row.put("questions", questions);
+            row.put("questionCount", questionCount);
+            row.put("questionCountLabel", questionCountLabel);
+            row.put("questionBadge", questionCountLabel);
+            row.put("ownerEmail", ownerEmail);
+            row.put("isOwnedByCurrentTeacher", true);
+            row.put("scopeLabel", "My Paper");
+            row.put("scopeClass", "processed-scope-owned");
             processedExams.add(row);
         }
 
         model.addAttribute("search", search == null ? "" : search);
         model.addAttribute("processedExams", processedExams);
-        model.addAttribute("totalProcessed", processedExams.size());
+        model.addAttribute("totalProcessed", paperPage.getTotalElements());
+        addPagingAttributes(model, paperPage, safePageSize);
         return "teacher-processed-papers";
     }
 
@@ -262,6 +438,57 @@ public class TeacherController {
             redirectAttributes.addAttribute("search", search);
         }
         return "redirect:/teacher/processed-papers";
+    }
+
+    @GetMapping("/department-papers")
+    public String departmentPapers(@RequestParam(name = "search", required = false) String search,
+                                   @RequestParam(name = "page", defaultValue = "0") Integer page,
+                                   @RequestParam(name = "size", defaultValue = "20") Integer size,
+                                   Model model,
+                                   Principal principal) {
+        String teacherEmail = principal != null ? principal.getName() : "";
+        String currentTeacherEmail = teacherEmail == null ? "" : teacherEmail.trim();
+        User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
+        String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
+        int safePage = Math.max(0, page == null ? 0 : page);
+        int safePageSize = normalizePageSize(size);
+        Page<OriginalProcessedPaper> sharedPage = findDepartmentSharedPapersForTeacher(
+            currentTeacherEmail,
+            currentDepartment,
+            currentProgram,
+            search,
+            safePage,
+            safePageSize
+        );
+
+        List<Map<String, Object>> sharedExams = new ArrayList<>();
+        for (OriginalProcessedPaper paper : sharedPage.getContent()) {
+            String subjectDisplay = paper.getSubject() == null || paper.getSubject().isBlank()
+                ? "Unassigned"
+                : paper.getSubject().trim();
+            int questionCount = resolveStoredQuestionCount(paper);
+            String questionCountLabel = questionCount + " questions";
+
+            Map<String, Object> row = new HashMap<>();
+            row.put("examId", paper.getExamId());
+            row.put("examName", paper.getExamName());
+            row.put("subject", paper.getSubject());
+            row.put("subjectBadge", subjectDisplay);
+            row.put("activityType", paper.getActivityType());
+            row.put("uploadedAt", paper.getProcessedAt());
+            row.put("questionCount", questionCount);
+            row.put("questionBadge", questionCountLabel);
+            row.put("ownerEmail", paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim());
+            sharedExams.add(row);
+        }
+
+        model.addAttribute("search", search == null ? "" : search);
+        model.addAttribute("sharedExams", sharedExams);
+        model.addAttribute("departmentName", currentDepartment);
+        model.addAttribute("totalShared", sharedPage.getTotalElements());
+        addPagingAttributes(model, sharedPage, safePageSize);
+        return "teacher-department-papers";
     }
 
     @GetMapping("/question-bank")
@@ -283,16 +510,20 @@ public class TeacherController {
                                Model model,
                                Principal principal) {
         String teacherEmail = principal != null ? principal.getName() : "";
-        List<QuestionBankItem> sourceItems = (subject == null || subject.isBlank())
-            ? questionBankItemRepository.findAllByOrderByCreatedAtDescIdDesc()
-            : questionBankItemRepository.findBySubjectIgnoreCaseOrderByCreatedAtDescIdDesc(subject.trim());
+        List<QuestionBankItem> allTemporaryItems = buildTemporaryQuestionBankItems(originalProcessedPaperRepository.findAll());
+        List<QuestionBankItem> sourceItems = allTemporaryItems.stream()
+            .filter(item -> subject == null || subject.isBlank()
+                || subject.trim().equalsIgnoreCase(item.getSubject() == null ? "" : item.getSubject().trim()))
+            .sorted(Comparator.comparing(QuestionBankItem::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(QuestionBankItem::getQuestionOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
 
         String normalizedSearch = normalize(search);
         List<Map<String, Object>> questionBankRows = new ArrayList<>();
         TreeSet<String> subjectOptions = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         Map<String, User> uploaderProfilesByEmail = new HashMap<>();
 
-        for (QuestionBankItem item : questionBankItemRepository.findAllByOrderByCreatedAtDescIdDesc()) {
+        for (QuestionBankItem item : allTemporaryItems) {
             if (item.getSubject() != null && !item.getSubject().isBlank()) {
                 subjectOptions.add(item.getSubject().trim());
             }
@@ -334,7 +565,7 @@ public class TeacherController {
             }
 
             Map<String, Object> row = new HashMap<>();
-            row.put("id", item.getId());
+            row.put("id", buildTemporaryQuestionBankItemId(item));
             row.put("questionPreview", preview);
             row.put("subject", item.getSubject());
             row.put("activityType", item.getActivityType());
@@ -449,20 +680,30 @@ public class TeacherController {
             redirectAttributes.addFlashAttribute("errorMessage", "Exam name is required.");
             return "redirect:/teacher/department-dashboard/question-bank";
         }
+        String uniqueExamName = ensureUniqueExamNameForTeacher(principal.getName(), normalizedExamName);
 
+        Set<Long> selectedIds = new LinkedHashSet<>(questionIds);
         Map<Long, QuestionBankItem> itemsById = new LinkedHashMap<>();
-        for (QuestionBankItem item : questionBankItemRepository.findAllById(questionIds)) {
-            itemsById.put(item.getId(), item);
+        for (QuestionBankItem item : buildTemporaryQuestionBankItems(originalProcessedPaperRepository.findAll())) {
+            long tempId = buildTemporaryQuestionBankItemId(item);
+            if (selectedIds.contains(tempId)) {
+                itemsById.put(tempId, item);
+            }
         }
 
         List<Map<String, Object>> questions = new ArrayList<>();
         Map<String, String> difficulties = new LinkedHashMap<>();
         Map<String, String> answerKey = new LinkedHashMap<>();
+        QuestionBankItem firstSelectedItem = null;
 
         for (Long questionId : questionIds) {
             QuestionBankItem item = itemsById.get(questionId);
             if (item == null) {
                 continue;
+            }
+
+            if (firstSelectedItem == null) {
+                firstSelectedItem = item;
             }
 
             Map<String, Object> row = new LinkedHashMap<>();
@@ -481,17 +722,17 @@ public class TeacherController {
         }
 
         String normalizedSubject = (subject == null || subject.isBlank())
-            ? Optional.ofNullable(itemsById.get(questionIds.get(0))).map(QuestionBankItem::getSubject).orElse("General")
+            ? Optional.ofNullable(firstSelectedItem).map(QuestionBankItem::getSubject).orElse("General")
             : subject.trim();
         String normalizedActivityType = (activityType == null || activityType.isBlank())
-            ? Optional.ofNullable(itemsById.get(questionIds.get(0))).map(QuestionBankItem::getActivityType).orElse("Exam")
+            ? Optional.ofNullable(firstSelectedItem).map(QuestionBankItem::getActivityType).orElse("Exam")
             : activityType.trim();
 
         String examId = "EXAM_" + UUID.randomUUID().toString().replace("-", "");
         OriginalProcessedPaper paper = new OriginalProcessedPaper(
             examId,
             principal.getName(),
-            normalizedExamName,
+            uniqueExamName,
             normalizedSubject,
             normalizedActivityType,
             "question-bank-mix",
@@ -499,16 +740,29 @@ public class TeacherController {
             gson.toJson(difficulties),
             gson.toJson(answerKey)
         );
+        paper.setQuestionCount(questions.size());
+
+        String teacherDepartment = userRepository.findByEmail(principal.getName())
+            .map(User::getDepartmentName)
+            .map(String::trim)
+            .orElse("");
+        paper.setDepartmentName(teacherDepartment);
 
         originalProcessedPaperRepository.save(paper);
         syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
-        redirectAttributes.addFlashAttribute("successMessage", "Mixed exam created from the question bank.");
+        if (sameText(uniqueExamName, normalizedExamName)) {
+            redirectAttributes.addFlashAttribute("successMessage", "Mixed exam created from the question bank.");
+        } else {
+            redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Mixed exam created from the question bank as \"" + uniqueExamName + "\" (name already existed)."
+            );
+        }
         return "redirect:/teacher/manage-questions/" + examId;
     }
 
     @PostMapping("/process-exams-upload")
     public String processExamsUpload(@RequestParam("examCreated") MultipartFile examCreated,
-                                     @RequestParam(value = "answerKeyPdf", required = false) MultipartFile answerKeyPdf,
                                      @RequestParam(value = "quizName", required = false) String quizName,
                                      @RequestParam("subject") String subject,
                                      @RequestParam("activityType") String activityType,
@@ -526,11 +780,12 @@ public class TeacherController {
             }
 
             List<Map<String, Object>> questions = parseExamFile(examCreated);
-            Map<String, String> answerKeyMap = parseAnswerKey(questions, answerKeyPdf);
+            Map<String, String> answerKeyMap = parseAnswerKey(questions, null);
             Map<String, String> difficulties = buildDifficultiesFromQuestions(questions);
 
             String originalFilename = examCreated.getOriginalFilename();
-            String generatedExamName = deriveExamName(quizName, originalFilename);
+            String requestedExamName = deriveExamName(quizName, originalFilename);
+            String generatedExamName = ensureUniqueExamNameForTeacher(principal.getName(), requestedExamName);
             String examId = "EXAM_" + UUID.randomUUID().toString().replace("-", "");
 
             OriginalProcessedPaper paper = new OriginalProcessedPaper(
@@ -544,32 +799,34 @@ public class TeacherController {
                 gson.toJson(difficulties),
                 gson.toJson(answerKeyMap)
             );
+            paper.setQuestionCount(questions.size());
 
-            UploadStorageService.StoredFile sourceFile = uploadStorageService.store(
+            String teacherDepartment = userRepository.findByEmail(principal.getName())
+                .map(User::getDepartmentName)
+                .map(String::trim)
+                .orElse("");
+            paper.setDepartmentName(teacherDepartment);
+
+            UploadStorageService.StoredFile storedExamFile = uploadStorageService.store(
                 "processed-exams",
                 principal.getName(),
                 examCreated
             );
-            paper.setSourceFilename(sourceFile.originalFilename());
-            paper.setSourceFilePath(sourceFile.relativePath());
-            paper.setSourceFileChecksum(sourceFile.checksum());
-            paper.setSourceFileSize(sourceFile.size());
-
-            if (answerKeyPdf != null && !answerKeyPdf.isEmpty()) {
-                UploadStorageService.StoredFile answerKeyFile = uploadStorageService.store(
-                    "processed-exams-answer-keys",
-                    principal.getName(),
-                    answerKeyPdf
-                );
-                paper.setAnswerKeyFilename(answerKeyFile.originalFilename());
-                paper.setAnswerKeyFilePath(answerKeyFile.relativePath());
-                paper.setAnswerKeyFileChecksum(answerKeyFile.checksum());
-                paper.setAnswerKeyFileSize(answerKeyFile.size());
-            }
+            paper.setSourceFilename(storedExamFile.originalFilename());
+            paper.setSourceFilePath(storedExamFile.relativePath());
+            paper.setSourceFileChecksum(storedExamFile.checksum());
+            paper.setSourceFileSize(storedExamFile.size());
 
             originalProcessedPaperRepository.save(paper);
             syncQuestionBankForPaper(paper, questions, difficulties, answerKeyMap);
-            redirectAttributes.addFlashAttribute("successMessage", "Exam processed successfully.");
+            if (sameText(generatedExamName, requestedExamName)) {
+                redirectAttributes.addFlashAttribute("successMessage", "Exam processed successfully.");
+            } else {
+                redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    "Exam processed successfully as \"" + generatedExamName + "\" (name already existed)."
+                );
+            }
             return "redirect:/teacher/processed-papers";
         } catch (Exception exception) {
             redirectAttributes.addFlashAttribute("errorMessage", "Failed to process exam: " + exception.getMessage());
@@ -582,20 +839,57 @@ public class TeacherController {
                                        @RequestParam(name = "questionSearch", required = false) String questionSearch,
                                        Model model,
                                        Principal principal) {
+        String currentTeacherEmail = principal == null ? "" : (principal.getName() == null ? "" : principal.getName().trim());
         Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
         if (paperOpt.isEmpty()) {
             return "redirect:/teacher/processed-papers";
         }
 
         OriginalProcessedPaper paper = paperOpt.get();
-        String teacherEmail = principal != null ? principal.getName() : "";
-        if (!teacherEmail.isBlank() && !teacherEmail.equalsIgnoreCase(paper.getTeacherEmail())) {
+        boolean isOwnedByCurrentTeacher = matchesTeacherOwner(currentTeacherEmail, paper.getTeacherEmail());
+        if (!isOwnedByCurrentTeacher) {
+            return "redirect:/teacher/processed-papers";
+        }
+
+        return renderProcessedPaperDetail(paper, true, questionSearch, false, model);
+    }
+
+    @GetMapping("/department-papers/{examId}")
+    public String departmentPaperDetail(@PathVariable("examId") String examId,
+                                        @RequestParam(name = "questionSearch", required = false) String questionSearch,
+                                        Model model,
+                                        Principal principal) {
+        String currentTeacherEmail = principal == null ? "" : (principal.getName() == null ? "" : principal.getName().trim());
+        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
+        if (paperOpt.isEmpty()) {
+            return "redirect:/teacher/department-papers";
+        }
+
+        OriginalProcessedPaper paper = paperOpt.get();
+        User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
+        String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
+
+        if (!isDepartmentPaperVisibleToTeacher(paper, currentTeacherEmail, currentDepartment, currentProgram)) {
+            return "redirect:/teacher/department-papers";
+        }
+
+        return renderProcessedPaperDetail(paper, false, questionSearch, true, model);
+    }
+
+    private String renderProcessedPaperDetail(OriginalProcessedPaper paper,
+                                              boolean isOwnedByCurrentTeacher,
+                                              String questionSearch,
+                                              boolean backToDepartmentPapers,
+                                              Model model) {
+        if (paper == null) {
             return "redirect:/teacher/processed-papers";
         }
 
         List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
         if (normalizeQuestionRowsInPlace(questions)) {
             paper.setOriginalQuestionsJson(gson.toJson(questions));
+            paper.setQuestionCount(questions.size());
             originalProcessedPaperRepository.save(paper);
         }
         Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
@@ -606,6 +900,9 @@ public class TeacherController {
         int displayNumber = 1;
         for (int index = 0; index < questions.size(); index++) {
             Map<String, Object> question = questions.get(index);
+            if (question == null) {
+                continue;
+            }
             String number = String.valueOf(index + 1);
             String answerText = answerKey.getOrDefault(number, "Not Set");
             String difficulty = difficulties.getOrDefault(number, "Medium");
@@ -623,6 +920,7 @@ public class TeacherController {
 
             Map<String, Object> row = new HashMap<>();
             row.put("number", displayNumber++);
+            row.put("sourceNumber", index + 1);
             row.put("question", questionPreview);
             row.put("answer", answerText);
             row.put("difficulty", difficulty);
@@ -635,10 +933,13 @@ public class TeacherController {
         exam.put("subject", paper.getSubject());
         exam.put("activityType", paper.getActivityType());
         exam.put("uploadedAt", paper.getProcessedAt());
+        exam.put("ownerEmail", paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim());
 
         model.addAttribute("exam", exam);
+        model.addAttribute("isOwnedByCurrentTeacher", isOwnedByCurrentTeacher);
         model.addAttribute("questionRows", questionRows);
         model.addAttribute("questionSearch", questionSearch == null ? "" : questionSearch);
+        model.addAttribute("backToDepartmentPapers", backToDepartmentPapers);
         return "teacher-processed-paper-detail";
     }
 
@@ -650,6 +951,213 @@ public class TeacherController {
             redirectAttributes.addAttribute("questionSearch", questionSearch);
         }
         return "redirect:/teacher/processed-papers/" + examId;
+    }
+
+    @PostMapping("/department-papers/{examId}")
+    public String departmentPaperDetailPostRedirect(@PathVariable("examId") String examId,
+                                                    @RequestParam(name = "questionSearch", required = false) String questionSearch,
+                                                    RedirectAttributes redirectAttributes) {
+        if (questionSearch != null && !questionSearch.isBlank()) {
+            redirectAttributes.addAttribute("questionSearch", questionSearch);
+        }
+        return "redirect:/teacher/department-papers/" + examId;
+    }
+
+    @PostMapping("/processed-papers/{examId}/pull")
+    public String pullProcessedPaper(@PathVariable("examId") String examId,
+                                     Principal principal,
+                                     RedirectAttributes redirectAttributes) {
+        String currentTeacherEmail = principal == null ? "" : (principal.getName() == null ? "" : principal.getName().trim());
+        if (currentTeacherEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
+            return "redirect:/teacher/department-papers";
+        }
+
+        Optional<OriginalProcessedPaper> sourceOpt = originalProcessedPaperRepository.findByExamId(examId);
+        if (sourceOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Processed paper not found.");
+            return "redirect:/teacher/department-papers";
+        }
+
+        OriginalProcessedPaper source = sourceOpt.get();
+        if (matchesTeacherOwner(currentTeacherEmail, source.getTeacherEmail())) {
+            redirectAttributes.addFlashAttribute("successMessage", "This paper is already in your workspace.");
+            return "redirect:/teacher/manage-questions/" + source.getExamId();
+        }
+
+        User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
+        String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
+
+        Map<String, String> ownerDepartmentCache = new HashMap<>();
+        String sourceDepartment = resolvePaperDepartment(source, ownerDepartmentCache);
+        if (!isDepartmentPaperVisibleToTeacher(source, currentTeacherEmail, currentDepartment, currentProgram)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "This paper is not shared with your account.");
+            return "redirect:/teacher/department-papers";
+        }
+
+        String copiedExamId = "EXAM_" + UUID.randomUUID().toString().replace("-", "");
+        String clonedExamName = ensureUniqueExamNameForTeacher(currentTeacherEmail, source.getExamName());
+
+        OriginalProcessedPaper clone = new OriginalProcessedPaper(
+            copiedExamId,
+            currentTeacherEmail,
+            clonedExamName,
+            source.getSubject(),
+            source.getActivityType(),
+            source.getSourceFilename(),
+            source.getOriginalQuestionsJson(),
+            source.getDifficultiesJson(),
+            source.getAnswerKeyJson()
+        );
+        clone.setQuestionCount(resolveStoredQuestionCount(source));
+
+        clone.setDepartmentName(currentDepartment.isBlank() ? sourceDepartment : currentDepartment);
+        clone.setSourceFilePath(source.getSourceFilePath());
+        clone.setSourceFileChecksum(source.getSourceFileChecksum());
+        clone.setSourceFileSize(source.getSourceFileSize());
+        clone.setAnswerKeyFilename(source.getAnswerKeyFilename());
+        clone.setAnswerKeyFilePath(source.getAnswerKeyFilePath());
+        clone.setAnswerKeyFileChecksum(source.getAnswerKeyFileChecksum());
+        clone.setAnswerKeyFileSize(source.getAnswerKeyFileSize());
+
+        originalProcessedPaperRepository.save(clone);
+
+        List<Map<String, Object>> clonedQuestions = parseQuestionsJson(clone.getOriginalQuestionsJson());
+        Map<String, String> clonedDifficulties = parseSimpleMapJson(clone.getDifficultiesJson());
+        Map<String, String> clonedAnswerKey = parseSimpleMapJson(clone.getAnswerKeyJson());
+        syncQuestionBankForPaper(clone, clonedQuestions, clonedDifficulties, clonedAnswerKey);
+
+        redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Paper pulled successfully as \"" + clonedExamName + "\". You can now edit and add questions."
+        );
+        return "redirect:/teacher/manage-questions/" + copiedExamId;
+    }
+
+    @PostMapping("/processed-papers/{examId}/pick-questions")
+    public String createQuizFromSelectedQuestions(@PathVariable("examId") String examId,
+                                                   @RequestParam(name = "selectedQuestionNumbers", required = false) List<Integer> selectedQuestionNumbers,
+                                                   @RequestParam(name = "examName", required = false) String examName,
+                                                   Principal principal,
+                                                   RedirectAttributes redirectAttributes) {
+        String currentTeacherEmail = principal == null ? "" : (principal.getName() == null ? "" : principal.getName().trim());
+        if (currentTeacherEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to identify teacher account.");
+            return "redirect:/teacher/department-papers";
+        }
+
+        Optional<OriginalProcessedPaper> sourceOpt = originalProcessedPaperRepository.findByExamId(examId);
+        if (sourceOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Processed paper not found.");
+            return "redirect:/teacher/department-papers";
+        }
+
+        OriginalProcessedPaper source = sourceOpt.get();
+        User currentTeacher = userRepository.findByEmail(currentTeacherEmail).orElse(null);
+        String currentDepartment = currentTeacher == null ? "" : (currentTeacher.getDepartmentName() == null ? "" : currentTeacher.getDepartmentName().trim());
+        String currentProgram = currentTeacher == null ? "" : (currentTeacher.getProgramName() == null ? "" : currentTeacher.getProgramName().trim());
+
+        User owner = source.getTeacherEmail() == null || source.getTeacherEmail().isBlank()
+            ? null
+            : userRepository.findByEmail(source.getTeacherEmail().trim()).orElse(null);
+
+        Map<String, String> ownerDepartmentCache = new HashMap<>();
+        if (owner != null && owner.getEmail() != null) {
+            ownerDepartmentCache.put(normalize(owner.getEmail()), owner.getDepartmentName() == null ? "" : owner.getDepartmentName().trim());
+        }
+
+        String sourceDepartment = resolvePaperDepartment(source, ownerDepartmentCache);
+
+        boolean sameOwner = matchesTeacherOwner(currentTeacherEmail, source.getTeacherEmail());
+        if (!sameOwner && !isDepartmentPaperVisibleToTeacher(source, currentTeacherEmail, currentDepartment, currentProgram)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "This paper is not shared with your account.");
+            return "redirect:/teacher/department-papers/" + examId;
+        }
+
+        LinkedHashSet<Integer> selected = new LinkedHashSet<>();
+        if (selectedQuestionNumbers != null) {
+            for (Integer selectedQuestionNumber : selectedQuestionNumbers) {
+                if (selectedQuestionNumber != null && selectedQuestionNumber > 0) {
+                    selected.add(selectedQuestionNumber);
+                }
+            }
+        }
+
+        if (selected.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Select at least one question to create your quiz.");
+            return "redirect:/teacher/department-papers/" + examId;
+        }
+
+        List<Map<String, Object>> sourceQuestions = parseQuestionsJson(source.getOriginalQuestionsJson());
+        Map<String, String> sourceDifficulties = parseSimpleMapJson(source.getDifficultiesJson());
+        Map<String, String> sourceAnswerKey = parseSimpleMapJson(source.getAnswerKeyJson());
+
+        List<Map<String, Object>> selectedQuestions = new ArrayList<>();
+        Map<String, String> selectedDifficulties = new LinkedHashMap<>();
+        Map<String, String> selectedAnswerKey = new LinkedHashMap<>();
+
+        for (Integer sourceNumber : selected) {
+            int sourceIndex = sourceNumber - 1;
+            if (sourceIndex < 0 || sourceIndex >= sourceQuestions.size()) {
+                continue;
+            }
+
+            Map<String, Object> sourceRow = sourceQuestions.get(sourceIndex);
+            selectedQuestions.add(sourceRow == null ? new LinkedHashMap<>() : new LinkedHashMap<>(sourceRow));
+
+            int newIndex = selectedQuestions.size();
+            String sourceKey = String.valueOf(sourceNumber);
+            String targetKey = String.valueOf(newIndex);
+            selectedDifficulties.put(targetKey, sourceDifficulties.getOrDefault(sourceKey, "Medium"));
+            selectedAnswerKey.put(targetKey, sourceAnswerKey.getOrDefault(sourceKey, ""));
+        }
+
+        if (selectedQuestions.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Selected questions could not be resolved.");
+            return "redirect:/teacher/department-papers/" + examId;
+        }
+
+        String requestedExamName = examName == null ? "" : examName.trim();
+        if (requestedExamName.isBlank()) {
+            requestedExamName = (source.getExamName() == null || source.getExamName().isBlank())
+                ? "Picked Quiz"
+                : source.getExamName().trim() + " (Selected)";
+        }
+
+        String uniqueExamName = ensureUniqueExamNameForTeacher(currentTeacherEmail, requestedExamName);
+        String copiedExamId = "EXAM_" + UUID.randomUUID().toString().replace("-", "");
+
+        OriginalProcessedPaper clone = new OriginalProcessedPaper(
+            copiedExamId,
+            currentTeacherEmail,
+            uniqueExamName,
+            source.getSubject(),
+            source.getActivityType(),
+            source.getSourceFilename(),
+            gson.toJson(selectedQuestions),
+            gson.toJson(selectedDifficulties),
+            gson.toJson(selectedAnswerKey)
+        );
+        clone.setQuestionCount(selectedQuestions.size());
+
+        clone.setDepartmentName(currentDepartment.isBlank() ? sourceDepartment : currentDepartment);
+        clone.setSourceFilePath(source.getSourceFilePath());
+        clone.setSourceFileChecksum(source.getSourceFileChecksum());
+        clone.setSourceFileSize(source.getSourceFileSize());
+        clone.setAnswerKeyFilename(source.getAnswerKeyFilename());
+        clone.setAnswerKeyFilePath(source.getAnswerKeyFilePath());
+        clone.setAnswerKeyFileChecksum(source.getAnswerKeyFileChecksum());
+        clone.setAnswerKeyFileSize(source.getAnswerKeyFileSize());
+
+        originalProcessedPaperRepository.save(clone);
+        syncQuestionBankForPaper(clone, selectedQuestions, selectedDifficulties, selectedAnswerKey);
+
+        redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Created \"" + uniqueExamName + "\" from selected questions."
+        );
+        return "redirect:/teacher/manage-questions/" + copiedExamId;
     }
 
     @PostMapping("/processed-papers/{examId}/delete")
@@ -713,6 +1221,7 @@ public class TeacherController {
 
         if (repaired > 0) {
             paper.setOriginalQuestionsJson(gson.toJson(questions));
+            paper.setQuestionCount(questions.size());
             originalProcessedPaperRepository.save(paper);
             syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
             redirectAttributes.addFlashAttribute("successMessage", repaired + " question row(s) repaired.");
@@ -742,6 +1251,7 @@ public class TeacherController {
         List<Map<String, Object>> questionRows = parseQuestionsJson(paper.getOriginalQuestionsJson());
         if (normalizeQuestionRowsInPlace(questionRows)) {
             paper.setOriginalQuestionsJson(gson.toJson(questionRows));
+            paper.setQuestionCount(questionRows.size());
             originalProcessedPaperRepository.save(paper);
         }
         Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
@@ -816,48 +1326,62 @@ public class TeacherController {
             return "redirect:/teacher/processed-papers";
         }
 
-        List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
-        Map<String, String> difficulties = parseSimpleMapJson(paper.getDifficultiesJson());
-        Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
+        try {
+            List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
+            Map<String, String> difficulties = parseSimpleMapJson(paper.getDifficultiesJson());
+            Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
 
-        Map<String, Object> newQuestion = new HashMap<>();
-        String normalizedQuestion = normalizeQuestionHtml(questionText);
-        boolean openEnded = "OPEN_ENDED".equalsIgnoreCase(questionType);
+            Map<String, Object> newQuestion = new HashMap<>();
+            String normalizedQuestion = normalizeQuestionHtml(questionText);
+            boolean openEnded = "OPEN_ENDED".equalsIgnoreCase(questionType);
 
-        if (openEnded && !normalizedQuestion.startsWith("[TEXT_INPUT]")) {
-            normalizedQuestion = "[TEXT_INPUT]" + normalizedQuestion;
-        }
+            if (openEnded && !normalizedQuestion.startsWith("[TEXT_INPUT]")) {
+                normalizedQuestion = "[TEXT_INPUT]" + normalizedQuestion;
+            }
 
-        newQuestion.put("question", normalizedQuestion);
+            newQuestion.put("question", normalizedQuestion);
 
-        List<String> choices = new ArrayList<>();
-        if (!openEnded && choicesText != null && !choicesText.isBlank()) {
-            for (String line : choicesText.split("\\r?\\n")) {
-                String normalizedChoice = normalizeMathSymbols(line);
-                if (!normalizedChoice.isBlank()) {
-                    choices.add(normalizedChoice);
+            List<String> choices = new ArrayList<>();
+            if (!openEnded && choicesText != null && !choicesText.isBlank()) {
+                for (String line : choicesText.split("\\r?\\n")) {
+                    String normalizedChoice = normalizeMathSymbols(line);
+                    if (!normalizedChoice.isBlank()) {
+                        choices.add(normalizedChoice);
+                    }
                 }
             }
+            newQuestion.put("choices", choices);
+            applyDefaultItemParameters(newQuestion, normalizeDifficulty(difficulty));
+
+            int newNumber = questions.size() + 1;
+            String key = String.valueOf(newNumber);
+            questions.add(newQuestion);
+            difficulties.put(key, normalizeMathSymbols(difficulty).isBlank() ? "Medium" : normalizeMathSymbols(difficulty));
+            String normalizedAnswer = normalizeMathSymbols(answer);
+            answerKey.put(key, openEnded
+                ? (normalizedAnswer.isBlank() ? "MANUAL_GRADE" : normalizedAnswer)
+                : normalizedAnswer);
+
+            paper.setOriginalQuestionsJson(gson.toJson(questions));
+            paper.setDifficultiesJson(gson.toJson(difficulties));
+            paper.setAnswerKeyJson(gson.toJson(answerKey));
+            paper.setQuestionCount(questions.size());
+            originalProcessedPaperRepository.save(paper);
+
+            try {
+                syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
+            } catch (Exception syncException) {
+                LOGGER.error("Question bank sync failed after adding question. examId={}", examId, syncException);
+                redirectAttributes.addFlashAttribute("warningMessage",
+                    "Question was added, but question bank sync encountered an issue.");
+            }
+
+            redirectAttributes.addFlashAttribute("successMessage", "Question added successfully.");
+        } catch (Exception exception) {
+            LOGGER.error("Failed to add question. examId={}", examId, exception);
+            redirectAttributes.addFlashAttribute("errorMessage",
+                "Unable to add question due to invalid pasted formatting. Please paste as plain text and try again.");
         }
-        newQuestion.put("choices", choices);
-        applyDefaultItemParameters(newQuestion, normalizeDifficulty(difficulty));
-
-        int newNumber = questions.size() + 1;
-        String key = String.valueOf(newNumber);
-        questions.add(newQuestion);
-        difficulties.put(key, normalizeMathSymbols(difficulty).isBlank() ? "Medium" : normalizeMathSymbols(difficulty));
-        String normalizedAnswer = normalizeMathSymbols(answer);
-        answerKey.put(key, openEnded
-            ? (normalizedAnswer.isBlank() ? "MANUAL_GRADE" : normalizedAnswer)
-            : normalizedAnswer);
-
-        paper.setOriginalQuestionsJson(gson.toJson(questions));
-        paper.setDifficultiesJson(gson.toJson(difficulties));
-        paper.setAnswerKeyJson(gson.toJson(answerKey));
-        originalProcessedPaperRepository.save(paper);
-        syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
-
-        redirectAttributes.addFlashAttribute("successMessage", "Question added successfully.");
         return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
     }
 
@@ -883,39 +1407,56 @@ public class TeacherController {
             return "redirect:/teacher/processed-papers";
         }
 
-        List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
-        if (questionIndex == null || questionIndex < 0 || questionIndex >= questions.size()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Invalid question index.");
-            return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
+        try {
+            List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
+            if (questionIndex == null || questionIndex < 0 || questionIndex >= questions.size()) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Invalid question index.");
+                return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
+            }
+
+            Map<String, String> difficulties = parseSimpleMapJson(paper.getDifficultiesJson());
+            Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
+
+            boolean openEnded = "OPEN_ENDED".equalsIgnoreCase(questionType);
+            String normalizedQuestion = normalizeQuestionHtml(questionText);
+            if (openEnded && !normalizedQuestion.startsWith("[TEXT_INPUT]")) {
+                normalizedQuestion = "[TEXT_INPUT]" + normalizedQuestion;
+            }
+
+            Map<String, Object> target = questions.get(questionIndex);
+            target.put("question", normalizedQuestion);
+            applyDefaultItemParameters(target, normalizeDifficulty(difficulty));
+
+            String key = String.valueOf(questionIndex + 1);
+            difficulties.put(key, normalizeMathSymbols(difficulty).isBlank() ? "Medium" : normalizeMathSymbols(difficulty));
+            String normalizedAnswer = normalizeMathSymbols(answer);
+            answerKey.put(key, openEnded
+                ? (normalizedAnswer.isBlank() ? "MANUAL_GRADE" : normalizedAnswer)
+                : normalizedAnswer);
+
+            paper.setOriginalQuestionsJson(gson.toJson(questions));
+            paper.setDifficultiesJson(gson.toJson(difficulties));
+            paper.setAnswerKeyJson(gson.toJson(answerKey));
+            paper.setQuestionCount(questions.size());
+            originalProcessedPaperRepository.save(paper);
+
+            try {
+                syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
+            } catch (Exception syncException) {
+                LOGGER.error("Question bank sync failed after editing question. examId={}, questionIndex={}",
+                    examId,
+                    questionIndex,
+                    syncException);
+                redirectAttributes.addFlashAttribute("warningMessage",
+                    "Question was updated, but question bank sync encountered an issue.");
+            }
+
+            redirectAttributes.addFlashAttribute("successMessage", "Question updated successfully.");
+        } catch (Exception exception) {
+            LOGGER.error("Failed to edit question. examId={}, questionIndex={}", examId, questionIndex, exception);
+            redirectAttributes.addFlashAttribute("errorMessage",
+                "Unable to update question due to invalid pasted formatting. Please paste as plain text and try again.");
         }
-
-        Map<String, String> difficulties = parseSimpleMapJson(paper.getDifficultiesJson());
-        Map<String, String> answerKey = parseSimpleMapJson(paper.getAnswerKeyJson());
-
-        boolean openEnded = "OPEN_ENDED".equalsIgnoreCase(questionType);
-        String normalizedQuestion = normalizeQuestionHtml(questionText);
-        if (openEnded && !normalizedQuestion.startsWith("[TEXT_INPUT]")) {
-            normalizedQuestion = "[TEXT_INPUT]" + normalizedQuestion;
-        }
-
-        Map<String, Object> target = questions.get(questionIndex);
-        target.put("question", normalizedQuestion);
-        applyDefaultItemParameters(target, normalizeDifficulty(difficulty));
-
-        String key = String.valueOf(questionIndex + 1);
-        difficulties.put(key, normalizeMathSymbols(difficulty).isBlank() ? "Medium" : normalizeMathSymbols(difficulty));
-        String normalizedAnswer = normalizeMathSymbols(answer);
-        answerKey.put(key, openEnded
-            ? (normalizedAnswer.isBlank() ? "MANUAL_GRADE" : normalizedAnswer)
-            : normalizedAnswer);
-
-        paper.setOriginalQuestionsJson(gson.toJson(questions));
-        paper.setDifficultiesJson(gson.toJson(difficulties));
-        paper.setAnswerKeyJson(gson.toJson(answerKey));
-        originalProcessedPaperRepository.save(paper);
-        syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
-
-        redirectAttributes.addFlashAttribute("successMessage", "Question updated successfully.");
         return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
     }
 
@@ -937,23 +1478,39 @@ public class TeacherController {
             return "redirect:/teacher/processed-papers";
         }
 
-        List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
-        if (questionIndex == null || questionIndex < 0 || questionIndex >= questions.size()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Invalid question index.");
-            return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
+        try {
+            List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
+            if (questionIndex == null || questionIndex < 0 || questionIndex >= questions.size()) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Invalid question index.");
+                return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
+            }
+
+            questions.remove((int) questionIndex);
+            Map<String, String> difficulties = reindexMap(parseSimpleMapJson(paper.getDifficultiesJson()), questions.size());
+            Map<String, String> answerKey = reindexMap(parseSimpleMapJson(paper.getAnswerKeyJson()), questions.size());
+
+            paper.setOriginalQuestionsJson(gson.toJson(questions));
+            paper.setDifficultiesJson(gson.toJson(difficulties));
+            paper.setAnswerKeyJson(gson.toJson(answerKey));
+            paper.setQuestionCount(questions.size());
+            originalProcessedPaperRepository.save(paper);
+
+            try {
+                syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
+            } catch (Exception syncException) {
+                LOGGER.error("Question bank sync failed after deleting question. examId={}, questionIndex={}",
+                    examId,
+                    questionIndex,
+                    syncException);
+                redirectAttributes.addFlashAttribute("warningMessage",
+                    "Question was deleted, but question bank sync encountered an issue.");
+            }
+
+            redirectAttributes.addFlashAttribute("successMessage", "Question deleted successfully.");
+        } catch (Exception exception) {
+            LOGGER.error("Failed to delete question. examId={}, questionIndex={}", examId, questionIndex, exception);
+            redirectAttributes.addFlashAttribute("errorMessage", "Unable to delete question right now. Please try again.");
         }
-
-        questions.remove((int) questionIndex);
-        Map<String, String> difficulties = reindexMap(parseSimpleMapJson(paper.getDifficultiesJson()), questions.size());
-        Map<String, String> answerKey = reindexMap(parseSimpleMapJson(paper.getAnswerKeyJson()), questions.size());
-
-        paper.setOriginalQuestionsJson(gson.toJson(questions));
-        paper.setDifficultiesJson(gson.toJson(difficulties));
-        paper.setAnswerKeyJson(gson.toJson(answerKey));
-        originalProcessedPaperRepository.save(paper);
-        syncQuestionBankForPaper(paper, questions, difficulties, answerKey);
-
-        redirectAttributes.addFlashAttribute("successMessage", "Question deleted successfully.");
         return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
     }
 
@@ -971,9 +1528,7 @@ public class TeacherController {
         }
 
         List<EnrolledStudent> enrolledStudents = enrolledStudentRepository.findBySubjectId(id);
-        List<OriginalProcessedPaper> teacherPapers = teacherEmail.isBlank()
-            ? new ArrayList<>()
-            : originalProcessedPaperRepository.findByTeacherEmailOrderByProcessedAtDesc(teacherEmail);
+        List<OriginalProcessedPaper> teacherPapers = findTeacherProcessedPapers(teacherEmail);
 
         List<Map<String, Object>> uploadedExams = new ArrayList<>();
         for (OriginalProcessedPaper paper : teacherPapers) {
@@ -1008,7 +1563,16 @@ public class TeacherController {
         List<User> allStudents = userRepository.findAll().stream()
             .filter(user -> user != null && user.getRole() == User.Role.STUDENT)
             .toList();
+
+        String currentTeacherDepartment = userRepository.findByEmail(teacherEmail)
+            .map(User::getDepartmentName)
+            .map(String::trim)
+            .orElse("");
+        List<String> currentTeacherPrograms = AcademicCatalog.programsForDepartment(currentTeacherDepartment);
+
         model.addAttribute("allStudents", allStudents);
+        model.addAttribute("currentTeacherDepartment", currentTeacherDepartment);
+        model.addAttribute("currentTeacherPrograms", currentTeacherPrograms);
         model.addAttribute("departmentOptions", DEPARTMENTS);
 
         List<DistributedExam> distributedExams = distributedExamRepository.findAll().stream()
@@ -1043,7 +1607,8 @@ public class TeacherController {
 
     @PostMapping("/enroll-student")
     public String enrollStudent(@RequestParam("subjectId") Long subjectId,
-                                @RequestParam("studentEmail") String studentEmail,
+                                @RequestParam(name = "studentEmail", required = false) String studentEmail,
+                                @RequestParam(name = "selectedStudents", required = false) List<String> selectedStudents,
                                 Principal principal,
                                 RedirectAttributes redirectAttributes) {
         Optional<Subject> subjectOpt = subjectRepository.findById(subjectId);
@@ -1058,37 +1623,70 @@ public class TeacherController {
             return "redirect:/teacher/subjects";
         }
 
-        String normalizedEmail = studentEmail == null ? "" : studentEmail.trim().toLowerCase();
-        if (normalizedEmail.isBlank()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Please select a student.");
+        Set<String> normalizedEmails = new LinkedHashSet<>();
+        if (selectedStudents != null) {
+            selectedStudents.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase())
+                .forEach(normalizedEmails::add);
+        }
+        if (normalizedEmails.isEmpty() && studentEmail != null && !studentEmail.isBlank()) {
+            normalizedEmails.add(studentEmail.trim().toLowerCase());
+        }
+
+        if (normalizedEmails.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please select at least one student.");
             return "redirect:/teacher/subject-classroom/" + subjectId;
         }
 
-        Optional<User> studentOpt = userRepository.findByEmail(normalizedEmail);
-        if (studentOpt.isEmpty() || studentOpt.get().getRole() != User.Role.STUDENT) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Student account not found.");
+        int enrolledCount = 0;
+        int alreadyEnrolledCount = 0;
+        int invalidCount = 0;
+
+        for (String normalizedEmail : normalizedEmails) {
+            Optional<User> studentOpt = userRepository.findByEmail(normalizedEmail);
+            if (studentOpt.isEmpty() || studentOpt.get().getRole() != User.Role.STUDENT) {
+                invalidCount += 1;
+                continue;
+            }
+
+            if (enrolledStudentRepository.findByTeacherEmailAndStudentEmailAndSubjectId(subject.getTeacherEmail(), normalizedEmail, subjectId).isPresent()) {
+                alreadyEnrolledCount += 1;
+                continue;
+            }
+
+            User student = studentOpt.get();
+            String studentName = (student.getFullName() == null || student.getFullName().isBlank())
+                ? normalizedEmail
+                : student.getFullName().trim();
+            EnrolledStudent enrollment = new EnrolledStudent(
+                subject.getTeacherEmail(),
+                normalizedEmail,
+                studentName,
+                subject.getId(),
+                subject.getSubjectName()
+            );
+            enrolledStudentRepository.save(enrollment);
+            enrolledCount += 1;
+        }
+
+        if (enrolledCount == 0) {
+            if (alreadyEnrolledCount > 0 && invalidCount == 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Selected students are already enrolled in this subject.");
+            } else if (alreadyEnrolledCount == 0 && invalidCount > 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "No valid student accounts found in the selected list.");
+            } else {
+                redirectAttributes.addFlashAttribute("errorMessage",
+                    "No students were enrolled. " + alreadyEnrolledCount + " already enrolled, " + invalidCount + " invalid.");
+            }
             return "redirect:/teacher/subject-classroom/" + subjectId;
         }
 
-        if (enrolledStudentRepository.findByTeacherEmailAndStudentEmailAndSubjectId(subject.getTeacherEmail(), normalizedEmail, subjectId).isPresent()) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Student is already enrolled in this subject.");
-            return "redirect:/teacher/subject-classroom/" + subjectId;
+        redirectAttributes.addFlashAttribute("successMessage", enrolledCount + " student(s) enrolled successfully.");
+        if (alreadyEnrolledCount > 0 || invalidCount > 0) {
+            redirectAttributes.addFlashAttribute("warningMessage",
+                "Skipped " + alreadyEnrolledCount + " already enrolled and " + invalidCount + " invalid account(s).");
         }
-
-        User student = studentOpt.get();
-        String studentName = (student.getFullName() == null || student.getFullName().isBlank())
-            ? normalizedEmail
-            : student.getFullName().trim();
-        EnrolledStudent enrollment = new EnrolledStudent(
-            subject.getTeacherEmail(),
-            normalizedEmail,
-            studentName,
-            subject.getId(),
-            subject.getSubjectName()
-        );
-        enrolledStudentRepository.save(enrollment);
-
-        redirectAttributes.addFlashAttribute("successMessage", "Student enrolled successfully.");
         return "redirect:/teacher/subject-classroom/" + subjectId;
     }
 
@@ -1286,6 +1884,8 @@ public class TeacherController {
 
     @PostMapping("/subject-classroom/{id}/distributed-exams/delete")
     public String deleteDistributedExamBatch(@PathVariable("id") Long id,
+                                             @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                             @RequestParam(name = "examId", required = false) String examId,
                                              @RequestParam("examName") String examName,
                                              @RequestParam("activityType") String activityType,
                                              @RequestParam("timeLimit") Integer timeLimit,
@@ -1304,11 +1904,41 @@ public class TeacherController {
             return "redirect:/teacher/subjects";
         }
 
+        if (distributionId != null) {
+            Optional<DistributedExam> distributionOpt = distributedExamRepository.findById(distributionId);
+            if (distributionOpt.isEmpty()
+                || !sameText(distributionOpt.get().getSubject(), subject.getSubjectName())) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Distributed quiz record not found.");
+                return "redirect:/teacher/subject-classroom/" + id + "/distributed-exams";
+            }
+
+            DistributedExam distribution = distributionOpt.get();
+            List<ExamSubmission> linkedSubmissions = examSubmissionRepository
+                .findByStudentEmailAndExamNameAndSubject(
+                    distribution.getStudentEmail(),
+                    distribution.getExamName(),
+                    distribution.getSubject())
+                .stream()
+                .filter(submission -> distributionId.equals(extractSubmissionDistributedExamId(submission)))
+                .toList();
+
+            distributedExamRepository.delete(distribution);
+            if (!linkedSubmissions.isEmpty()) {
+                examSubmissionRepository.deleteAll(linkedSubmissions);
+            }
+
+            redirectAttributes.addFlashAttribute("successMessage",
+                "Distributed quiz deleted successfully (1 assignment, "
+                    + linkedSubmissions.size() + " submission(s)).");
+            return "redirect:/teacher/subject-classroom/" + id + "/distributed-exams";
+        }
+
         String normalizedDeadline = deadline == null ? "" : deadline.trim();
 
         List<DistributedExam> matchingDistributions = distributedExamRepository.findAll().stream()
             .filter(item -> item.getSubject() != null && item.getSubject().equalsIgnoreCase(subject.getSubjectName()))
-            .filter(item -> examName != null && examName.equals(item.getExamName()))
+            .filter(item -> examId == null || examId.isBlank() || sameText(item.getExamId(), examId))
+            .filter(item -> (examId != null && !examId.isBlank()) || (examName != null && examName.equals(item.getExamName())))
             .filter(item -> activityType != null && activityType.equals(item.getActivityType()))
             .filter(item -> timeLimit != null && timeLimit.equals(item.getTimeLimit()))
             .filter(item -> {
@@ -1319,7 +1949,8 @@ public class TeacherController {
 
         List<ExamSubmission> matchingSubmissions = examSubmissionRepository.findAll().stream()
             .filter(sub -> sub.getSubject() != null && sub.getSubject().equalsIgnoreCase(subject.getSubjectName()))
-            .filter(sub -> examName != null && examName.equals(sub.getExamName()))
+            .filter(sub -> examId == null || examId.isBlank() || sameText(extractSubmissionExamId(sub), examId))
+            .filter(sub -> (examId != null && !examId.isBlank()) || (examName != null && examName.equals(sub.getExamName())))
             .filter(sub -> activityType != null && activityType.equals(sub.getActivityType()))
             .filter(sub -> timeLimit != null && timeLimit.equals(sub.getTimeLimit()))
             .filter(sub -> {
@@ -1375,7 +2006,14 @@ public class TeacherController {
             return "redirect:/teacher/subjects";
         }
 
-        if (selectedStudents == null || selectedStudents.isEmpty()) {
+        Set<String> uniqueSelectedStudents = selectedStudents == null
+            ? new LinkedHashSet<>()
+            : selectedStudents.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (uniqueSelectedStudents.isEmpty()) {
             redirectAttributes.addFlashAttribute("errorMessage", "Please select at least one student.");
             return "redirect:/teacher/subject-classroom/" + subjectId;
         }
@@ -1441,15 +2079,33 @@ public class TeacherController {
         String distributedAnswerKeyJson = gson.toJson(selectedAnswerKey);
 
         // Exam distribution: only mark exam as available for students.
-        int attempted = 0;
+        int attempted = uniqueSelectedStudents.size();
         int distributed = 0;
         int failed = 0;
-        for (String studentEmail : selectedStudents) {
-            if (studentEmail == null || studentEmail.isBlank()) {
+        Set<String> usedQuestionOrders = new HashSet<>();
+        for (String studentEmail : uniqueSelectedStudents) {
+            String normalizedStudentEmail = studentEmail == null ? "" : studentEmail.trim().toLowerCase();
+            if (normalizedStudentEmail.isBlank()) {
+                failed++;
                 continue;
             }
-            DistributedExam distExam = new DistributedExam();
-            distExam.setStudentEmail(studentEmail.trim());
+
+            List<DistributedExam> existingActive = distributedExamRepository.findAll().stream()
+                .filter(item -> item != null)
+                .filter(item -> !item.isSubmitted())
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getExamId(), paper.getExamId()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+            DistributedExam distExam = existingActive.isEmpty() ? new DistributedExam() : existingActive.get(0);
+            if (existingActive.size() > 1) {
+                distributedExamRepository.deleteAll(existingActive.subList(1, existingActive.size()));
+            }
+
+            distExam.setStudentEmail(normalizedStudentEmail);
             distExam.setExamId(paper.getExamId());
             distExam.setSubject(subject.getSubjectName());
             distExam.setExamName(paper.getExamName());
@@ -1458,7 +2114,8 @@ public class TeacherController {
             distExam.setDeadline(deadline == null ? "" : deadline);
             distExam.setDistributedAt(java.time.LocalDateTime.now());
             distExam.setSubmitted(false);
-            distExam.setQuestionIndexesJson(gson.toJson(selectedIndexes));
+            List<Integer> studentQuestionIndexes = buildUniqueQuestionOrder(selectedIndexes, usedQuestionOrders);
+            distExam.setQuestionIndexesJson(gson.toJson(studentQuestionIndexes));
             distributedExamRepository.save(distExam);
             distributed++;
         }
@@ -1510,10 +2167,12 @@ public class TeacherController {
 
     @GetMapping("/subject-classroom/{id}/distribution-students")
     public String subjectDistributionStudents(@PathVariable("id") Long id,
+                                             @RequestParam(name = "filterExamId", required = false) String filterExamId,
                                              @RequestParam(name = "filterExamName", required = false) String filterExamName,
                                              @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
                                              @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
                                              @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                             @RequestParam(name = "distributionId", required = false) Long distributionId,
                                              Model model,
                                              Principal principal) {
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
@@ -1526,46 +2185,103 @@ public class TeacherController {
         if (!teacherEmail.isBlank() && !teacherEmail.equalsIgnoreCase(subject.getTeacherEmail())) {
             return "redirect:/teacher/subjects";
         }
+        String normalizedFilterExamId = (filterExamId == null || filterExamId.trim().isBlank()) ? null : filterExamId.trim();
 
-        LocalDateTime filterDeadlineAt = parseDeadlineValue(filterDeadline);
+        List<DistributedExam> matchingDistributions = distributedExamRepository.findAll().stream()
+            .filter(item -> item != null)
+            .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+            .filter(item -> distributionId == null || distributionId.equals(item.getId()))
+            .filter(item -> distributionId != null || normalizedFilterExamId == null || sameText(item.getExamId(), normalizedFilterExamId))
+            .filter(item -> distributionId != null || normalizedFilterExamId != null || filterExamName == null || sameText(item.getExamName(), filterExamName))
+            .filter(item -> distributionId != null || filterActivityType == null || sameText(item.getActivityType(), filterActivityType))
+            .filter(item -> distributionId != null || filterTimeLimit == null || filterTimeLimit.equals(item.getTimeLimit()))
+            .filter(item -> {
+                if (distributionId != null || filterDeadline == null) {
+                    return true;
+                }
+                String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
+                return itemDeadline.equals(filterDeadline.trim());
+            })
+            .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+
+        if (distributionId != null && matchingDistributions.isEmpty()) {
+            return "redirect:/teacher/subject-classroom/" + id + "/distributed-exams";
+        }
+
+        Map<String, DistributedExam> latestByStudent = new LinkedHashMap<>();
+        for (DistributedExam item : matchingDistributions) {
+            String emailKey = item.getStudentEmail() == null ? "" : item.getStudentEmail().trim().toLowerCase();
+            if (emailKey.isBlank() || latestByStudent.containsKey(emailKey)) {
+                continue;
+            }
+            latestByStudent.put(emailKey, item);
+        }
+        List<DistributedExam> scopedDistributions = distributionId != null
+            ? matchingDistributions.stream().limit(1).toList()
+            : new ArrayList<>(latestByStudent.values());
+
+        DistributedExam filterSource = scopedDistributions.isEmpty() ? null : scopedDistributions.get(0);
+        String effectiveExamId = filterSource != null ? filterSource.getExamId() : normalizedFilterExamId;
+        String effectiveExamName = filterSource != null ? filterSource.getExamName() : filterExamName;
+        String effectiveActivityType = filterSource != null ? filterSource.getActivityType() : filterActivityType;
+        Integer effectiveTimeLimit = filterSource != null ? filterSource.getTimeLimit() : filterTimeLimit;
+        String effectiveDeadline = filterSource != null
+            ? (filterSource.getDeadline() == null ? "" : filterSource.getDeadline().trim())
+            : (filterDeadline == null ? "" : filterDeadline.trim());
+
+        LocalDateTime filterDeadlineAt = parseDeadlineValue(effectiveDeadline);
         boolean deadlinePassed = filterDeadlineAt != null && LocalDateTime.now().isAfter(filterDeadlineAt);
 
-        // Fetch enrolled students
         List<EnrolledStudent> enrolledStudents = enrolledStudentRepository.findBySubjectId(subject.getId());
+        Map<String, String> studentNameByEmail = new HashMap<>();
+        for (EnrolledStudent student : enrolledStudents) {
+            if (student == null || student.getStudentEmail() == null) {
+                continue;
+            }
+            String key = student.getStudentEmail().trim().toLowerCase();
+            if (key.isBlank()) {
+                continue;
+            }
+            studentNameByEmail.put(key, student.getStudentName());
+        }
 
-        // Fetch submissions for this subject and quiz
-        List<ExamSubmission> submissions = examSubmissionRepository.findAll().stream()
-            .filter(sub -> sub.getSubject() != null && sub.getSubject().equalsIgnoreCase(subject.getSubjectName()))
-            .filter(sub -> filterExamName == null || sub.getExamName().equalsIgnoreCase(filterExamName))
-            .filter(sub -> filterActivityType == null || (sub.getActivityType() != null && sub.getActivityType().equalsIgnoreCase(filterActivityType)))
-            .filter(sub -> filterTimeLimit == null || (sub.getTimeLimit() != null && sub.getTimeLimit().equals(filterTimeLimit)))
-            .filter(sub -> filterDeadline == null || (sub.getAnswerDetailsJson() != null && sub.getAnswerDetailsJson().contains(filterDeadline)))
-            .toList();
+        Map<String, Map<String, String>> generatedOtpByEmail = extractGeneratedOtpByEmail(model);
 
         List<Map<String, Object>> submittedStudents = new ArrayList<>();
         List<Map<String, Object>> notSubmittedStudents = new ArrayList<>();
         List<Map<String, Object>> queuedStudents = new ArrayList<>();
-        String distributionReturnTo = buildDistributionStudentsReturnTo(id, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+        LocalDateTime now = LocalDateTime.now();
+        String distributionReturnTo = buildDistributionStudentsReturnTo(
+            id,
+            effectiveExamId,
+            effectiveExamName,
+            effectiveActivityType,
+            effectiveTimeLimit,
+            effectiveDeadline,
+            distributionId);
 
-        for (EnrolledStudent student : enrolledStudents) {
-            ExamSubmission submission = submissions.stream()
-                .filter(sub -> sub.getStudentEmail().equalsIgnoreCase(student.getStudentEmail()))
-                .max(Comparator.comparing(ExamSubmission::getSubmittedAt,
-                    Comparator.nullsLast(Comparator.naturalOrder())))
-                .orElse(null);
+        for (DistributedExam distribution : scopedDistributions) {
+            ExamSubmission submission = findLatestSubmissionForDistributedExam(distribution);
+
+            String rawEmail = distribution.getStudentEmail() == null ? "" : distribution.getStudentEmail().trim();
+            String studentName = studentNameByEmail.getOrDefault(rawEmail.toLowerCase(), rawEmail);
 
             Map<String, Object> item = new HashMap<>();
-            item.put("studentName", student.getStudentName());
-            item.put("studentEmail", student.getStudentEmail());
-            item.put("examName", submission != null ? submission.getExamName() : (filterExamName != null ? filterExamName : ""));
-            item.put("activityType", submission != null && submission.getActivityType() != null
-                ? submission.getActivityType()
-                : (filterActivityType != null ? filterActivityType : "Quiz"));
-            item.put("deadline", filterDeadline != null ? filterDeadline : "");
+            item.put("distributionId", distribution.getId());
+            item.put("studentName", studentName == null || studentName.isBlank() ? rawEmail : studentName);
+            item.put("studentEmail", rawEmail);
+            item.put("examName", distribution.getExamName() == null ? "" : distribution.getExamName());
+            item.put("activityType", distribution.getActivityType() == null ? "Quiz" : distribution.getActivityType());
+            item.put("deadline", formatDeadline(distribution.getDeadline()));
             item.put("lastSubmittedAt", submission != null && submission.getSubmittedAt() != null ? submission.getSubmittedAt().toString() : "-");
             item.put("submissionId", submission != null ? submission.getId() : null);
             item.put("viewResultUrl", submission != null
                 ? "/teacher/view-result/" + submission.getId() + buildReturnToQuery(distributionReturnTo)
+                : null);
+            item.put("viewGradeUrl", submission != null
+                ? "/teacher/grade/" + submission.getId() + buildReturnToQuery(distributionReturnTo)
                 : null);
 
             int openEndedCount = 0;
@@ -1585,9 +2301,17 @@ public class TeacherController {
             item.put("needsManualGrading", needsManualGrading);
             item.put("isGraded", graded);
             item.put("resultsReleased", released);
+            item.put("otpStatusLabel", buildOtpStatusLabel(distribution, now));
+            item.put("otpStatusClass", buildOtpStatusClass(distribution, now));
+            item.put("otpActionLabel", resolveOtpActionLabel(distribution, now));
+            item.put("otpAvailableForGeneration", !distribution.isSubmitted());
 
-            // Only mark as 'Submitted' if isSubmissionCompleted(submission) is true
-            if (submission != null && isSubmissionCompleted(submission)) {
+            Map<String, String> generatedOtp = generatedOtpByEmail.get(rawEmail.toLowerCase());
+            item.put("generatedOtpCode", generatedOtp == null ? "" : generatedOtp.getOrDefault("otpCode", ""));
+            item.put("generatedOtpExpiresAt", generatedOtp == null ? "" : generatedOtp.getOrDefault("expiresAt", ""));
+
+            boolean completedSubmission = submission != null && isSubmissionCompleted(submission);
+            if (completedSubmission || (submission == null && distribution.isSubmitted())) {
                 submittedStudents.add(item);
             } else if (submission != null) {
                 notSubmittedStudents.add(item);
@@ -1615,23 +2339,439 @@ public class TeacherController {
         model.addAttribute("deadlinePassed", deadlinePassed);
         model.addAttribute("totalTrackedCount", totalTrackedCount);
 
-        model.addAttribute("filterExamName", filterExamName);
-        model.addAttribute("filterActivityType", filterActivityType);
-        model.addAttribute("filterTimeLimit", filterTimeLimit);
-        model.addAttribute("filterDeadline", filterDeadline);
+        model.addAttribute("filterExamId", effectiveExamId);
+        model.addAttribute("filterExamName", effectiveExamName);
+        model.addAttribute("filterActivityType", effectiveActivityType);
+        model.addAttribute("filterTimeLimit", effectiveTimeLimit);
+        model.addAttribute("filterDeadline", effectiveDeadline);
+        model.addAttribute("distributionId", distributionId);
         model.addAttribute("activeQuizFilter",
-            filterExamName != null || filterActivityType != null || filterTimeLimit != null || filterDeadline != null);
+            distributionId != null
+                || (effectiveExamId != null && !effectiveExamId.isBlank())
+                || effectiveExamName != null
+                || effectiveActivityType != null
+                || effectiveTimeLimit != null
+                || (effectiveDeadline != null && !effectiveDeadline.isBlank()));
 
         return "subject-distribution-students";
+    }
+
+    private Map<String, Map<String, String>> extractGeneratedOtpByEmail(Model model) {
+        Map<String, Map<String, String>> generated = new HashMap<>();
+        if (model == null) {
+            return generated;
+        }
+
+        Object raw = model.asMap().get("generatedOtpRows");
+        if (!(raw instanceof List<?> rows)) {
+            return generated;
+        }
+
+        for (Object rowObj : rows) {
+            if (!(rowObj instanceof Map<?, ?> row)) {
+                continue;
+            }
+
+            Object rawEmail = row.get("studentEmail");
+            Object rawOtpCode = row.get("otpCode");
+            Object rawExpiresAt = row.get("expiresAt");
+
+            String email = rawEmail == null ? "" : String.valueOf(rawEmail).trim().toLowerCase();
+            String otpCode = rawOtpCode == null ? "" : String.valueOf(rawOtpCode).trim();
+            String expiresAt = rawExpiresAt == null ? "" : String.valueOf(rawExpiresAt).trim();
+            if (email.isBlank() || otpCode.isBlank()) {
+                continue;
+            }
+
+            Map<String, String> otpData = new HashMap<>();
+            otpData.put("otpCode", otpCode);
+            otpData.put("expiresAt", expiresAt);
+            generated.put(email, otpData);
+        }
+
+        return generated;
+    }
+
+    @PostMapping("/subject-classroom/{id}/distribution-students/generate-otp")
+    public String generateDistributionOtp(@PathVariable("id") Long id,
+                                          @RequestParam("studentEmail") String studentEmail,
+                                          @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                          @RequestParam(name = "filterExamId", required = false) String filterExamId,
+                                          @RequestParam(name = "filterExamName", required = false) String filterExamName,
+                                          @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
+                                          @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
+                                          @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                          Principal principal,
+                                          RedirectAttributes redirectAttributes) {
+        Optional<Subject> subjectOpt = subjectRepository.findById(id);
+        if (subjectOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject not found.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Subject subject = subjectOpt.get();
+        if (!isOwner(principal, subject.getTeacherEmail())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You are not allowed to generate OTP for this quiz.");
+            return "redirect:/teacher/subjects";
+        }
+        String normalizedFilterExamId = (filterExamId == null || filterExamId.trim().isBlank()) ? null : filterExamId.trim();
+
+        String normalizedStudentEmail = studentEmail == null ? "" : studentEmail.trim();
+        if (normalizedStudentEmail.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Student email is required.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                normalizedFilterExamId,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
+        }
+
+        DistributedExam target = null;
+        if (distributionId != null) {
+            target = distributedExamRepository.findById(distributionId)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .orElse(null);
+        }
+
+        if (target == null) {
+            String normalizedDeadline = filterDeadline == null ? "" : filterDeadline.trim();
+            target = distributedExamRepository.findAll().stream()
+                .filter(item -> item != null)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .filter(item -> normalizedFilterExamId == null || sameText(item.getExamId(), normalizedFilterExamId))
+                .filter(item -> normalizedFilterExamId != null || filterExamName == null || sameText(item.getExamName(), filterExamName))
+                .filter(item -> filterActivityType == null || sameText(item.getActivityType(), filterActivityType))
+                .filter(item -> filterTimeLimit == null || filterTimeLimit.equals(item.getTimeLimit()))
+                .filter(item -> {
+                    String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
+                    return normalizedDeadline.isBlank() || itemDeadline.equals(normalizedDeadline);
+                })
+                .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())))
+                .findFirst()
+                .orElse(null);
+        }
+
+        if (target == null) {
+            redirectAttributes.addFlashAttribute("errorMessage", "No distributed quiz record found for this student.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                normalizedFilterExamId,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
+        }
+
+        if (target.isSubmitted()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Cannot generate OTP because this student has already submitted.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                target.getExamId(),
+                target.getExamName(),
+                target.getActivityType(),
+                target.getTimeLimit(),
+                target.getDeadline(),
+                target.getId());
+        }
+
+        String otpCode = generateNumericOtpCode(ACCESS_OTP_LENGTH);
+        LocalDateTime generatedAt = LocalDateTime.now();
+        LocalDateTime expiresAt = generatedAt.plusMinutes(ACCESS_OTP_VALID_MINUTES);
+
+        List<DistributedExam> otpTargets = findActiveBatchDistributionsForStudent(target);
+        if (otpTargets.isEmpty()) {
+            otpTargets = List.of(target);
+        }
+
+        for (DistributedExam otpTarget : otpTargets) {
+            otpTarget.setAccessOtpHash(passwordEncoder.encode(otpCode));
+            otpTarget.setAccessOtpGeneratedAt(generatedAt);
+            otpTarget.setAccessOtpExpiresAt(expiresAt);
+            otpTarget.setAccessOtpVerifiedAt(null);
+        }
+        distributedExamRepository.saveAll(otpTargets);
+
+        String studentName = enrolledStudentRepository.findBySubjectId(subject.getId()).stream()
+            .filter(enrolled -> enrolled != null)
+            .filter(enrolled -> sameText(enrolled.getStudentEmail(), normalizedStudentEmail))
+            .map(EnrolledStudent::getStudentName)
+            .filter(name -> name != null && !name.isBlank())
+            .findFirst()
+            .orElse(normalizedStudentEmail);
+
+        Map<String, Object> generatedRow = new HashMap<>();
+        generatedRow.put("studentName", studentName);
+        generatedRow.put("studentEmail", normalizedStudentEmail);
+        generatedRow.put("otpCode", otpCode);
+        generatedRow.put("expiresAt", expiresAt.format(DEADLINE_DISPLAY_FORMAT));
+        redirectAttributes.addFlashAttribute("generatedOtpRows", List.of(generatedRow));
+
+        redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Generated/regenerated OTP for " + normalizedStudentEmail
+                + ". Copy the code below now.");
+
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            target.getExamId(),
+            target.getExamName(),
+            target.getActivityType(),
+            target.getTimeLimit(),
+            target.getDeadline(),
+            target.getId());
+    }
+
+    @GetMapping("/subject-classroom/{id}/distribution-students/generate-otp")
+    public String generateDistributionOtpGet(@PathVariable("id") Long id,
+                                             @RequestParam(name = "studentEmail", required = false) String studentEmail,
+                                             @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                             @RequestParam(name = "filterExamId", required = false) String filterExamId,
+                                             @RequestParam(name = "filterExamName", required = false) String filterExamName,
+                                             @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
+                                             @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
+                                             @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                             RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("errorMessage", "Use the Generate Code button to submit OTP generation.");
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            filterExamId,
+            filterExamName,
+            filterActivityType,
+            filterTimeLimit,
+            filterDeadline,
+            distributionId);
+    }
+
+    @PostMapping("/subject-classroom/{id}/distribution-students/generate-otp-all")
+    public String generateDistributionOtpForAll(@PathVariable("id") Long id,
+                                                @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                                @RequestParam(name = "filterExamId", required = false) String filterExamId,
+                                                @RequestParam(name = "filterExamName", required = false) String filterExamName,
+                                                @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
+                                                @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
+                                                @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                                Principal principal,
+                                                RedirectAttributes redirectAttributes) {
+        Optional<Subject> subjectOpt = subjectRepository.findById(id);
+        if (subjectOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Subject not found.");
+            return "redirect:/teacher/subjects";
+        }
+
+        Subject subject = subjectOpt.get();
+        if (!isOwner(principal, subject.getTeacherEmail())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You are not allowed to generate OTPs for this quiz.");
+            return "redirect:/teacher/subjects";
+        }
+
+        String normalizedFilterExamId = (filterExamId == null || filterExamId.trim().isBlank()) ? null : filterExamId.trim();
+        String normalizedDeadline = filterDeadline == null ? "" : filterDeadline.trim();
+
+        List<DistributedExam> matchingDistributions = distributedExamRepository.findAll().stream()
+            .filter(item -> item != null)
+            .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+            .filter(item -> distributionId == null || distributionId.equals(item.getId()))
+            .filter(item -> distributionId != null || normalizedFilterExamId == null || sameText(item.getExamId(), normalizedFilterExamId))
+            .filter(item -> distributionId != null || normalizedFilterExamId != null || filterExamName == null || sameText(item.getExamName(), filterExamName))
+            .filter(item -> distributionId != null || filterActivityType == null || sameText(item.getActivityType(), filterActivityType))
+            .filter(item -> distributionId != null || filterTimeLimit == null || filterTimeLimit.equals(item.getTimeLimit()))
+            .filter(item -> {
+                if (distributionId != null || filterDeadline == null) {
+                    return true;
+                }
+                String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
+                return itemDeadline.equals(normalizedDeadline);
+            })
+            .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+
+        Map<String, DistributedExam> latestByStudent = new LinkedHashMap<>();
+        for (DistributedExam item : matchingDistributions) {
+            String emailKey = item.getStudentEmail() == null ? "" : item.getStudentEmail().trim().toLowerCase();
+            if (emailKey.isBlank() || latestByStudent.containsKey(emailKey)) {
+                continue;
+            }
+            latestByStudent.put(emailKey, item);
+        }
+
+        List<DistributedExam> scopedDistributions = distributionId != null
+            ? matchingDistributions.stream().limit(1).toList()
+            : new ArrayList<>(latestByStudent.values());
+
+        DistributedExam filterSource = scopedDistributions.isEmpty() ? null : scopedDistributions.get(0);
+        String effectiveExamId = filterSource != null ? filterSource.getExamId() : normalizedFilterExamId;
+        String effectiveExamName = filterSource != null ? filterSource.getExamName() : filterExamName;
+        String effectiveActivityType = filterSource != null ? filterSource.getActivityType() : filterActivityType;
+        Integer effectiveTimeLimit = filterSource != null ? filterSource.getTimeLimit() : filterTimeLimit;
+        String effectiveDeadline = filterSource != null
+            ? (filterSource.getDeadline() == null ? "" : filterSource.getDeadline().trim())
+            : normalizedDeadline;
+        Long effectiveDistributionId = filterSource != null ? filterSource.getId() : distributionId;
+
+        if (scopedDistributions.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "No distributed quiz record found for OTP generation.");
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                effectiveExamId,
+                effectiveExamName,
+                effectiveActivityType,
+                effectiveTimeLimit,
+                effectiveDeadline,
+                effectiveDistributionId);
+        }
+
+        List<EnrolledStudent> enrolledStudents = enrolledStudentRepository.findBySubjectId(subject.getId());
+        Map<String, String> studentNameByEmail = new HashMap<>();
+        for (EnrolledStudent student : enrolledStudents) {
+            if (student == null || student.getStudentEmail() == null) {
+                continue;
+            }
+            String key = student.getStudentEmail().trim().toLowerCase();
+            if (!key.isBlank()) {
+                studentNameByEmail.put(key, student.getStudentName());
+            }
+        }
+
+        List<DistributedExam> toSave = new ArrayList<>();
+        List<Map<String, Object>> generatedOtpRows = new ArrayList<>();
+        int skippedSubmitted = 0;
+
+        for (DistributedExam target : scopedDistributions) {
+            if (target == null) {
+                continue;
+            }
+            if (target.isSubmitted()) {
+                skippedSubmitted++;
+                continue;
+            }
+
+            String otpCode = generateNumericOtpCode(ACCESS_OTP_LENGTH);
+            LocalDateTime generatedAt = LocalDateTime.now();
+            LocalDateTime expiresAt = generatedAt.plusMinutes(ACCESS_OTP_VALID_MINUTES);
+
+            List<DistributedExam> otpTargets = findActiveBatchDistributionsForStudent(target);
+            if (otpTargets.isEmpty()) {
+                otpTargets = List.of(target);
+            }
+
+            for (DistributedExam otpTarget : otpTargets) {
+                otpTarget.setAccessOtpHash(passwordEncoder.encode(otpCode));
+                otpTarget.setAccessOtpGeneratedAt(generatedAt);
+                otpTarget.setAccessOtpExpiresAt(expiresAt);
+                otpTarget.setAccessOtpVerifiedAt(null);
+                toSave.add(otpTarget);
+            }
+
+            String studentEmail = target.getStudentEmail() == null ? "" : target.getStudentEmail().trim();
+            String studentName = studentNameByEmail.getOrDefault(studentEmail.toLowerCase(), studentEmail);
+
+            Map<String, Object> row = new HashMap<>();
+            row.put("studentName", studentName == null || studentName.isBlank() ? studentEmail : studentName);
+            row.put("studentEmail", studentEmail);
+            row.put("otpCode", otpCode);
+            row.put("expiresAt", expiresAt.format(DEADLINE_DISPLAY_FORMAT));
+            generatedOtpRows.add(row);
+        }
+
+        if (toSave.isEmpty()) {
+            redirectAttributes.addFlashAttribute(
+                "errorMessage",
+                skippedSubmitted > 0
+                    ? "No OTP generated. All tracked students have already submitted."
+                    : "No OTP generated. No eligible student records found."
+            );
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                effectiveExamId,
+                effectiveExamName,
+                effectiveActivityType,
+                effectiveTimeLimit,
+                effectiveDeadline,
+                effectiveDistributionId);
+        }
+
+        distributedExamRepository.saveAll(toSave);
+
+        redirectAttributes.addFlashAttribute("generatedOtpRows", generatedOtpRows);
+        redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Generated/regenerated OTP for " + toSave.size() + " student(s). Copy the codes below now."
+        );
+        if (skippedSubmitted > 0) {
+            redirectAttributes.addFlashAttribute(
+                "warningMessage",
+                "Skipped " + skippedSubmitted + " submitted student(s)."
+            );
+        }
+
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            effectiveExamId,
+            effectiveExamName,
+            effectiveActivityType,
+            effectiveTimeLimit,
+            effectiveDeadline,
+            effectiveDistributionId);
+    }
+
+    private List<DistributedExam> findActiveBatchDistributionsForStudent(DistributedExam source) {
+        if (source == null || source.isSubmitted()) {
+            return new ArrayList<>();
+        }
+
+        String studentEmail = source.getStudentEmail() == null ? "" : source.getStudentEmail().trim();
+        String batchKey = buildDistributionBatchKey(source);
+        if (studentEmail.isBlank() || batchKey.isBlank()) {
+            return new ArrayList<>();
+        }
+
+        return distributedExamRepository.findAll().stream()
+            .filter(item -> item != null)
+            .filter(item -> !item.isSubmitted())
+            .filter(item -> sameText(item.getStudentEmail(), studentEmail))
+            .filter(item -> batchKey.equals(buildDistributionBatchKey(item)))
+            .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+    }
+
+    @GetMapping("/subject-classroom/{id}/distribution-students/generate-otp-all")
+    public String generateDistributionOtpForAllGet(@PathVariable("id") Long id,
+                                                   @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                                   @RequestParam(name = "filterExamId", required = false) String filterExamId,
+                                                   @RequestParam(name = "filterExamName", required = false) String filterExamName,
+                                                   @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
+                                                   @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
+                                                   @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                                   RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("errorMessage", "Use the Generate / Regenerate OTP button to submit OTP generation.");
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            filterExamId,
+            filterExamName,
+            filterActivityType,
+            filterTimeLimit,
+            filterDeadline,
+            distributionId);
     }
 
     @PostMapping("/subject-classroom/{id}/distribution-students/reopen")
     public String reopenDistributedQuizForStudent(@PathVariable("id") Long id,
                                                   @RequestParam("studentEmail") String studentEmail,
+                                                  @RequestParam(name = "filterExamId", required = false) String filterExamId,
                                                   @RequestParam(name = "filterExamName", required = false) String filterExamName,
                                                   @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
                                                   @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
                                                   @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                                  @RequestParam(name = "distributionId", required = false) Long distributionId,
                                                   @RequestParam(name = "reopenPreset", required = false, defaultValue = "24h") String reopenPreset,
                                                   @RequestParam(name = "customDeadline", required = false) String customDeadline,
                                                   Principal principal,
@@ -1647,65 +2787,116 @@ public class TeacherController {
             redirectAttributes.addFlashAttribute("errorMessage", "You are not allowed to reopen this quiz.");
             return "redirect:/teacher/subjects";
         }
+        String normalizedFilterExamId = (filterExamId == null || filterExamId.trim().isBlank()) ? null : filterExamId.trim();
 
         String normalizedStudentEmail = studentEmail == null ? "" : studentEmail.trim();
         if (normalizedStudentEmail.isBlank()) {
             redirectAttributes.addFlashAttribute("errorMessage", "Student email is required.");
-            return "redirect:" + buildDistributionStudentsReturnTo(id, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                normalizedFilterExamId,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
         }
 
-        String normalizedDeadline = filterDeadline == null ? "" : filterDeadline.trim();
-        List<DistributedExam> strictMatches = distributedExamRepository.findAll().stream()
-            .filter(item -> item != null)
-            .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
-            .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
-            .filter(item -> filterExamName == null || sameText(item.getExamName(), filterExamName))
-            .filter(item -> filterActivityType == null || sameText(item.getActivityType(), filterActivityType))
-            .filter(item -> filterTimeLimit == null || filterTimeLimit.equals(item.getTimeLimit()))
-            .filter(item -> {
-                String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
-                return normalizedDeadline.isBlank() || itemDeadline.equals(normalizedDeadline);
-            })
-            .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
-                Comparator.nullsLast(Comparator.reverseOrder())))
-            .toList();
+        DistributedExam source = null;
+        if (distributionId != null) {
+            source = distributedExamRepository.findById(distributionId)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .orElse(null);
+        }
 
-        if (strictMatches.isEmpty()) {
+        if (source == null) {
+            String normalizedDeadline = filterDeadline == null ? "" : filterDeadline.trim();
+            source = distributedExamRepository.findAll().stream()
+                .filter(item -> item != null)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> sameText(item.getStudentEmail(), normalizedStudentEmail))
+                .filter(item -> normalizedFilterExamId == null || sameText(item.getExamId(), normalizedFilterExamId))
+                .filter(item -> normalizedFilterExamId != null || filterExamName == null || sameText(item.getExamName(), filterExamName))
+                .filter(item -> filterActivityType == null || sameText(item.getActivityType(), filterActivityType))
+                .filter(item -> filterTimeLimit == null || filterTimeLimit.equals(item.getTimeLimit()))
+                .filter(item -> {
+                    String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
+                    return normalizedDeadline.isBlank() || itemDeadline.equals(normalizedDeadline);
+                })
+                .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())))
+                .findFirst()
+                .orElse(null);
+        }
+
+        if (source == null) {
             redirectAttributes.addFlashAttribute("errorMessage", "No distributed quiz record found for this student.");
-            return "redirect:" + buildDistributionStudentsReturnTo(id, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                normalizedFilterExamId,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
         }
 
-        DistributedExam source = strictMatches.get(0);
         LocalDateTime newDeadlineAt;
         try {
             newDeadlineAt = resolveReopenDeadlineAt(reopenPreset, customDeadline);
         } catch (IllegalArgumentException exception) {
             redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
-            return "redirect:" + buildDistributionStudentsReturnTo(id, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+            return "redirect:" + buildDistributionStudentsReturnTo(
+                id,
+                source.getExamId(),
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                source.getId());
         }
         String newDeadlineValue = newDeadlineAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
 
-        DistributedExam reopened = cloneForReopen(source, normalizedStudentEmail, newDeadlineValue, LocalDateTime.now());
-        distributedExamRepository.save(reopened);
+        applyReopenToExistingExam(source, newDeadlineValue, LocalDateTime.now());
+        distributedExamRepository.save(source);
 
         redirectAttributes.addFlashAttribute("successMessage",
             "Quiz reopened for " + normalizedStudentEmail + " until " + newDeadlineAt.format(DEADLINE_DISPLAY_FORMAT) + ".");
-        return "redirect:" + buildDistributionStudentsReturnTo(id, filterExamName, filterActivityType, filterTimeLimit, newDeadlineValue);
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            source.getExamId(),
+            source.getExamName(),
+            source.getActivityType(),
+            source.getTimeLimit(),
+            newDeadlineValue,
+            source.getId());
     }
 
     @GetMapping("/subject-classroom/{id}/distribution-students/reopen")
     public String reopenDistributedQuizForStudentGet(@PathVariable("id") Long id,
+                                                     @RequestParam(name = "filterExamId", required = false) String filterExamId,
                                                      @RequestParam(name = "filterExamName", required = false) String filterExamName,
                                                      @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
                                                      @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
                                                      @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                                     @RequestParam(name = "distributionId", required = false) Long distributionId,
                                                      RedirectAttributes redirectAttributes) {
         redirectAttributes.addFlashAttribute("errorMessage", "Use the Re-open button to submit a custom retake schedule.");
-        return "redirect:" + buildDistributionStudentsReturnTo(id, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+        return "redirect:" + buildDistributionStudentsReturnTo(
+            id,
+            filterExamId,
+            filterExamName,
+            filterActivityType,
+            filterTimeLimit,
+            filterDeadline,
+            distributionId);
     }
 
     @PostMapping("/subject-classroom/{id}/distributed-exams/reopen")
     public String reopenDistributedQuizBatch(@PathVariable("id") Long id,
+                                             @RequestParam(name = "distributionId", required = false) Long distributionId,
+                                             @RequestParam(name = "examId", required = false) String examId,
                                              @RequestParam("examName") String examName,
                                              @RequestParam("activityType") String activityType,
                                              @RequestParam("timeLimit") Integer timeLimit,
@@ -1734,21 +2925,31 @@ public class TeacherController {
             return "redirect:/teacher/subject-classroom/" + id + "/distributed-exams";
         }
 
-        String normalizedDeadline = deadline == null ? "" : deadline.trim();
-        List<DistributedExam> matchingBatch = distributedExamRepository.findAll().stream()
-            .filter(item -> item != null)
-            .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
-            .filter(item -> sameText(item.getExamName(), examName))
-            .filter(item -> sameText(item.getActivityType(), activityType))
-            .filter(item -> timeLimit != null && timeLimit.equals(item.getTimeLimit()))
-            .filter(item -> {
-                String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
-                return itemDeadline.equals(normalizedDeadline);
-            })
-            .filter(item -> !item.isSubmitted())
-            .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
-                Comparator.nullsLast(Comparator.reverseOrder())))
-            .toList();
+        List<DistributedExam> matchingBatch;
+        if (distributionId != null) {
+            matchingBatch = distributedExamRepository.findById(distributionId)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> !item.isSubmitted())
+                .stream()
+                .toList();
+        } else {
+            String normalizedDeadline = deadline == null ? "" : deadline.trim();
+            matchingBatch = distributedExamRepository.findAll().stream()
+                .filter(item -> item != null)
+                .filter(item -> sameText(item.getSubject(), subject.getSubjectName()))
+                .filter(item -> examId == null || examId.isBlank() || sameText(item.getExamId(), examId))
+                .filter(item -> (examId != null && !examId.isBlank()) || sameText(item.getExamName(), examName))
+                .filter(item -> sameText(item.getActivityType(), activityType))
+                .filter(item -> timeLimit != null && timeLimit.equals(item.getTimeLimit()))
+                .filter(item -> {
+                    String itemDeadline = item.getDeadline() == null ? "" : item.getDeadline().trim();
+                    return itemDeadline.equals(normalizedDeadline);
+                })
+                .filter(item -> !item.isSubmitted())
+                .sorted(Comparator.comparing(DistributedExam::getDistributedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+        }
 
         if (matchingBatch.isEmpty()) {
             redirectAttributes.addFlashAttribute("errorMessage", "No missed or pending students found for this quiz batch.");
@@ -1767,8 +2968,8 @@ public class TeacherController {
         String newDeadlineValue = newDeadlineAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
         int reopenedCount = 0;
         for (DistributedExam source : latestByStudent.values()) {
-            DistributedExam reopened = cloneForReopen(source, source.getStudentEmail(), newDeadlineValue, LocalDateTime.now());
-            distributedExamRepository.save(reopened);
+            applyReopenToExistingExam(source, newDeadlineValue, LocalDateTime.now());
+            distributedExamRepository.save(source);
             reopenedCount++;
         }
 
@@ -1801,47 +3002,129 @@ public class TeacherController {
         }
     }
 
-    private DistributedExam cloneForReopen(DistributedExam source,
-                                           String studentEmail,
+    private void applyReopenToExistingExam(DistributedExam target,
                                            String deadlineValue,
                                            LocalDateTime distributedAt) {
-        DistributedExam reopened = new DistributedExam();
-        reopened.setStudentEmail(studentEmail == null ? "" : studentEmail.trim());
-        reopened.setExamId(source.getExamId());
-        reopened.setSubject(source.getSubject());
-        reopened.setExamName(source.getExamName());
-        reopened.setActivityType(source.getActivityType());
-        if (source.getTimeLimit() != null) {
-            reopened.setTimeLimit(source.getTimeLimit());
-        } else {
-            reopened.setTimeLimit(60);
+        if (target == null) {
+            return;
         }
-        reopened.setQuestionsJson(source.getQuestionsJson());
-        reopened.setDifficultiesJson(source.getDifficultiesJson());
-        reopened.setAnswerKeyJson(source.getAnswerKeyJson());
-        reopened.setQuestionIndexesJson(source.getQuestionIndexesJson());
-        reopened.setDeadline(deadlineValue == null ? "" : deadlineValue);
-        reopened.setDistributedAt(distributedAt == null ? LocalDateTime.now() : distributedAt);
-        reopened.setSubmitted(false);
-        return reopened;
+
+        target.setDeadline(deadlineValue == null ? "" : deadlineValue);
+        target.setDistributedAt(distributedAt == null ? LocalDateTime.now() : distributedAt);
+        target.setSubmitted(false);
+        clearDistributionOtpState(target);
+    }
+
+    private String generateNumericOtpCode(int length) {
+        int safeLength = Math.max(4, length);
+        StringBuilder builder = new StringBuilder(safeLength);
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        for (int index = 0; index < safeLength; index++) {
+            builder.append(random.nextInt(0, 10));
+        }
+        return builder.toString();
+    }
+
+    private String buildOtpStatusLabel(DistributedExam distribution, LocalDateTime now) {
+        if (distribution == null) {
+            return "Not generated";
+        }
+
+        if (distribution.isSubmitted()) {
+            return "Closed";
+        }
+
+        if (distribution.getAccessOtpVerifiedAt() != null) {
+            return "Verified";
+        }
+
+        String hash = distribution.getAccessOtpHash() == null ? "" : distribution.getAccessOtpHash().trim();
+        if (hash.isBlank()) {
+            return "Not generated";
+        }
+
+        LocalDateTime expiresAt = distribution.getAccessOtpExpiresAt();
+        if (expiresAt != null && (now == null || expiresAt.isAfter(now))) {
+            return "Active until " + expiresAt.format(DEADLINE_DISPLAY_FORMAT);
+        }
+        return "Expired";
+    }
+
+    private String buildOtpStatusClass(DistributedExam distribution, LocalDateTime now) {
+        if (distribution == null || distribution.isSubmitted()) {
+            return "bg-secondary";
+        }
+
+        if (distribution.getAccessOtpVerifiedAt() != null) {
+            return "bg-success";
+        }
+
+        String hash = distribution.getAccessOtpHash() == null ? "" : distribution.getAccessOtpHash().trim();
+        if (hash.isBlank()) {
+            return "bg-secondary";
+        }
+
+        LocalDateTime expiresAt = distribution.getAccessOtpExpiresAt();
+        if (expiresAt != null && (now == null || expiresAt.isAfter(now))) {
+            return "bg-warning text-dark";
+        }
+        return "bg-danger";
+    }
+
+    private String resolveOtpActionLabel(DistributedExam distribution, LocalDateTime now) {
+        if (distribution == null || distribution.isSubmitted()) {
+            return "N/A";
+        }
+
+        if (distribution.getAccessOtpVerifiedAt() != null) {
+            return "Generate New OTP";
+        }
+
+        String hash = distribution.getAccessOtpHash() == null ? "" : distribution.getAccessOtpHash().trim();
+        if (hash.isBlank()) {
+            return "Generate OTP";
+        }
+
+        LocalDateTime expiresAt = distribution.getAccessOtpExpiresAt();
+        if (expiresAt != null && (now == null || expiresAt.isAfter(now))) {
+            return "Regenerate OTP";
+        }
+        return "Generate New OTP";
+    }
+
+    private void clearDistributionOtpState(DistributedExam target) {
+        if (target == null) {
+            return;
+        }
+
+        target.setAccessOtpHash(null);
+        target.setAccessOtpGeneratedAt(null);
+        target.setAccessOtpExpiresAt(null);
+        target.setAccessOtpVerifiedAt(null);
     }
 
     private String buildDistributionStudentsReturnTo(Long subjectId,
+                                                     String filterExamId,
                                                      String filterExamName,
                                                      String filterActivityType,
                                                      Integer filterTimeLimit,
-                                                     String filterDeadline) {
+                                                     String filterDeadline,
+                                                     Long distributionId) {
         StringBuilder target = new StringBuilder("/teacher/subject-classroom/")
             .append(subjectId)
             .append("/distribution-students");
 
         List<String> query = new ArrayList<>();
+        appendQueryParam(query, "filterExamId", filterExamId);
         appendQueryParam(query, "filterExamName", filterExamName);
         appendQueryParam(query, "filterActivityType", filterActivityType);
         if (filterTimeLimit != null) {
             query.add("filterTimeLimit=" + filterTimeLimit);
         }
         appendQueryParam(query, "filterDeadline", filterDeadline);
+        if (distributionId != null) {
+            query.add("distributionId=" + distributionId);
+        }
 
         if (!query.isEmpty()) {
             target.append("?").append(String.join("&", query));
@@ -1878,6 +3161,7 @@ public class TeacherController {
 
     @GetMapping("/grade/{id}")
     public String gradeSubmission(@PathVariable("id") Long id,
+                                  @RequestParam(name = "returnTo", required = false) String returnTo,
                                   Model model,
                                   Principal principal,
                                   RedirectAttributes redirectAttributes) {
@@ -1925,6 +3209,7 @@ public class TeacherController {
         model.addAttribute("currentManualScore", currentManualScore);
         model.addAttribute("textInputCount", textInputCount);
         model.addAttribute("maxManualScore", maxManualScore);
+        model.addAttribute("returnTo", resolveTeacherReturnTo(returnTo, "/teacher/view-result/" + submission.getId()));
         return "teacher-grade-exam";
     }
 
@@ -2001,7 +3286,8 @@ public class TeacherController {
             redirectAttributes.addFlashAttribute("successMessage", "Grade finalized. Result remains hidden until release.");
         }
 
-        return "redirect:/teacher/view-result/" + submission.getId();
+        String returnTo = resolveTeacherReturnTo(formData.get("returnTo"), "/teacher/subjects");
+        return "redirect:/teacher/view-result/" + submission.getId() + buildReturnToQuery(returnTo);
     }
 
     @PostMapping("/toggle-result-release/{id}")
@@ -2009,16 +3295,28 @@ public class TeacherController {
                                       @RequestParam(name = "redirectTo", required = false) String redirectTo,
                                       @RequestParam(name = "returnTo", required = false) String returnTo,
                                       @RequestParam(name = "subjectId", required = false) Long subjectId,
+                                      @RequestParam(name = "filterExamId", required = false) String filterExamId,
                                       @RequestParam(name = "filterExamName", required = false) String filterExamName,
                                       @RequestParam(name = "filterActivityType", required = false) String filterActivityType,
                                       @RequestParam(name = "filterTimeLimit", required = false) Integer filterTimeLimit,
                                       @RequestParam(name = "filterDeadline", required = false) String filterDeadline,
+                                      @RequestParam(name = "distributionId", required = false) Long distributionId,
                                       Principal principal,
                                       RedirectAttributes redirectAttributes) {
         Optional<ExamSubmission> submissionOpt = examSubmissionRepository.findById(id);
         if (submissionOpt.isEmpty()) {
             redirectAttributes.addFlashAttribute("errorMessage", "Submission not found.");
-            return buildReleaseRedirect(redirectTo, id, returnTo, subjectId, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+            return buildReleaseRedirect(
+                redirectTo,
+                id,
+                returnTo,
+                subjectId,
+                filterExamId,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
         }
 
         ExamSubmission submission = submissionOpt.get();
@@ -2031,7 +3329,17 @@ public class TeacherController {
         if (!isCurrentlyReleased && hasOpenEndedQuestions(submission) && !submission.isGraded()) {
             redirectAttributes.addFlashAttribute("errorMessage",
                 "Complete open-ended grading first before releasing this result.");
-            return buildReleaseRedirect(redirectTo, id, returnTo, subjectId, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+            return buildReleaseRedirect(
+                redirectTo,
+                id,
+                returnTo,
+                subjectId,
+                filterExamId,
+                filterExamName,
+                filterActivityType,
+                filterTimeLimit,
+                filterDeadline,
+                distributionId);
         }
 
         submission.setResultsReleased(!isCurrentlyReleased);
@@ -2042,7 +3350,17 @@ public class TeacherController {
             submission.isResultsReleased()
                 ? "Result released to student."
                 : "Result hidden from student.");
-        return buildReleaseRedirect(redirectTo, id, returnTo, subjectId, filterExamName, filterActivityType, filterTimeLimit, filterDeadline);
+        return buildReleaseRedirect(
+            redirectTo,
+            id,
+            returnTo,
+            subjectId,
+            filterExamId,
+            filterExamName,
+            filterActivityType,
+            filterTimeLimit,
+            filterDeadline,
+            distributionId);
     }
 
     @GetMapping("/profile")
@@ -2063,56 +3381,63 @@ public class TeacherController {
         sorted.sort(Comparator.comparing(DistributedExam::getDistributedAt,
             Comparator.nullsLast(Comparator.reverseOrder())));
 
-        Map<String, Map<String, Object>> grouped = new LinkedHashMap<>();
+        Map<String, Map<String, DistributedExam>> latestByBatchAndStudent = new LinkedHashMap<>();
         for (DistributedExam distributedExam : sorted) {
             if (distributedExam == null || distributedExam.getExamName() == null || distributedExam.getExamName().isBlank()) {
                 continue;
             }
 
-            String deadlineRaw = distributedExam.getDeadline() == null ? "" : distributedExam.getDeadline();
-            String groupKey = distributedExam.getExamName() + "|"
-                + String.valueOf(distributedExam.getActivityType()) + "|"
-                + String.valueOf(distributedExam.getTimeLimit()) + "|"
-                + deadlineRaw;
-
-            Map<String, Object> row = grouped.computeIfAbsent(groupKey, key -> {
-                Map<String, Object> created = new HashMap<>();
-                Integer safeTimeLimit = distributedExam.getTimeLimit();
-                created.put("examName", distributedExam.getExamName());
-                created.put("subject", distributedExam.getSubject() == null ? "" : distributedExam.getSubject());
-                created.put("activityType", distributedExam.getActivityType() == null ? "Quiz" : distributedExam.getActivityType());
-                created.put("timeLimit", safeTimeLimit != null ? safeTimeLimit : 60);
-                created.put("deadline", formatDeadline(deadlineRaw));
-                created.put("filterExamName", distributedExam.getExamName());
-                created.put("filterActivityType", distributedExam.getActivityType());
-                created.put("filterTimeLimit", distributedExam.getTimeLimit());
-                created.put("filterDeadline", deadlineRaw == null ? "" : deadlineRaw);
-                created.put("assignedCount", 0);
-                created.put("submittedCount", 0);
-                created.put("notSubmittedCount", 0);
-                return created;
-            });
-
-            int assigned = (int) row.getOrDefault("assignedCount", 0) + 1;
-            row.put("assignedCount", assigned);
-
-            if (distributedExam.isSubmitted()) {
-                int submittedCount = (int) row.getOrDefault("submittedCount", 0) + 1;
-                row.put("submittedCount", submittedCount);
+            String batchKey = buildDistributionBatchKey(distributedExam);
+            String studentKey = normalize(distributedExam.getStudentEmail());
+            if (batchKey.isBlank() || studentKey.isBlank()) {
+                continue;
             }
+
+            latestByBatchAndStudent
+                .computeIfAbsent(batchKey, ignored -> new LinkedHashMap<>())
+                .putIfAbsent(studentKey, distributedExam);
         }
 
-        for (Map<String, Object> row : grouped.values()) {
-            int assigned = (int) row.getOrDefault("assignedCount", 0);
-            int submitted = (int) row.getOrDefault("submittedCount", 0);
-            int notSubmitted = Math.max(0, assigned - submitted);
+        List<Map<String, Object>> summaryRows = new ArrayList<>();
+        for (Map<String, DistributedExam> studentMap : latestByBatchAndStudent.values()) {
+            if (studentMap == null || studentMap.isEmpty()) {
+                continue;
+            }
+
+            List<DistributedExam> batchRows = new ArrayList<>(studentMap.values());
+            batchRows.sort(Comparator.comparing(DistributedExam::getDistributedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+
+            DistributedExam distributedExam = batchRows.get(0);
+
+            String deadlineRaw = distributedExam.getDeadline() == null ? "" : distributedExam.getDeadline();
+            Map<String, Object> row = new HashMap<>();
+            Integer safeTimeLimit = distributedExam.getTimeLimit();
+            int assignedCount = batchRows.size();
+            int submittedCount = (int) batchRows.stream().filter(DistributedExam::isSubmitted).count();
+            int notSubmitted = assignedCount - submittedCount;
+
+            row.put("distributionId", distributedExam.getId());
+            row.put("examId", distributedExam.getExamId());
+            row.put("examName", distributedExam.getExamName());
+            row.put("subject", distributedExam.getSubject() == null ? "" : distributedExam.getSubject());
+            row.put("activityType", distributedExam.getActivityType() == null ? "Quiz" : distributedExam.getActivityType());
+            row.put("timeLimit", safeTimeLimit != null ? safeTimeLimit : 60);
+            row.put("deadline", formatDeadline(deadlineRaw));
+            row.put("filterExamId", distributedExam.getExamId());
+            row.put("filterExamName", distributedExam.getExamName());
+            row.put("filterActivityType", distributedExam.getActivityType());
+            row.put("filterTimeLimit", distributedExam.getTimeLimit());
+            row.put("filterDeadline", deadlineRaw == null ? "" : deadlineRaw);
+            row.put("assignedCount", assignedCount);
+            row.put("submittedCount", submittedCount);
             row.put("notSubmittedCount", notSubmitted);
 
-            boolean completed = assigned > 0 && submitted >= assigned;
+            boolean completed = submittedCount >= assignedCount;
             LocalDateTime deadlineAt = parseDeadlineValue(String.valueOf(row.getOrDefault("filterDeadline", "")));
             boolean overdue = !completed && notSubmitted > 0 && deadlineAt != null && LocalDateTime.now().isAfter(deadlineAt);
-            boolean ongoing = !completed && !overdue && submitted > 0;
-            boolean waiting = !completed && !overdue && submitted == 0;
+            boolean ongoing = false;
+            boolean waiting = !completed && !overdue;
 
             row.put("completed", completed);
             row.put("overdue", overdue);
@@ -2125,16 +3450,34 @@ public class TeacherController {
             } else if (overdue) {
                 row.put("statusLabel", "Overdue");
                 row.put("statusClass", "bg-danger");
-            } else if (submitted > 0) {
+            } else if (submittedCount > 0) {
                 row.put("statusLabel", "Ongoing");
                 row.put("statusClass", "bg-primary");
             } else {
                 row.put("statusLabel", "Waiting for submissions");
                 row.put("statusClass", "bg-secondary");
             }
+
+            summaryRows.add(row);
         }
 
-        return new ArrayList<>(grouped.values());
+        return summaryRows;
+    }
+
+    private String buildDistributionBatchKey(DistributedExam distributedExam) {
+        if (distributedExam == null) {
+            return "";
+        }
+
+        String subjectKey = normalize(distributedExam.getSubject());
+        String examIdentity = normalize(distributedExam.getExamId()).isBlank()
+            ? "name:" + normalize(distributedExam.getExamName())
+            : "id:" + normalize(distributedExam.getExamId());
+        String activityKey = normalize(distributedExam.getActivityType());
+        String deadlineKey = normalize(distributedExam.getDeadline());
+        String timeLimitKey = String.valueOf(distributedExam.getTimeLimit() == null ? 60 : distributedExam.getTimeLimit());
+
+        return String.join("|", subjectKey, examIdentity, activityKey, timeLimitKey, deadlineKey);
     }
 
     private String formatDeadline(String deadlineRaw) {
@@ -2245,14 +3588,98 @@ public class TeacherController {
         }
     }
 
+    private ExamSubmission findLatestSubmissionForDistributedExam(DistributedExam distributedExam) {
+        if (distributedExam == null
+            || distributedExam.getStudentEmail() == null
+            || distributedExam.getStudentEmail().isBlank()
+            || distributedExam.getExamName() == null
+            || distributedExam.getExamName().isBlank()
+            || distributedExam.getSubject() == null
+            || distributedExam.getSubject().isBlank()) {
+            return null;
+        }
+
+        List<ExamSubmission> candidates = examSubmissionRepository
+            .findByStudentEmailAndExamNameAndSubject(
+                distributedExam.getStudentEmail(),
+                distributedExam.getExamName(),
+                distributedExam.getSubject());
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        Long distributionId = distributedExam.getId();
+        if (distributionId != null) {
+            Optional<ExamSubmission> exactMatch = candidates.stream()
+                .filter(submission -> distributionId.equals(extractSubmissionDistributedExamId(submission)))
+                .max(Comparator.comparing(ExamSubmission::getSubmittedAt,
+                    Comparator.nullsLast(Comparator.naturalOrder())));
+            if (exactMatch.isPresent()) {
+                return exactMatch.get();
+            }
+        }
+
+        String distributionDeadline = distributedExam.getDeadline() == null ? "" : distributedExam.getDeadline().trim();
+        if (!distributionDeadline.isBlank()) {
+            Optional<ExamSubmission> deadlineMatch = candidates.stream()
+                .filter(submission -> sameText(extractSubmissionDeadline(submission), distributionDeadline))
+                .max(Comparator.comparing(ExamSubmission::getSubmittedAt,
+                    Comparator.nullsLast(Comparator.naturalOrder())));
+            if (deadlineMatch.isPresent()) {
+                return deadlineMatch.get();
+            }
+        }
+
+        if (!distributedExam.isSubmitted()) {
+            return null;
+        }
+
+        return candidates.stream()
+            .max(Comparator.comparing(ExamSubmission::getSubmittedAt,
+                Comparator.nullsLast(Comparator.naturalOrder())))
+            .orElse(null);
+    }
+
+    private Long extractSubmissionDistributedExamId(ExamSubmission submission) {
+        if (submission == null) {
+            return null;
+        }
+        Map<String, Object> payload = parseFlexibleMapJson(submission.getAnswerDetailsJson());
+        Object raw = payload.get("distributedExamId");
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        return raw == null ? null : parseLongSafe(String.valueOf(raw));
+    }
+
+    private String extractSubmissionDeadline(ExamSubmission submission) {
+        if (submission == null) {
+            return "";
+        }
+        Map<String, Object> payload = parseFlexibleMapJson(submission.getAnswerDetailsJson());
+        Object rawDeadline = payload.get("deadline");
+        return rawDeadline == null ? "" : String.valueOf(rawDeadline).trim();
+    }
+
+    private String extractSubmissionExamId(ExamSubmission submission) {
+        if (submission == null) {
+            return "";
+        }
+        Map<String, Object> payload = parseFlexibleMapJson(submission.getAnswerDetailsJson());
+        Object rawExamId = payload.get("examId");
+        return rawExamId == null ? "" : String.valueOf(rawExamId).trim();
+    }
+
     private String buildReleaseRedirect(String redirectTo,
                                         Long submissionId,
                                         String returnTo,
                                         Long subjectId,
+                                        String filterExamId,
                                         String filterExamName,
                                         String filterActivityType,
                                         Integer filterTimeLimit,
-                                        String filterDeadline) {
+                                        String filterDeadline,
+                                        Long distributionId) {
         if ("detail".equalsIgnoreCase(redirectTo) && submissionId != null) {
             return "redirect:/teacher/view-result/" + submissionId
                 + buildReturnToQuery(resolveTeacherReturnTo(returnTo, null));
@@ -2264,12 +3691,16 @@ public class TeacherController {
                 .append("/distribution-students");
 
             List<String> query = new ArrayList<>();
+            appendQueryParam(query, "filterExamId", filterExamId);
             appendQueryParam(query, "filterExamName", filterExamName);
             appendQueryParam(query, "filterActivityType", filterActivityType);
             if (filterTimeLimit != null) {
                 query.add("filterTimeLimit=" + filterTimeLimit);
             }
             appendQueryParam(query, "filterDeadline", filterDeadline);
+            if (distributionId != null) {
+                query.add("distributionId=" + distributionId);
+            }
 
             if (!query.isEmpty()) {
                 target.append("?").append(String.join("&", query));
@@ -2499,6 +3930,45 @@ public class TeacherController {
         return selected;
     }
 
+    private List<Integer> buildUniqueQuestionOrder(List<Integer> baseIndexes, Set<String> usedOrders) {
+        if (baseIndexes == null || baseIndexes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Integer> candidate = new ArrayList<>(baseIndexes);
+        fisherYatesService.shuffle(candidate);
+        if (usedOrders == null) {
+            return candidate;
+        }
+
+        String signature = candidate.toString();
+        if (usedOrders.add(signature)) {
+            return candidate;
+        }
+
+        int maxAttempts = Math.max(4, baseIndexes.size() * 2);
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            fisherYatesService.shuffle(candidate);
+            signature = candidate.toString();
+            if (usedOrders.add(signature)) {
+                return candidate;
+            }
+        }
+
+        for (int shift = 1; shift < baseIndexes.size(); shift++) {
+            List<Integer> rotated = new ArrayList<>(baseIndexes.size());
+            for (int index = 0; index < baseIndexes.size(); index++) {
+                rotated.add(baseIndexes.get((index + shift) % baseIndexes.size()));
+            }
+            signature = rotated.toString();
+            if (usedOrders.add(signature)) {
+                return rotated;
+            }
+        }
+
+        return new ArrayList<>(baseIndexes);
+    }
+
     private List<Integer> takeFromPool(List<Integer> pool, int count) {
         if (count <= 0 || pool.isEmpty()) {
             return new ArrayList<>();
@@ -2518,6 +3988,34 @@ public class TeacherController {
         }
         int dotIndex = originalFilename.lastIndexOf('.');
         return dotIndex > 0 ? originalFilename.substring(0, dotIndex) : originalFilename;
+    }
+
+    private String ensureUniqueExamNameForTeacher(String teacherEmail, String requestedName) {
+        String baseName = requestedName == null ? "" : requestedName.trim();
+        if (baseName.isBlank()) {
+            baseName = "Processed Exam";
+        }
+
+        Set<String> existingNames = findTeacherProcessedPapers(teacherEmail).stream()
+            .map(OriginalProcessedPaper::getExamName)
+            .map(this::normalize)
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.toSet());
+
+        if (!existingNames.contains(normalize(baseName))) {
+            return baseName;
+        }
+
+        int suffix = 2;
+        while (suffix < 10_000) {
+            String candidate = baseName + " (" + suffix + ")";
+            if (!existingNames.contains(normalize(candidate))) {
+                return candidate;
+            }
+            suffix++;
+        }
+
+        return baseName + " (" + UUID.randomUUID().toString().substring(0, 8) + ")";
     }
 
     private List<Map<String, Object>> parseExamFile(MultipartFile examFile) throws IOException {
@@ -2567,7 +4065,7 @@ public class TeacherController {
 
                     if (questionColumn < 0 || answerColumn < 0 || choiceColumns.isEmpty()) {
                         throw new IllegalArgumentException(
-                            "Unsupported CSV header. Use: Difficulty,Question_Text,Choice_1...Choice_N,Correct_Answer");
+                            "Unsupported CSV header. Use: Difficulty,Question_Text,Choice_A...Choice_Z,Correct_Answer");
                     }
 
                     continue;
@@ -2596,7 +4094,14 @@ public class TeacherController {
                     }
                 }
 
-                boolean openEnded = choices.isEmpty();
+                String parsedAnswer = "";
+                if (answerColumn >= 0 && answerColumn < columns.size()) {
+                    parsedAnswer = normalizeQuestionHtml(normalizeMathSymbols(columns.get(answerColumn)));
+                    parsedAnswer = normalizeCsvCorrectAnswer(parsedAnswer, choices);
+                }
+
+                // Open-ended when no choices are provided OR when Correct_Answer is blank.
+                boolean openEnded = choices.isEmpty() || parsedAnswer.isBlank();
 
                 if (openEnded && !questionText.startsWith("[TEXT_INPUT]")) {
                     questionText = "[TEXT_INPUT]" + questionText;
@@ -2605,13 +4110,10 @@ public class TeacherController {
                 question.put("question", questionText);
                 question.put("choices", openEnded ? new ArrayList<>() : choices);
 
-                if (answerColumn >= 0 && answerColumn < columns.size()) {
-                    String parsedAnswer = normalizeQuestionHtml(normalizeMathSymbols(columns.get(answerColumn)));
-                    if (openEnded && parsedAnswer.isBlank()) {
-                        parsedAnswer = "MANUAL_GRADE";
-                    }
-                    question.put("answer", parsedAnswer);
+                if (openEnded && parsedAnswer.isBlank()) {
+                    parsedAnswer = "MANUAL_GRADE";
                 }
+                question.put("answer", parsedAnswer);
 
                 if (difficultyColumn >= 0 && difficultyColumn < columns.size()) {
                     String normalizedDifficulty = normalizeDifficulty(columns.get(difficultyColumn));
@@ -2827,6 +4329,114 @@ public class TeacherController {
             .trim();
     }
 
+    private String normalizeCsvCorrectAnswer(String rawAnswer, List<String> choices) {
+        if (rawAnswer == null || rawAnswer.isBlank()) {
+            return "";
+        }
+
+        String cleaned = normalizeQuestionHtml(rawAnswer);
+        if (cleaned.isBlank()) {
+            return "";
+        }
+        if ("MANUAL_GRADE".equalsIgnoreCase(cleaned)) {
+            return "MANUAL_GRADE";
+        }
+
+        int choiceCount = choices == null ? 0 : choices.size();
+        if (choiceCount <= 0) {
+            return cleaned;
+        }
+
+        Integer index = parseCsvChoiceIndex(cleaned, choiceCount);
+        if (index != null) {
+            return generateChoiceLabel(index);
+        }
+
+        for (int i = 0; i < choiceCount; i++) {
+            String choiceText = normalizeQuestionHtml(String.valueOf(choices.get(i)));
+            if (!choiceText.isBlank() && normalize(choiceText).equals(normalize(cleaned))) {
+                return generateChoiceLabel(i);
+            }
+        }
+
+        return cleaned;
+    }
+
+    private Integer parseCsvChoiceIndex(String rawAnswer, int choiceCount) {
+        if (rawAnswer == null || rawAnswer.isBlank() || choiceCount <= 0) {
+            return null;
+        }
+
+        String candidate = rawAnswer.trim().toUpperCase();
+
+        Matcher choiceTokenMatcher = Pattern.compile("^(?:CHOICE|OPTION)\\s*[_-]?\\s*([A-Z]{1,3}|\\d{1,4})$").matcher(candidate);
+        if (choiceTokenMatcher.matches()) {
+            String token = choiceTokenMatcher.group(1);
+            int index;
+            if (token != null && token.matches("\\d{1,4}")) {
+                int parsed = parseIntSafe(token, 0);
+                index = parsed - 1;
+            } else {
+                index = choiceLabelToZeroBasedIndex(token);
+            }
+            if (index >= 0 && index < choiceCount) {
+                return index;
+            }
+        }
+
+        Matcher numericMatcher = Pattern.compile("^\\(?\\s*(\\d{1,4})\\s*\\)?[.)-]?$").matcher(candidate);
+        if (numericMatcher.matches()) {
+            int parsed = parseIntSafe(numericMatcher.group(1), 0);
+            int index = parsed - 1;
+            if (index >= 0 && index < choiceCount) {
+                return index;
+            }
+        }
+
+        Matcher labelMatcher = Pattern.compile("^\\(?\\s*([A-Z]{1,3})\\s*\\)?[.)-]?$").matcher(candidate);
+        if (labelMatcher.matches()) {
+            int index = choiceLabelToZeroBasedIndex(labelMatcher.group(1));
+            if (index >= 0 && index < choiceCount) {
+                return index;
+            }
+        }
+
+        return null;
+    }
+
+    private int choiceLabelToZeroBasedIndex(String rawLabel) {
+        if (rawLabel == null || rawLabel.isBlank()) {
+            return -1;
+        }
+
+        String upper = rawLabel.trim().toUpperCase();
+        int value = 0;
+        for (int index = 0; index < upper.length(); index++) {
+            char ch = upper.charAt(index);
+            if (ch < 'A' || ch > 'Z') {
+                return -1;
+            }
+            value = (value * 26) + (ch - 'A' + 1);
+        }
+
+        return value - 1;
+    }
+
+    private String generateChoiceLabel(int zeroBasedIndex) {
+        if (zeroBasedIndex < 0) {
+            return "A";
+        }
+
+        int current = zeroBasedIndex;
+        StringBuilder label = new StringBuilder();
+        do {
+            int remainder = current % 26;
+            label.append((char) ('A' + remainder));
+            current = (current / 26) - 1;
+        } while (current >= 0);
+        return label.reverse().toString();
+    }
+
     private List<String> splitCsvLine(String line) {
         List<String> result = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -2857,37 +4467,74 @@ public class TeacherController {
                                           List<Map<String, Object>> questions,
                                           Map<String, String> difficulties,
                                           Map<String, String> answerKey) {
-        if (paper == null || paper.getExamId() == null || paper.getExamId().isBlank()) {
-            return;
+        // Question-bank rows are generated in-memory from processed papers via
+        // buildTemporaryQuestionBankItems() and must never be written to
+        // question_bank_items.
+    }
+
+    private List<QuestionBankItem> buildTemporaryQuestionBankItems(List<OriginalProcessedPaper> papers) {
+        List<QuestionBankItem> items = new ArrayList<>();
+        if (papers == null || papers.isEmpty()) {
+            return items;
         }
 
-        questionBankItemRepository.deleteBySourceExamId(paper.getExamId());
-
-        List<QuestionBankItem> items = new ArrayList<>();
-        for (int index = 0; index < questions.size(); index++) {
-            Map<String, Object> row = questions.get(index);
-            if (row == null) {
+        for (OriginalProcessedPaper paper : papers) {
+            if (paper == null || paper.getExamId() == null || paper.getExamId().isBlank()) {
                 continue;
             }
 
-            String key = String.valueOf(index + 1);
-            QuestionBankItem item = new QuestionBankItem();
-            item.setSourceExamId(paper.getExamId());
-            item.setSourceExamName(paper.getExamName());
-            item.setSourceTeacherEmail(paper.getTeacherEmail());
-            item.setSubject(paper.getSubject());
-            item.setActivityType(paper.getActivityType());
-            item.setQuestionOrder(index + 1);
-            item.setQuestionText(normalizeQuestionHtml(String.valueOf(row.getOrDefault("question", ""))));
-            item.setChoicesJson(gson.toJson(extractChoices(row)));
-            item.setAnswerText(answerKey.getOrDefault(key, ""));
-            item.setDifficulty(normalizeDifficulty(difficulties.getOrDefault(key, "Medium")));
-            items.add(item);
+            List<Map<String, Object>> questionRows = parseQuestionsJson(paper.getOriginalQuestionsJson());
+            Map<String, String> difficultyMap = parseSimpleMapJson(paper.getDifficultiesJson());
+            Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
+
+            for (int index = 0; index < questionRows.size(); index++) {
+                Map<String, Object> row = questionRows.get(index);
+                if (row == null) {
+                    continue;
+                }
+
+                String key = String.valueOf(index + 1);
+                String answerText = answerKeyMap.getOrDefault(key, "");
+                String difficulty = normalizeDifficulty(difficultyMap.getOrDefault(key, "Medium"));
+
+                QuestionBankItem item = new QuestionBankItem();
+                item.setSourceExamId(paper.getExamId());
+                item.setSourceExamName(paper.getExamName());
+                item.setSourceTeacherEmail(paper.getTeacherEmail());
+                item.setSourceTeacherDepartment(paper.getDepartmentName());
+                item.setSubject(paper.getSubject());
+                item.setActivityType(paper.getActivityType());
+                item.setQuestionOrder(index + 1);
+                item.setQuestionText(resolveQuestionCandidate(row, difficulty, answerText, true));
+                item.setChoicesJson(gson.toJson(extractChoices(row)));
+                item.setAnswerText(answerText);
+                item.setDifficulty(difficulty);
+                item.setCreatedAt(paper.getProcessedAt() == null ? LocalDateTime.now() : paper.getProcessedAt());
+                items.add(item);
+            }
         }
 
-        if (!items.isEmpty()) {
-            questionBankItemRepository.saveAll(items);
+        return items;
+    }
+
+    private long buildTemporaryQuestionBankItemId(QuestionBankItem item) {
+        if (item == null) {
+            return 0L;
         }
+
+        Integer questionOrder = item.getQuestionOrder();
+
+        String signature = normalize(item.getSourceExamId()) + "|"
+            + (questionOrder == null ? "0" : questionOrder.toString()) + "|"
+            + normalize(item.getSourceTeacherEmail()) + "|"
+            + normalize(item.getSubject()) + "|"
+            + normalize(item.getQuestionText());
+
+        long hash = UUID.nameUUIDFromBytes(signature.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits();
+        if (hash == Long.MIN_VALUE) {
+            return 0L;
+        }
+        return Math.abs(hash);
     }
 
     private List<String> extractChoices(Map<String, Object> row) {
@@ -2998,9 +4645,240 @@ public class TeacherController {
         }
     }
 
+    private Page<OriginalProcessedPaper> findDepartmentSharedPapersForTeacher(String teacherEmail,
+                                                                               String currentDepartment,
+                                                                               String currentProgram,
+                                                                               String search,
+                                                                               int page,
+                                                                               int pageSize) {
+        String normalizedTeacherEmail = normalize(teacherEmail);
+        if (normalizedTeacherEmail.isBlank() || currentDepartment == null || currentDepartment.isBlank()) {
+            return Page.empty();
+        }
+
+        Pageable pageable = PageRequest.of(Math.max(0, page), normalizePageSize(pageSize));
+        String normalizedProgram = normalize(currentProgram);
+        boolean hasProgramScope = !normalizedProgram.isBlank();
+        List<String> programScopes = hasProgramScope
+            ? List.of(normalizedProgram)
+            : List.of("__no_program_scope__");
+        String normalizedSearch = search == null ? "" : search.trim();
+        if (normalizedSearch.isBlank()) {
+            return originalProcessedPaperRepository
+                .findVisibleSharedPapersForTeacher(
+                    currentDepartment,
+                    teacherEmail,
+                    hasProgramScope,
+                    programScopes,
+                    pageable
+                );
+        }
+
+        return originalProcessedPaperRepository
+            .findVisibleSharedPapersForTeacherWithSearch(
+                currentDepartment,
+                teacherEmail,
+                normalizedSearch,
+                hasProgramScope,
+                programScopes,
+                pageable
+            );
+    }
+
+    private Page<OriginalProcessedPaper> findTeacherProcessedPapersPage(String teacherEmail,
+                                                                         String search,
+                                                                         int page,
+                                                                         int pageSize) {
+        String rawTeacherEmail = teacherEmail == null ? "" : teacherEmail.trim();
+        if (rawTeacherEmail.isBlank()) {
+            return Page.empty();
+        }
+
+        Pageable pageable = PageRequest.of(Math.max(0, page), normalizePageSize(pageSize));
+        String normalizedSearch = search == null ? "" : search.trim();
+        if (normalizedSearch.isBlank()) {
+            return originalProcessedPaperRepository
+                .findByTeacherEmailIgnoreCaseOrderByProcessedAtDesc(rawTeacherEmail, pageable);
+        }
+
+        return originalProcessedPaperRepository
+            .findByTeacherEmailIgnoreCaseAndExamNameContainingIgnoreCaseOrderByProcessedAtDesc(
+                rawTeacherEmail,
+                normalizedSearch,
+                pageable
+            );
+    }
+
+    private int normalizePageSize(Integer size) {
+        int candidate = size == null ? DEFAULT_LIST_PAGE_SIZE : size;
+        if (candidate <= 0) {
+            return DEFAULT_LIST_PAGE_SIZE;
+        }
+        return Math.min(candidate, MAX_LIST_PAGE_SIZE);
+    }
+
+    private void addPagingAttributes(Model model, Page<?> pageData, int pageSize) {
+        if (model == null || pageData == null) {
+            return;
+        }
+
+        model.addAttribute("currentPage", pageData.getNumber());
+        model.addAttribute("pageSize", pageSize);
+        model.addAttribute("totalPages", pageData.getTotalPages());
+        model.addAttribute("hasPrev", pageData.hasPrevious());
+        model.addAttribute("hasNext", pageData.hasNext());
+        model.addAttribute("prevPage", pageData.hasPrevious() ? pageData.getNumber() - 1 : 0);
+        model.addAttribute("nextPage", pageData.hasNext() ? pageData.getNumber() + 1 : pageData.getNumber());
+    }
+
+    private int resolveStoredQuestionCount(OriginalProcessedPaper paper) {
+        if (paper == null) {
+            return 0;
+        }
+
+        Integer storedCount = paper.getQuestionCount();
+        if (storedCount != null && storedCount >= 0) {
+            return storedCount;
+        }
+
+        int computedCount = countQuestionsJson(paper.getOriginalQuestionsJson());
+        paper.setQuestionCount(computedCount);
+        originalProcessedPaperRepository.save(paper);
+        return computedCount;
+    }
+
+    private int countQuestionsJson(String json) {
+        if (json == null || json.isBlank()) {
+            return 0;
+        }
+        try {
+            List<?> parsed = gson.fromJson(json, new TypeToken<List<?>>() { }.getType());
+            return parsed == null ? 0 : parsed.size();
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private String resolvePaperDepartment(OriginalProcessedPaper paper, Map<String, String> ownerDepartmentCache) {
+        if (paper == null) {
+            return "";
+        }
+
+        String paperDepartment = paper.getDepartmentName() == null ? "" : paper.getDepartmentName().trim();
+        if (!paperDepartment.isBlank()) {
+            return paperDepartment;
+        }
+
+        String ownerEmailRaw = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+        String ownerEmail = normalize(ownerEmailRaw);
+        if (ownerEmail.isBlank()) {
+            return "";
+        }
+
+        if (ownerDepartmentCache != null && ownerDepartmentCache.containsKey(ownerEmail)) {
+            return ownerDepartmentCache.get(ownerEmail);
+        }
+
+        String resolved = userRepository.findByEmail(ownerEmailRaw)
+            .map(User::getDepartmentName)
+            .map(String::trim)
+            .orElse("");
+
+        if (ownerDepartmentCache != null) {
+            ownerDepartmentCache.put(ownerEmail, resolved);
+        }
+        return resolved;
+    }
+
+    private boolean isDepartmentPaperVisibleToTeacher(OriginalProcessedPaper paper,
+                                                      String teacherEmail,
+                                                      String currentDepartment,
+                                                      String currentProgram) {
+        if (paper == null) {
+            return false;
+        }
+
+        String normalizedTeacherEmail = normalize(teacherEmail);
+        if (normalizedTeacherEmail.isBlank() || currentDepartment == null || currentDepartment.isBlank()) {
+            return false;
+        }
+
+        if (!paper.isTeacherPullShared()) {
+            return false;
+        }
+
+        if (matchesTeacherOwner(normalizedTeacherEmail, paper.getTeacherEmail())) {
+            return false;
+        }
+
+        String sourceDepartment = paper.getDepartmentName() == null ? "" : paper.getDepartmentName().trim();
+        if (sourceDepartment.isBlank() || !sourceDepartment.equalsIgnoreCase(currentDepartment)) {
+            return false;
+        }
+
+        String sharingScope = paper.getSharingScope() == null ? "" : paper.getSharingScope().trim().toUpperCase();
+        if ("PROGRAM".equals(sharingScope)) {
+            String targetProgram = normalize(paper.getSharedProgramName());
+            String teacherProgram = normalize(currentProgram);
+            return !targetProgram.isBlank() && !teacherProgram.isBlank() && targetProgram.equals(teacherProgram);
+        }
+
+        if ("TEACHER".equals(sharingScope)) {
+            String targetTeacher = normalize(paper.getSharedTeacherEmail());
+            return !targetTeacher.isBlank() && targetTeacher.equals(normalizedTeacherEmail);
+        }
+
+        return false;
+    }
+
+    private List<OriginalProcessedPaper> findTeacherProcessedPapers(String teacherEmail) {
+        String rawTeacherEmail = teacherEmail == null ? "" : teacherEmail.trim();
+        if (rawTeacherEmail.isBlank()) {
+            return new ArrayList<>();
+        }
+
+        List<OriginalProcessedPaper> directMatches =
+            originalProcessedPaperRepository.findByTeacherEmailIgnoreCaseOrderByProcessedAtDesc(rawTeacherEmail);
+        if (!directMatches.isEmpty()) {
+            return directMatches;
+        }
+
+        String normalizedTeacherEmail = normalize(rawTeacherEmail);
+        if (normalizedTeacherEmail.isBlank() || normalizedTeacherEmail.equalsIgnoreCase(rawTeacherEmail)) {
+            return new ArrayList<>();
+        }
+
+        return originalProcessedPaperRepository.findByTeacherEmailOrderByProcessedAtDesc(normalizedTeacherEmail);
+    }
+
+    private boolean matchesTeacherOwner(String teacherEmail, String ownerEmail) {
+        String normalizedTeacherEmail = normalize(teacherEmail);
+        String normalizedOwnerEmail = normalize(ownerEmail);
+        if (normalizedTeacherEmail.isBlank() || normalizedOwnerEmail.isBlank()) {
+            return false;
+        }
+
+        if (normalizedTeacherEmail.equals(normalizedOwnerEmail)) {
+            return true;
+        }
+
+        return normalizeOwnerKey(normalizedTeacherEmail).equals(normalizeOwnerKey(normalizedOwnerEmail));
+    }
+
+    private String normalizeOwnerKey(String value) {
+        String normalized = normalize(value);
+        if (normalized.isBlank()) {
+            return "";
+        }
+        normalized = normalized.replaceAll("[^a-z0-9]+", "_");
+        normalized = normalized.replaceAll("_+", "_");
+        normalized = normalized.replaceAll("^_|_$", "");
+        return normalized;
+    }
+
     private boolean isOwner(Principal principal, String ownerEmail) {
         String teacherEmail = principal != null ? principal.getName() : "";
-        return !teacherEmail.isBlank() && ownerEmail != null && teacherEmail.equalsIgnoreCase(ownerEmail);
+        return matchesTeacherOwner(teacherEmail, ownerEmail);
     }
 
     private String resolveQuestionDisplay(Map<String, Object> questionRow, String difficulty, String answer) {
@@ -3306,12 +5184,226 @@ public class TeacherController {
         return target;
     }
 
+    private List<ExportQuestionRow> buildExportQuestionRows(OriginalProcessedPaper paper) {
+        List<Map<String, Object>> questions = parseQuestionsJson(paper.getOriginalQuestionsJson());
+        Map<String, String> difficultiesMap = parseSimpleMapJson(paper.getDifficultiesJson());
+        Map<String, String> answerKeyMap = parseSimpleMapJson(paper.getAnswerKeyJson());
+
+        List<ExportQuestionRow> rows = new ArrayList<>();
+        for (int index = 0; index < questions.size(); index++) {
+            String key = String.valueOf(index + 1);
+            Map<String, Object> row = questions.get(index) == null ? new HashMap<>() : questions.get(index);
+
+            String difficulty = normalizeDifficulty(difficultiesMap.getOrDefault(key, "Medium"));
+            if (difficulty.isBlank()) {
+                difficulty = "Medium";
+            }
+
+            String rawAnswer = answerKeyMap.getOrDefault(
+                key,
+                row.get("answer") == null ? "" : String.valueOf(row.get("answer")));
+
+            String questionText = resolveQuestionDisplay(row, difficulty, rawAnswer);
+            questionText = toPlainQuestionText(questionText);
+            if (questionText.isBlank()) {
+                questionText = "Question " + (index + 1);
+            }
+
+            List<String> choices = new ArrayList<>();
+            for (String choice : extractChoices(row)) {
+                String plainChoice = toPlainQuestionText(choice);
+                if (!plainChoice.isBlank()) {
+                    choices.add(plainChoice);
+                }
+            }
+
+            String answer = formatAnswerForExport(rawAnswer, choices);
+            rows.add(new ExportQuestionRow(index + 1, difficulty, questionText, choices, answer));
+        }
+
+        return rows;
+    }
+
+    private ResponseEntity<byte[]> buildCsvExportResponse(OriginalProcessedPaper paper,
+                                                          List<ExportQuestionRow> rows) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("No,Difficulty,Question,Choices,Correct_Answer\n");
+
+        for (ExportQuestionRow row : rows) {
+            csv.append(csvCell(String.valueOf(row.number()))).append(',')
+                .append(csvCell(row.difficulty())).append(',')
+                .append(csvCell(row.question())).append(',')
+                .append(csvCell(formatChoicesForExport(row.choices()))).append(',')
+                .append(csvCell(row.answer()))
+                .append('\n');
+        }
+
+        String filename = sanitizeFilename(paper.getExamName()) + "-with-answers.csv";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.parseMediaType("text/csv"))
+            .body(csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private ResponseEntity<byte[]> buildPdfExportResponse(OriginalProcessedPaper paper,
+                                                          List<ExportQuestionRow> rows) throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+        PdfWriter.getInstance(document, outputStream);
+        document.open();
+
+        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+        Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
+        Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+
+        document.add(new Paragraph(
+            (paper.getExamName() == null || paper.getExamName().isBlank()) ? "Exam" : paper.getExamName(),
+            titleFont));
+        document.add(new Paragraph("Subject: " + safeText(paper.getSubject()), bodyFont));
+        document.add(new Paragraph("Type: " + safeText(paper.getActivityType()), bodyFont));
+        document.add(new Paragraph("Total Questions: " + rows.size(), bodyFont));
+        document.add(Chunk.NEWLINE);
+
+        for (ExportQuestionRow row : rows) {
+            document.add(new Paragraph(
+                row.number() + ". [" + row.difficulty() + "] " + row.question(),
+                sectionFont));
+
+            for (int index = 0; index < row.choices().size(); index++) {
+                String label = generateChoiceLabel(index);
+                document.add(new Paragraph("    " + label + ". " + row.choices().get(index), bodyFont));
+            }
+
+            document.add(new Paragraph("Answer: " + row.answer(), bodyFont));
+            document.add(Chunk.NEWLINE);
+        }
+
+        document.close();
+
+        String filename = sanitizeFilename(paper.getExamName()) + "-with-answers.pdf";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(outputStream.toByteArray());
+    }
+
+    private ResponseEntity<byte[]> buildDocxExportResponse(OriginalProcessedPaper paper,
+                                                           List<ExportQuestionRow> rows) throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph title = document.createParagraph();
+            XWPFRun titleRun = title.createRun();
+            titleRun.setBold(true);
+            titleRun.setFontSize(16);
+            titleRun.setText((paper.getExamName() == null || paper.getExamName().isBlank()) ? "Exam" : paper.getExamName());
+
+            XWPFParagraph meta = document.createParagraph();
+            XWPFRun metaRun = meta.createRun();
+            metaRun.setText("Subject: " + safeText(paper.getSubject())
+                + " | Type: " + safeText(paper.getActivityType())
+                + " | Total Questions: " + rows.size());
+
+            for (ExportQuestionRow row : rows) {
+                XWPFParagraph questionParagraph = document.createParagraph();
+                XWPFRun questionRun = questionParagraph.createRun();
+                questionRun.setBold(true);
+                questionRun.setText(row.number() + ". [" + row.difficulty() + "] " + row.question());
+
+                for (int index = 0; index < row.choices().size(); index++) {
+                    XWPFParagraph choiceParagraph = document.createParagraph();
+                    XWPFRun choiceRun = choiceParagraph.createRun();
+                    choiceRun.setText(generateChoiceLabel(index) + ". " + row.choices().get(index));
+                }
+
+                XWPFParagraph answerParagraph = document.createParagraph();
+                XWPFRun answerRun = answerParagraph.createRun();
+                answerRun.setItalic(true);
+                answerRun.setText("Answer: " + row.answer());
+
+                document.createParagraph();
+            }
+
+            document.write(outputStream);
+        }
+
+        String filename = sanitizeFilename(paper.getExamName()) + "-with-answers.docx";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+            .body(outputStream.toByteArray());
+    }
+
+    private String formatAnswerForExport(String rawAnswer, List<String> choices) {
+        String normalized = normalizeQuestionHtml(rawAnswer);
+        if (normalized.isBlank()) {
+            return "Not Set";
+        }
+
+        if ("MANUAL_GRADE".equalsIgnoreCase(normalized)) {
+            return "Manual grading required";
+        }
+
+        if (choices != null && !choices.isEmpty()) {
+            Integer answerIndex = parseCsvChoiceIndex(normalized, choices.size());
+            if (answerIndex != null && answerIndex >= 0 && answerIndex < choices.size()) {
+                return generateChoiceLabel(answerIndex) + ". " + choices.get(answerIndex);
+            }
+        }
+
+        return toPlainQuestionText(normalized);
+    }
+
+    private String formatChoicesForExport(List<String> choices) {
+        if (choices == null || choices.isEmpty()) {
+            return "";
+        }
+
+        List<String> labeledChoices = new ArrayList<>();
+        for (int index = 0; index < choices.size(); index++) {
+            labeledChoices.add(generateChoiceLabel(index) + ". " + choices.get(index));
+        }
+
+        return String.join(" | ", labeledChoices);
+    }
+
+    private String csvCell(String value) {
+        String safe = value == null ? "" : value;
+        return '"' + safe.replace("\"", "\"\"") + '"';
+    }
+
+    private String sanitizeFilename(String rawName) {
+        if (rawName == null || rawName.isBlank()) {
+            return "exam";
+        }
+
+        String sanitized = rawName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        sanitized = sanitized.replaceAll("_+", "_");
+        sanitized = sanitized.replaceAll("^[_\\.]+|[_\\.]+$", "");
+        return sanitized.isBlank() ? "exam" : sanitized;
+    }
+
+    private String safeText(String value) {
+        return (value == null || value.isBlank()) ? "N/A" : value;
+    }
+
+    private record ExportQuestionRow(int number,
+                                     String difficulty,
+                                     String question,
+                                     List<String> choices,
+                                     String answer) {
+    }
+
     private String normalizeMathSymbols(String text) {
         if (text == null) {
             return "";
         }
 
-        String normalized = text;
+        String normalized = HtmlUtils.htmlUnescape(text);
+        if (normalized == null) {
+            normalized = text;
+        }
 
         Map<String, String> entities = Map.ofEntries(
             Map.entry("&plusmn;", "±"),
@@ -3344,26 +5436,34 @@ public class TeacherController {
             normalized = normalized.replace(entry.getKey(), entry.getValue());
         }
 
-        Pattern decimalEntity = Pattern.compile("&#(\\d+);");
-        Matcher decimalMatcher = decimalEntity.matcher(normalized);
-        StringBuffer decimalBuffer = new StringBuffer();
-        while (decimalMatcher.find()) {
-            int codePoint = Integer.parseInt(decimalMatcher.group(1));
-            decimalMatcher.appendReplacement(decimalBuffer, Matcher.quoteReplacement(new String(Character.toChars(codePoint))));
-        }
-        decimalMatcher.appendTail(decimalBuffer);
-        normalized = decimalBuffer.toString();
+        normalized = decodeNumericHtmlEntitiesSafely(normalized, Pattern.compile("&#(\\d+);"), 10);
+        normalized = decodeNumericHtmlEntitiesSafely(normalized, Pattern.compile("&#x([0-9a-fA-F]+);"), 16);
 
-        Pattern hexEntity = Pattern.compile("&#x([0-9a-fA-F]+);");
-        Matcher hexMatcher = hexEntity.matcher(normalized);
-        StringBuffer hexBuffer = new StringBuffer();
-        while (hexMatcher.find()) {
-            int codePoint = Integer.parseInt(hexMatcher.group(1), 16);
-            hexMatcher.appendReplacement(hexBuffer, Matcher.quoteReplacement(new String(Character.toChars(codePoint))));
-        }
-        hexMatcher.appendTail(hexBuffer);
+        return normalizeEquationArtifacts(normalized.trim());
+    }
 
-        return normalizeEquationArtifacts(hexBuffer.toString().trim());
+    private String decodeNumericHtmlEntitiesSafely(String input, Pattern pattern, int radix) {
+        if (input == null || input.isBlank()) {
+            return "";
+        }
+
+        Matcher matcher = pattern.matcher(input);
+        StringBuffer output = new StringBuffer();
+        while (matcher.find()) {
+            String replacement = matcher.group(0);
+            try {
+                int codePoint = Integer.parseInt(matcher.group(1), radix);
+                if (Character.isValidCodePoint(codePoint)
+                    && !(codePoint >= Character.MIN_SURROGATE && codePoint <= Character.MAX_SURROGATE)) {
+                    replacement = new String(Character.toChars(codePoint));
+                }
+            } catch (Exception ignored) {
+                // Keep original entity text when parsing fails.
+            }
+            matcher.appendReplacement(output, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(output);
+        return output.toString();
     }
 
     private String normalizeEquationArtifacts(String text) {
@@ -3390,85 +5490,104 @@ public class TeacherController {
             .replaceAll("\\n{3,}", "\\n\\n");
 
         normalized = normalized
-            .replace("×", "\\times")
-            .replace("÷", "\\div")
-            .replace("≤", "\\le")
-            .replace("≥", "\\ge")
-            .replace("≠", "\\ne")
-            .replace("≈", "\\approx")
-            .replace("∞", "\\infty")
-            .replace("π", "\\pi")
-            .replace("α", "\\alpha")
-            .replace("β", "\\beta")
-            .replace("γ", "\\gamma")
-            .replace("Δ", "\\Delta")
-            .replace("θ", "\\theta")
-            .replace("∑", "\\sum")
-            .replace("∏", "\\prod")
-            .replace("√", "\\sqrt")
-            .replace("∫", "\\int");
+            .replace("\\times", "×")
+            .replace("\\div", "÷")
+            .replace("\\le", "≤")
+            .replace("\\ge", "≥")
+            .replace("\\ne", "≠")
+            .replace("\\approx", "≈")
+            .replace("\\infty", "∞")
+            .replace("\\pi", "π")
+            .replace("\\alpha", "α")
+            .replace("\\beta", "β")
+            .replace("\\gamma", "γ")
+            .replace("\\Delta", "Δ")
+            .replace("\\theta", "θ")
+            .replace("\\sum", "∑")
+            .replace("\\prod", "∏")
+            .replace("\\sqrt", "√")
+            .replace("\\int", "∫");
 
-        StringBuilder rebuilt = new StringBuilder();
-        for (int index = 0; index < normalized.length(); index++) {
-            char ch = normalized.charAt(index);
-            String superscript = toSuperscriptToken(ch);
-            if (superscript != null) {
-                rebuilt.append(superscript);
-                continue;
-            }
-
-            String subscript = toSubscriptToken(ch);
-            if (subscript != null) {
-                rebuilt.append(subscript);
-                continue;
-            }
-
-            rebuilt.append(ch);
-        }
-
-        return rebuilt.toString().trim();
+        return decodeSuperscriptAndSubscriptTokens(normalized).trim();
     }
 
-    private String toSuperscriptToken(char value) {
+    private String decodeSuperscriptAndSubscriptTokens(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        StringBuilder rebuilt = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            if (value.startsWith("^\\circ", index)) {
+                rebuilt.append('\u00B0');
+                index += "^\\circ".length() - 1;
+                continue;
+            }
+
+            char current = value.charAt(index);
+            if (current == '^' && index + 1 < value.length()) {
+                Character superscript = toSuperscriptChar(value.charAt(index + 1));
+                if (superscript != null) {
+                    rebuilt.append(superscript);
+                    index++;
+                    continue;
+                }
+            }
+
+            if (current == '_' && index + 1 < value.length()) {
+                Character subscript = toSubscriptChar(value.charAt(index + 1));
+                if (subscript != null) {
+                    rebuilt.append(subscript);
+                    index++;
+                    continue;
+                }
+            }
+
+            rebuilt.append(current);
+        }
+
+        return rebuilt.toString();
+    }
+
+    private Character toSuperscriptChar(char value) {
         return switch (value) {
-            case '\u00B0' -> "^\\circ";
-            case '\u00B9' -> "^1";
-            case '\u00B2' -> "^2";
-            case '\u00B3' -> "^3";
-            case '\u2070' -> "^0";
-            case '\u2074' -> "^4";
-            case '\u2075' -> "^5";
-            case '\u2076' -> "^6";
-            case '\u2077' -> "^7";
-            case '\u2078' -> "^8";
-            case '\u2079' -> "^9";
-            case '\u207A' -> "^+";
-            case '\u207B' -> "^-";
-            case '\u207C' -> "^=";
-            case '\u207D' -> "^(";
-            case '\u207E' -> "^)";
-            case '\u207F' -> "^n";
+            case '0' -> '\u2070';
+            case '1' -> '\u00B9';
+            case '2' -> '\u00B2';
+            case '3' -> '\u00B3';
+            case '4' -> '\u2074';
+            case '5' -> '\u2075';
+            case '6' -> '\u2076';
+            case '7' -> '\u2077';
+            case '8' -> '\u2078';
+            case '9' -> '\u2079';
+            case '+' -> '\u207A';
+            case '-' -> '\u207B';
+            case '=' -> '\u207C';
+            case '(' -> '\u207D';
+            case ')' -> '\u207E';
+            case 'n', 'N' -> '\u207F';
             default -> null;
         };
     }
 
-    private String toSubscriptToken(char value) {
+    private Character toSubscriptChar(char value) {
         return switch (value) {
-            case '\u2080' -> "_0";
-            case '\u2081' -> "_1";
-            case '\u2082' -> "_2";
-            case '\u2083' -> "_3";
-            case '\u2084' -> "_4";
-            case '\u2085' -> "_5";
-            case '\u2086' -> "_6";
-            case '\u2087' -> "_7";
-            case '\u2088' -> "_8";
-            case '\u2089' -> "_9";
-            case '\u208A' -> "_+";
-            case '\u208B' -> "_-";
-            case '\u208C' -> "_=";
-            case '\u208D' -> "_(";
-            case '\u208E' -> "_)";
+            case '0' -> '\u2080';
+            case '1' -> '\u2081';
+            case '2' -> '\u2082';
+            case '3' -> '\u2083';
+            case '4' -> '\u2084';
+            case '5' -> '\u2085';
+            case '6' -> '\u2086';
+            case '7' -> '\u2087';
+            case '8' -> '\u2088';
+            case '9' -> '\u2089';
+            case '+' -> '\u208A';
+            case '-' -> '\u208B';
+            case '=' -> '\u208C';
+            case '(' -> '\u208D';
+            case ')' -> '\u208E';
             default -> null;
         };
     }

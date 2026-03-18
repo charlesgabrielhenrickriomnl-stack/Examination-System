@@ -61,8 +61,8 @@
                     </div>
                 </div>
 
-                <div th:if="${!#lists.isEmpty(pendingExams)}" class="row g-3 pending-exams-grid">
-                    <div class="col-12 col-md-6 col-xl-4" th:each="pendingExam : ${pendingExams}">
+                <div th:if="${!#lists.isEmpty(pendingExams)}" class="row pending-exams-grid">
+                    <div class="col-12 col-md-6 col-lg-4 col-xxl-3" th:each="pendingExam : ${pendingExams}">
                         <div class="exam-card shadow-sm">
                             <div class="exam-card-header">
                                 <div class="d-flex justify-content-between align-items-start">
@@ -70,7 +70,7 @@
                                     <span class="activity-type-badge" th:text="${pendingExam.type}">Type</span>
                                 </div>
                             </div>
-                            <div class="card-body p-3">
+                            <div class="card-body">
                                 <div class="d-flex flex-wrap gap-3 mb-3">
                                     <div class="exam-meta-item">
                                         <i class="bi bi-question-circle me-1"></i>
@@ -85,6 +85,9 @@
                                         <i class="bi bi-calendar-event me-1"></i>
                                         Due: <span th:text="${pendingExam.deadline}">Deadline</span>
                                     </div>
+                                    <span class="badge"
+                                          th:classappend="${pendingExam.otpBadgeClass}"
+                                          th:text="${pendingExam.otpBadge}">Teacher OTP required</span>
                                 </div>
                                 <a th:href="${pendingExam.startUrl}" class="btn btn-primary w-100 exam-take-btn">
                                     <i class="bi bi-play-circle me-1"></i>Take Exam
@@ -146,11 +149,17 @@
                                                 <span th:text="${submission.submittedAt != null ? #temporals.format(submission.submittedAt, 'MMM dd, yyyy HH:mm') : 'N/A'}">Date</span>
                                             </small>
                                         </td>
-                                        <td>
-                                            <span class="badge badge-score"
-                                                  th:classappend="${submission.percentage >= 75 ? 'bg-success' : (submission.percentage >= 50 ? 'bg-warning text-dark' : 'bg-danger')}">
-                                                <span th:text="${submission.score}">0</span>/<span th:text="${submission.totalQuestions}">0</span>
-                                                (<span th:text="${#numbers.formatDecimal(submission.percentage, 1, 1)}">0</span>%)
+                                        <td th:with="displayScore=${submission.isGraded() ? submission.finalScore : submission.score},
+                                                     displayPercentage=${submission.isGraded() ? submission.finalPercentage : submission.percentage}">
+                                            <span th:if="${!submission.isResultsReleased()}" class="badge bg-secondary">
+                                                <i class="bi bi-hourglass-split me-1"></i>
+                                                <span th:text="${submission.isGraded() ? 'Awaiting release' : 'Pending grading'}">Pending grading</span>
+                                            </span>
+                                            <span th:if="${submission.isResultsReleased()}"
+                                                  class="badge badge-score"
+                                                  th:classappend="${displayPercentage >= 75 ? 'bg-success' : (displayPercentage >= 50 ? 'bg-warning text-dark' : 'bg-danger')}">
+                                                <span th:text="${displayScore}">0</span>/<span th:text="${submission.totalQuestions}">0</span>
+                                                (<span th:text="${#numbers.formatDecimal(displayPercentage, 1, 1)}">0</span>%)
                                             </span>
                                         </td>
                                         <td>
@@ -158,10 +167,6 @@
                                                 <a th:href="@{/student/results/{id}(id=${submission.id}, classroomId=${subjectId})}"
                                                    class="btn btn-outline-primary" title="View Results">
                                                     <i class="bi bi-eye"></i> View
-                                                </a>
-                                                <a th:href="@{/student/performance-analytics/{id}(id=${submission.id})}"
-                                                   class="btn btn-outline-success" title="Analytics">
-                                                    <i class="bi bi-graph-up"></i>
                                                 </a>
                                             </div>
                                         </td>

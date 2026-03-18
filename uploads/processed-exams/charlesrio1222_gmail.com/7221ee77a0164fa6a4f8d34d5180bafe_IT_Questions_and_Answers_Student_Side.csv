@@ -1,0 +1,51 @@
+ID,Difficulty,Question_Text,Choice_1,Choice_2,Choice 3,Correct_Answer
+1,Easy,What does 'URL' stand for?,(A) Uniform Resource Locator,(B) Universal Resource Link,,A
+2,Easy,Which is an input device? ,(A) Monitor ,(B) Keyboard,(C) Printer,B
+3,Easy,Define 'Software' in your own words.,,,,A set of instructions or programs that tell hardware what to do.
+4,Easy,What is the main storage device in a PC?   ,(A) RAM,(B) Hard Drive/SSD,(C) BIOS,B
+5,Easy,Which company developed Windows?   ,(A) Apple,(B) Microsoft,(C) Google,B
+6,Easy,What does 'RAM' stand for?  ,(A) Read Access Memory,(B) Random Access Memory,,B
+7,Easy,Which folder holds deleted files?   ,(A) Inbox,(B) Trash/Recycle Bin,(C) Downloads,B
+8,Easy,Shortcut key for 'Undo' in Windows?  ,(A) Ctrl+Z, (B) Ctrl+C,(C) Ctrl+V,A
+9,Easy,Is 'Python' a   ,(A) Operating System,(B) Programming Language,(C) Hardware,B
+10,Easy,Define a 'Search Engine'.,,,,A software system designed to carry out web searches.
+11,Medium,Which OSI layer handles IP addressing?  ,(A) Data Link,(B) Network, (C) Transport,B
+12,Medium,Describe the role of a 'Router' in a network.,,,,A device that directs data traffic between different computer networks.
+13,Medium,What is 'Phishing'?,,,,A fraudulent attempt to obtain sensitive information by disguising as a trustworthy entity.
+14,Medium,Explain the difference between a Hub and a Switch.,,,,A Hub broadcasts to all ports; a Switch sends data only to the specific destination port.
+15,Medium,What does 'SaaS' stand for?  ,(A) Software as a Service,(B) System as a Server,,A
+16,Medium,What is 'Bandwidth'?,,,,The maximum rate of data transfer across a given path.
+17,Medium,Define 'Open Source Software'.,,,,"Software with source code that anyone can inspect, modify, and enhance."
+18,Medium,What is the function of the 'Kernel' in an OS?,,,,The core of the OS that manages hardware-software communication.
+19,Medium,Which database language is used to query data? ,(A) HTML,(B) SQL,  (C) CSS,B
+20,Medium,What is 'Two-Factor Authentication' (2FA)?,,,,A security process requiring two different forms of identification for access.
+21,Hard,Max theoretical RAM in a 64-bit system?   ,(A) 16GB,(B) 16 Exabytes,(C) 1TB,B
+22,Hard,Explain the 'TCP/IP Three-Way Handshake'.,,,,The process of SYN -> SYN-ACK -> ACK to establish a connection.
+23,Hard,What is a 'Deadlock' in an OS?,,,,A situation where processes are unable to proceed because each is waiting for the other.
+24,Hard,Explain 'Encapsulation' in OOP.,,,,Bundling data and methods that work on that data within a single unit or class.
+25,Hard,What is 'Big O Notation' used to measure?,,,,The efficiency and complexity of an algorithm.
+26,Hard,Define 'Virtualization'.,,,,"The act of creating a virtual version of a resource, such as a server or storage."
+27,Hard,What is a 'Zero-Day Vulnerability'?,,,,A security hole in software that is unknown to the vendor.
+28,Hard,Explain the 'CAP Theorem' in distributed systems.,,,,"States that it is impossible to provide more than two out of three: Consistency, Availability, Partition Tolerance."
+29,Hard,What is 'Polymorphism' in programming?,,,,The ability of different classes to be treated as instances of the same class through an interface.
+30,Hard,Explain 'Asynchronous Programming'.,,,,A design pattern allowing tasks to run in parallel without blocking the main thread.
+31,Hard,What is the purpose of 'Salting' a password?,,,,Adding random data to the input of a hash function to protect against dictionary attacks.
+32,Hard,Describe 'Microservices Architecture'.,,,,Structuring an application as a collection of loosely coupled services.
+33,Hard,What is 'Edge Computing'?,,,,Bringing computation and data storage closer to the sources of data.
+34,Hard,What is a 'Zombie' in IT security?,,,,A compromised computer used for malicious tasks under remote direction.
+35,Hard,Explain 'CI/CD'.,,,,Automating the stages of app development (Integration and Deployment).
+36,Hard,What is 'Deep Learning'?,,,,Machine learning based on artificial neural networks with multiple layers.
+37,Hard,Define 'Blockchain' technology.,,,,A decentralized ledger that records transactions across many computers.
+38,Hard,What is 'RAID 1' used for?   ,(A) Performance,(B) Mirroring/Redundancy,(C) Parity,B
+39,Hard,What is 'Heuristic Analysis' in antivirus software?,,,,Detecting viruses by examining code for suspicious properties rather than signatures.
+40,Hard,Explain 'Dependency Injection'.,,,,A technique in which an object receives other objects that it depends on.
+41,Hard,What is a 'Race Condition'?,,,,Output dependent on the sequence or timing of uncontrollable events.
+42,Hard,Define 'Quantum Computing'.,,,,"Computing based on principles of quantum theory, such as superposition."
+43,Hard,What is the OSI model's 7th layer?   ,(A) Network,(B) Session,(C) Application,C
+44,Hard,"Explain 'Containerization' (e.g., Docker).",,,,Bundling an application with all its dependencies into a single package.
+45,Hard,What is 'Dark Fiber'?,,,,Unused optical fiber that has been laid but is not yet in use.
+46,Hard,What is the purpose of a 'Subnet Mask'?,,,,To distinguish between the network portion and host portion of an IP address.
+47,Hard,What is 'SQL Injection'?,,,,A vulnerability allowing attackers to interfere with database queries.
+48,Hard,Describe 'Public Key Infrastructure' (PKI).,,,,Roles and policies needed to manage and distribute digital certificates.
+49,Hard,Which scheduling algorithm leads to 'Starvation'?  ,(A) Round Robin,(B) Priority Scheduling,,B
+50,Hard,What is 'Latency' in networking?,,,,The time it takes for a data packet to travel from source to destination.

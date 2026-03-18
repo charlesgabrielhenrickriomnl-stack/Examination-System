@@ -1,6 +1,7 @@
 .classroom-stage {
-            max-width: 1320px;
+            max-width: 1450px;
             margin: 0 auto;
+            padding-bottom: 1.2rem;
         }
 
         .classroom-back-btn {
@@ -89,27 +90,30 @@
         }
 
         .pending-exams-grid {
-            row-gap: 0.9rem;
+            --bs-gutter-x: 0.9rem;
+            --bs-gutter-y: 0.9rem;
         }
 
         .exam-card {
-            border: 1px solid #e5d7c6;
-            border-radius: 14px;
+            border: 1px solid #e6d6bf;
+            border-radius: 16px;
             overflow: hidden;
-            transition: transform 0.18s ease, box-shadow 0.18s ease;
-            background: #fff;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            background: linear-gradient(166deg, rgba(255, 255, 255, 0.97), rgba(252, 245, 236, 0.93));
+            box-shadow: 0 12px 25px rgba(96, 63, 30, 0.12);
+            height: 100%;
         }
 
         .exam-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 26px rgba(81, 25, 11, 0.14);
+            box-shadow: 0 16px 30px rgba(96, 63, 30, 0.16);
         }
 
         .exam-card-header {
             background: linear-gradient(140deg, #8f1228 0%, #6f0e20 58%, #580915 100%);
             color: #fff;
-            padding: 0.95rem 1rem;
-            min-height: 94px;
+            padding: 1rem 1.05rem;
+            min-height: 96px;
             display: flex;
             align-items: flex-start;
         }
@@ -138,7 +142,10 @@
         }
 
         .exam-card .card-body {
-            padding: 0.92rem 1rem;
+            padding: 1rem 1.05rem;
+            min-height: 132px;
+            display: flex;
+            flex-direction: column;
         }
 
         .exam-meta-item {
@@ -160,14 +167,16 @@
 
         .exam-take-btn {
             border-radius: 10px;
-            background: #7a1022;
-            border-color: #7a1022;
+            border: 0;
             font-weight: 700;
+            background: linear-gradient(130deg, #8f1228, #6f0e20);
+            color: #fff;
+            margin-top: auto;
         }
 
         .exam-take-btn:hover {
-            background: #5f0c1a;
-            border-color: #5f0c1a;
+            color: #ffe9b8;
+            background: linear-gradient(130deg, #7b1022, #5f0d1a);
         }
 
         .badge-score { font-size: 0.83rem; }

@@ -1,33 +1,143 @@
+.teacher-account-page {
+    --account-border: #e7d8c2;
+    --account-shadow: 0 16px 34px rgba(83, 54, 24, 0.14);
+    --account-brand: #7b1022;
+    --account-muted: #65564a;
+}
+
 .teacher-account-page .teacher-content-wrapper {
-    padding-top: clamp(2rem, 3vw, 2.6rem);
+    padding-top: clamp(1.35rem, 2.2vw, 1.95rem);
+}
+
+.account-shell {
+    max-width: 1200px;
+}
+
+.account-hero {
+    border-radius: 22px;
+    border: 1px solid var(--account-border);
+    background:
+        linear-gradient(130deg, rgba(255, 251, 245, 0.96), rgba(252, 245, 236, 0.93)),
+        linear-gradient(118deg, rgba(190, 138, 42, 0.08), rgba(123, 16, 34, 0.11));
+    box-shadow: var(--account-shadow);
+    padding: clamp(0.9rem, 1.6vw, 1.25rem);
+    margin-bottom: 0.95rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.95rem;
+    align-items: center;
+}
+
+.account-hero-copy {
+    min-width: 0;
+}
+
+.account-kicker {
+    color: #8a5915;
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.account-title {
+    margin: 0;
+    color: var(--account-brand);
+    font-family: 'Sora', 'Space Grotesk', sans-serif;
+    font-size: clamp(1.34rem, 1.04rem + 1.2vw, 2.02rem);
+    line-height: 1.08;
+}
+
+.account-subtitle {
+    color: var(--account-muted);
+    font-size: 0.92rem;
+    max-width: 68ch;
+}
+
+.account-hero-meta {
+    min-width: 210px;
+    border-radius: 14px;
+    border: 1px solid rgba(122, 16, 34, 0.2);
+    background: linear-gradient(145deg, rgba(122, 16, 34, 0.95), rgba(88, 12, 24, 0.95));
+    color: #fff4e4;
+    padding: 0.68rem 0.8rem;
+}
+
+.account-meta-label {
+    color: #f4d59a;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.account-meta-value {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
 }
 
 .profile-card {
-    max-width: 760px;
+    max-width: 860px;
     margin: 0 auto;
+    border-radius: 20px;
+    border: 1px solid var(--account-border);
+    background: linear-gradient(166deg, rgba(255, 255, 255, 0.96), rgba(251, 245, 236, 0.92));
+    box-shadow: var(--account-shadow);
 }
 
-.section-title {
+.profile-card .account-hero-inline {
+    margin-bottom: 0.95rem;
+    border-radius: 16px;
+    border-color: #eadccc;
+    box-shadow: none;
+}
+
+.account-card-head {
+    border-bottom: 1px solid #ecdfcf;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.72rem;
+}
+
+.account-card-title {
+    color: var(--account-brand);
+    font-family: 'Sora', 'Space Grotesk', sans-serif;
+    font-size: 1.18rem;
     font-weight: 700;
-    color: #5e2c2c;
-    margin-bottom: 0.75rem;
-    font-size: 1rem;
+}
+
+.account-card-note {
+    color: var(--account-muted);
+    font-size: 0.88rem;
+}
+
+.profile-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
 }
 
 .profile-info-item {
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #eee2d0;
+    align-items: center;
+    gap: 0.68rem;
+    border: 1px solid #eadccc;
+    border-radius: 13px;
+    padding: 0.72rem 0.76rem;
+    background: linear-gradient(180deg, #fffdfa 0%, #fdf7ef 100%);
 }
 
 .profile-info-icon {
-    color: #7a3f3f;
-    width: 1.25rem;
-    text-align: center;
-    line-height: 1.2;
-    margin-top: 0.15rem;
+    width: 31px;
+    height: 31px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    margin-top: 0;
+    color: #fff;
+    background: linear-gradient(135deg, #8f1228, #6f0e20);
+    box-shadow: 0 8px 14px rgba(122, 16, 34, 0.22);
+    flex-shrink: 0;
 }
 
 .profile-info-content {
@@ -35,21 +145,56 @@
     min-width: 0;
 }
 
-.profile-info-item:last-of-type {
-    border-bottom: 0;
-}
-
 .profile-info-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #8a7d68;
-    margin-bottom: 0.2rem;
+    letter-spacing: 0.08em;
+    color: #896f53;
+    margin-bottom: 0.16rem;
+    font-weight: 700;
 }
 
 .profile-info-value {
-    font-size: 0.98rem;
-    color: #2a2a2a;
-    font-weight: 600;
+    font-size: 0.96rem;
+    color: #2d241c;
+    font-weight: 700;
     word-break: break-word;
+}
+
+.account-logout-form {
+    margin-top: 0.9rem;
+}
+
+.account-logout-btn {
+    border: 0;
+    border-radius: 11px;
+    font-weight: 700;
+    background: linear-gradient(130deg, #8f1228, #6f0e20);
+    box-shadow: 0 12px 22px rgba(122, 16, 34, 0.23);
+}
+
+.account-logout-btn:hover,
+.account-logout-btn:focus {
+    color: #ffe9b8;
+    background: linear-gradient(130deg, #7b1022, #5f0d1a);
+}
+
+@media (max-width: 991.98px) {
+    .account-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .account-hero-meta {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .profile-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .account-title {
+        font-size: 1.28rem;
+    }
 }

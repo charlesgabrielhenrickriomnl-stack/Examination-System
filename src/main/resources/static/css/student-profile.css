@@ -30,7 +30,7 @@
         .profile-hero-main {
             display: grid;
             grid-template-columns: auto minmax(0, 1fr) auto;
-            align-items: start;
+            align-items: center;
             gap: 1rem;
         }
 
@@ -111,16 +111,13 @@
             gap: 0.42rem;
             min-height: 1.4rem;
             line-height: 1.32;
-            position: relative;
         }
 
         .profile-meta-row i {
-            position: absolute;
-            left: -1.25rem;
-            top: 0.24rem;
             color: rgba(255, 229, 177, 0.96);
-            flex-shrink: 0;
+            flex: 0 0 0.95rem;
             font-size: 0.86rem;
+            text-align: center;
         }
 
         .profile-meta-row span {
@@ -239,10 +236,6 @@
 
             .profile-meta-row {
                 font-size: 0.9rem;
-            }
-
-            .profile-meta-row i {
-                left: -1.1rem;
             }
         }
 
