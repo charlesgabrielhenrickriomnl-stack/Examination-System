@@ -181,6 +181,7 @@ public class TeacherController {
         model.addAttribute("teacherSubjectCount", teacherSubjects.size());
         model.addAttribute("departmentSubjects", departmentSubjects);
         model.addAttribute("teacherEmail", teacherEmail);
+        model.addAttribute("teacherName", currentTeacher != null && currentTeacher.getFullName() != null ? currentTeacher.getFullName() : teacherEmail);
         model.addAttribute("departmentName", departmentName);
         model.addAttribute("departmentTeacherCount", departmentTeacherCount);
         model.addAttribute("departmentQuestionCount", departmentQuestionCount);

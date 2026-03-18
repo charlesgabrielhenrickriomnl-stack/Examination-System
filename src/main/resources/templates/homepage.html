@@ -31,7 +31,18 @@
     <div class="teacher-content-wrapper">
 <div class="container">
     <div class="row justify-content-center">
-            <div class="col-12 col-lg-11 col-xl-10">
+        <div class="col-12 col-lg-11 col-xl-10">
+
+            <!-- Welcome Header -->
+            <div class="dashboard-welcome-header">
+                <h2 class="dashboard-welcome-title">Welcome back, <span th:text="${teacherName}">Teacher</span></h2>
+                <div class="dashboard-welcome-subtitle" th:if="${departmentName != null && departmentName != ''}">
+                    <i class="bi bi-building"></i> Department of <span th:text="${departmentName}">Department</span>
+                </div>
+            </div>
+
+
+            <!-- Upload Card -->
             <div class="card upload-card exam-processing-card p-3 mb-3">
                 <div class="card-body exam-processing-body">
                     <div class="exam-processing-header text-center">
