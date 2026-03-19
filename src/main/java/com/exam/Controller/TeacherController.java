@@ -406,7 +406,14 @@ public class TeacherController {
             String questionCountLabel = questionCount + " questions";
 
             Map<String, Object> row = new HashMap<>();
-            String ownerEmail = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+            
+            String storedOwner = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+            String originalOwner = paper.getOriginalTeacherEmail() == null || paper.getOriginalTeacherEmail().isBlank()
+                ? storedOwner
+                : paper.getOriginalTeacherEmail().trim();
+                
+            boolean isMine = storedOwner.equalsIgnoreCase(teacherEmail);
+
             row.put("examId", paper.getExamId());
             row.put("examName", paper.getExamName());
             row.put("subject", paper.getSubject());
@@ -417,10 +424,24 @@ public class TeacherController {
             row.put("questionCount", questionCount);
             row.put("questionCountLabel", questionCountLabel);
             row.put("questionBadge", questionCountLabel);
-            row.put("ownerEmail", ownerEmail);
-            row.put("isOwnedByCurrentTeacher", true);
-            row.put("scopeLabel", "My Paper");
-            row.put("scopeClass", "processed-scope-owned");
+            
+            row.put("ownerEmail", originalOwner);
+            row.put("isOwnedByCurrentTeacher", isMine);
+            
+            if (originalOwner.equalsIgnoreCase(storedOwner)) {
+                row.put("scopeLabel", "My Paper");
+                row.put("scopeClass", "processed-scope-owned");
+                row.put("pulledFromName", "");
+            } else {
+                row.put("scopeLabel", "Pulled Paper");
+                row.put("scopeClass", "processed-scope-imported");
+                User origUser = userRepository.findByEmail(originalOwner).orElse(null);
+                String pulledFromName = origUser != null && origUser.getFullName() != null && !origUser.getFullName().isBlank()
+                    ? origUser.getFullName().trim()
+                    : originalOwner;
+                row.put("pulledFromName", pulledFromName);
+            }
+            
             processedExams.add(row);
         }
 
@@ -1012,6 +1033,7 @@ public class TeacherController {
         );
         clone.setQuestionCount(resolveStoredQuestionCount(source));
 
+        clone.setOriginalTeacherEmail(source.getOriginalTeacherEmail() != null && !source.getOriginalTeacherEmail().isBlank() ? source.getOriginalTeacherEmail() : source.getTeacherEmail());
         clone.setDepartmentName(currentDepartment.isBlank() ? sourceDepartment : currentDepartment);
         clone.setSourceFilePath(source.getSourceFilePath());
         clone.setSourceFileChecksum(source.getSourceFileChecksum());
@@ -1141,6 +1163,7 @@ public class TeacherController {
         );
         clone.setQuestionCount(selectedQuestions.size());
 
+        clone.setOriginalTeacherEmail(source.getOriginalTeacherEmail() != null && !source.getOriginalTeacherEmail().isBlank() ? source.getOriginalTeacherEmail() : source.getTeacherEmail());
         clone.setDepartmentName(currentDepartment.isBlank() ? sourceDepartment : currentDepartment);
         clone.setSourceFilePath(source.getSourceFilePath());
         clone.setSourceFileChecksum(source.getSourceFileChecksum());

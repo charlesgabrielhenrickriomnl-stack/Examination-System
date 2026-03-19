@@ -8,15 +8,17 @@
     --eac-surface: #ffffff;
     --eac-border: #eadfce;
 }
-
-
-
 body {
     background: linear-gradient(180deg, #f7f3ec 0%, #ffffff 45%, #f9f6f0 100%);
     color: var(--eac-ink);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     min-height: 100vh;
+}
+
+body.modal-open {
+    padding-right: 0 !important;
+    overflow-y: scroll !important;
 }
 
 /* === Teacher Layout: Left Sidebar === */

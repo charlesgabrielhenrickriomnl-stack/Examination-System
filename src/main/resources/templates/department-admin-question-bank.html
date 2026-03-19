@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -20,18 +20,16 @@
 
     <div class="teacher-content-wrapper">
         <div class="container py-4">
-            <div class="department-program-banner mb-3">
-                <div class="department-program-banner-main">
-                    <h3 class="department-page-title mb-1">
-                        <span class="department-title-icon department-title-icon-lg"><i class="bi bi-collection"></i></span>
-                        <span th:text="${(selectedProgram != null and !#strings.isEmpty(selectedProgram)) ? selectedProgram : departmentName}">Department</span>
-                    </h3>
-                    <p class="department-page-subtitle mb-0"
+            <div class="department-hero mb-4">
+                <div class="department-hero-copy">
+                    <p class="department-hero-kicker mb-1"><i class="bi bi-collection"></i> Program Details</p>
+                    <h4 class="department-hero-title mb-1" th:text="${(selectedProgram != null and !#strings.isEmpty(selectedProgram)) ? selectedProgram : departmentName}">Department</h4>
+                    <p class="department-hero-subtitle mb-0"
                        th:text="${(selectedProgram != null and !#strings.isEmpty(selectedProgram)) ? (departmentName + ' • ' + selectedProgram) : departmentName}">Department</p>
                 </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <a class="btn btn-sm department-btn-outline" th:href="@{/department-admin/dashboard}">
-                        <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                <div class="d-flex align-items-center">
+                    <a class="btn btn-sm department-btn-outline py-2 px-3" th:href="@{/department-admin/dashboard}" style="border-radius: 12px; background: rgba(255, 255, 255, 0.7);">
+                        <i class="bi bi-arrow-left me-1"></i> Dashboard
                     </a>
                 </div>
             </div>
@@ -182,6 +180,7 @@
                                         <div class="department-quiz-item-meta">
                                             <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${quiz.subject != null && !#strings.isEmpty(quiz.subject) ? quiz.subject : '-'}">Subject</span></span>
                                             <span class="department-pill"><i class="bi bi-person-badge"></i><span th:text="${quiz.sourceTeacherEmail}">teacher@example.com</span></span>
+                                            <span class="department-pill" th:if="${quiz.originalOwnerFullName != null && !#strings.isEmpty(quiz.originalOwnerFullName)}"><i class="bi bi-arrow-down-right"></i><span th:text="'Pulled From: ' + ${quiz.originalOwnerFullName}">Pulled From: Teacher</span></span>
                                             <span class="department-pill"><i class="bi" th:classappend="${quiz.teacherPullShared} ? 'bi-unlock' : 'bi-lock'"></i><span th:text="${quiz.sharingLabel}">Private</span></span>
                                             <span class="department-pill"><i class="bi bi-collection"></i><span th:text="${quiz.questionCount} + ' item(s)'">0 item(s)</span></span>
                                             <span class="department-pill"><i class="bi bi-clock-history"></i><span th:text="${quiz.createdAt != null ? #temporals.format(quiz.createdAt, 'MMM dd, yyyy hh:mm a') : '-'}">-</span></span>

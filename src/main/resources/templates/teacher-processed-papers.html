@@ -102,6 +102,9 @@
                                 <span class="processed-pill"
                                       th:classappend="${paper.scopeClass}"
                                       th:text="${paper.scopeLabel}">My Paper</span>
+                                <br th:if="${paper.pulledFromName != null && !#strings.isEmpty(paper.pulledFromName)}"/>
+                                <small class="text-muted" th:if="${paper.pulledFromName != null && !#strings.isEmpty(paper.pulledFromName)}"
+                                       th:text="'Pulled From: ' + ${paper.pulledFromName}">Pulled From: Teacher</small>
                             </td>
                             <td>
                                 <small class="text-muted"

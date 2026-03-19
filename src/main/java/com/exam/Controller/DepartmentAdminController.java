@@ -938,6 +938,18 @@ public class DepartmentAdminController {
                 quizRow.put("teacherPullShared", teacherPullShared);
                 quizRow.put("sharingScope", sharingScope);
                 quizRow.put("sharedProgramName", sharedProgramName);
+                String originalOwnerEmail = sourcePaper == null || sourcePaper.getOriginalTeacherEmail() == null || sourcePaper.getOriginalTeacherEmail().isBlank() 
+                    ? sourceTeacherEmail 
+                    : sourcePaper.getOriginalTeacherEmail().trim();
+                quizRow.put("originalOwnerEmail", originalOwnerEmail);
+                String originalOwnerFullName = "";
+                if (!originalOwnerEmail.isBlank() && !normalizeEmail(originalOwnerEmail).equals(normalizeEmail(sourceTeacherEmail))) {
+                    User origUser = userRepository.findByEmail(originalOwnerEmail).orElse(null);
+                    originalOwnerFullName = origUser != null && origUser.getFullName() != null && !origUser.getFullName().isBlank()
+                        ? origUser.getFullName().trim()
+                        : originalOwnerEmail;
+                }
+                quizRow.put("originalOwnerFullName", originalOwnerFullName);
                 quizRow.put("sharedTeacherEmail", sharedTeacherEmail);
                 quizRow.put("sharingLabel", buildSharingLabel(teacherPullShared, sharingScope, sharedProgramName, sharedTeacherEmail));
                 quizRow.put("questionCount", 0);
@@ -1288,6 +1300,23 @@ public class DepartmentAdminController {
                 quizRow.put("sharingScope", sharingScope);
                 quizRow.put("sharedProgramName", sharedProgramName);
                 quizRow.put("sharedTeacherEmail", sharedTeacherEmail);
+                String originalOwnerEmail = sourcePaper == null || sourcePaper.getOriginalTeacherEmail() == null || sourcePaper.getOriginalTeacherEmail().isBlank() 
+                    ? item.getSourceTeacherEmail() 
+                    : sourcePaper.getOriginalTeacherEmail().trim();
+                quizRow.put("originalOwnerEmail", originalOwnerEmail);
+                String originalOwnerFullName = "";
+                if (originalOwnerEmail != null && !originalOwnerEmail.isBlank()) {
+                    String normalizedOriginal = normalizeEmail(originalOwnerEmail);
+                    String normalizedCurrent = normalizeEmail(item.getSourceTeacherEmail());
+                    if (!normalizedOriginal.equals(normalizedCurrent)) {
+                        User origUser = userRepository.findByEmail(originalOwnerEmail).orElse(null);
+                        originalOwnerFullName = origUser != null && origUser.getFullName() != null && !origUser.getFullName().isBlank()
+                            ? origUser.getFullName().trim()
+                            : originalOwnerEmail;
+                    }
+                }
+                quizRow.put("originalOwnerFullName", originalOwnerFullName);
+                quizRow.put("uploadedBy", item.getSourceTeacherEmail());
                 quizRow.put("sharingLabel", buildSharingLabel(teacherPullShared, sharingScope, sharedProgramName, sharedTeacherEmail));
                 quizRow.put("questionCount", 0);
                 quizRow.put("createdAt", item.getCreatedAt());
@@ -2004,6 +2033,24 @@ public class DepartmentAdminController {
                 || normalizedTeacherEmail.equals(normalizeEmail(paper.getTeacherEmail())))
             .findFirst()
             .orElse(null);
+    }
+
+    @GetMapping("/profile")
+    public String profile(Model model, Principal principal) {
+        String adminEmail = principal != null ? principal.getName() : "";
+        User currentAdmin = adminEmail.isBlank() ? null : userRepository.findByEmail(adminEmail).orElse(null);
+        if (currentAdmin == null || currentAdmin.getRole() != User.Role.DEPARTMENT_ADMIN) {
+            return "redirect:/login";
+        }
+        
+        model.addAttribute("currentUserFullName", currentAdmin.getFullName());
+        model.addAttribute("currentUserEmail", currentAdmin.getEmail());
+        model.addAttribute("currentUserRole", currentAdmin.getRole().name());
+        model.addAttribute("currentUserSchool", currentAdmin.getSchoolName());
+        model.addAttribute("currentUserCampus", currentAdmin.getCampusName());
+        model.addAttribute("currentUserDepartment", currentAdmin.getDepartmentName());
+
+        return "department-admin-profile";
     }
 
     private String normalizeSharingScope(String value) {

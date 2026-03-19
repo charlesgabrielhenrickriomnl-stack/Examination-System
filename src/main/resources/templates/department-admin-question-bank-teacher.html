@@ -21,18 +21,17 @@
 
     <div class="teacher-content-wrapper">
         <div class="container py-4">
-            <div class="department-program-banner mb-3">
-                <div class="department-program-banner-main">
-                    <h3 class="department-page-title mb-1">
-                        <span class="department-title-icon department-title-icon-lg"><i class="bi bi-person-lines-fill"></i></span>
-                        <span th:text="${selectedTeacherName}">Teacher Name</span>
-                    </h3>
-                    <p class="department-page-subtitle mb-0" th:text="${selectedTeacherEmail + ' • ' + selectedProgram}">teacher@email.com</p>
+            <div class="department-hero mb-4">
+                <div class="department-hero-copy">
+                    <p class="department-hero-kicker mb-1"><i class="bi bi-person-lines-fill"></i> Teacher Details</p>
+                    <h4 class="department-hero-title mb-1" th:text="${selectedTeacherName}">Teacher Name</h4>
+                    <p class="department-hero-subtitle mb-0" th:text="${selectedTeacherEmail + ' • ' + selectedProgram}">teacher@email.com</p>
                 </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <a class="btn btn-sm department-btn-outline"
-                       th:href="@{/department-admin/question-bank(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize})}">
-                        <i class="bi bi-arrow-left me-1"></i> Back to Program Quiz List
+                <div class="d-flex align-items-center">
+                    <a class="btn btn-sm department-btn-outline py-2 px-3"
+                       th:href="@{/department-admin/question-bank(page=${page},size=${size},search=${search},departmentName=${selectedDepartment},programName=${selectedProgram},subject=${selectedSubject},teacherSearch=${teacherSearch},teacherPage=${teacherPage},teacherSize=${teacherSize})}"
+                       style="border-radius: 12px; background: rgba(255, 255, 255, 0.7);">
+                        <i class="bi bi-arrow-left me-1"></i> Program
                     </a>
                 </div>
             </div>
@@ -117,6 +116,7 @@
                                             <p class="department-quiz-item-title mb-1" th:text="${quiz.sourceExamName}">Quiz Name</p>
                                             <div class="department-quiz-item-meta">
                                                 <span class="department-pill"><i class="bi bi-journal-text"></i><span th:text="${quiz.subject != null && !#strings.isEmpty(quiz.subject) ? quiz.subject : '-'}">Subject</span></span>
+                                                <span class="department-pill" th:if="${quiz.originalOwnerFullName != null && !#strings.isEmpty(quiz.originalOwnerFullName)}"><i class="bi bi-arrow-down-right"></i><span th:text="'Pulled From: ' + ${quiz.originalOwnerFullName}">Pulled From: Teacher</span></span>
                                                 <span class="department-pill"><i class="bi" th:classappend="${quiz.teacherPullShared} ? 'bi-unlock' : 'bi-lock'"></i><span th:text="${quiz.sharingLabel}">Private</span></span>
                                                 <span class="department-pill"><i class="bi bi-collection"></i><span th:text="${quiz.questionCount} + ' item(s)'">0 item(s)</span></span>
                                             </div>
@@ -152,7 +152,7 @@
                                                     th:classappend="${quiz.teacherPullShared and quiz.sharingScope == 'TEACHER'} ? ' department-share-teacher-btn-active' : ''"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#shareTeacherModal"
-                                                    th:attr="data-exam-id=${quiz.sourceExamId},data-quiz-name=${quiz.sourceExamName},data-current-program=${quiz.sharedProgramName},data-current-teacher=${quiz.sharedTeacherEmail}">
+                                                    th:attr="data-exam-id=${quiz.sourceExamId},data-quiz-name=${quiz.sourceExamName},data-current-program=${quiz.sharedProgramName},data-current-teacher=${quiz.sharedTeacherEmail},data-owner-email=${quiz.uploadedBy != null ? quiz.uploadedBy : selectedTeacherEmail}">
                                                 <i class="bi bi-person-check me-1"></i>Choose Teacher
                                             </button>
                                             <a class="btn btn-sm department-btn-outline"
@@ -213,11 +213,18 @@
                     </div>
 
                     <div class="mb-0">
-                        <label for="shareTeacherSelect" class="form-label">Teacher</label>
-                        <input type="text" id="teacherSearchInput" class="form-control form-control-sm mb-2" placeholder="Search teacher by name or email...">
-                        <select class="form-select" id="shareTeacherSelect" name="shareTeacherEmail" required>
-                            <option value="">Select teacher</option>
-                        </select>
+                        <label class="form-label mb-1">Select Teacher</label>
+                        <div class="input-group input-group-sm mb-2 shadow-sm" style="border-radius: 8px; border: 1px solid #d7c4a8; overflow: hidden; background: #fffdfa;">
+                            <span class="input-group-text bg-transparent border-0 text-muted px-2"><i class="bi bi-search"></i></span>
+                            <input type="text" id="teacherSearchInput" class="form-control border-0 bg-transparent ps-0 shadow-none" placeholder="Search teacher by name or email...">
+                        </div>
+                        <input type="hidden" id="shareTeacherEmail" name="shareTeacherEmail">
+                        <div id="teacherListContainer" class="list-group overflow-auto shadow-sm" style="max-height: 240px; border-radius: 8px; border: 1px solid #e3d2b8; background: #fffcf8;">
+                            <div class="p-3 text-center text-muted small">Select a program first</div>
+                        </div>
+                        <div id="teacherRequiredFeedback" class="invalid-feedback d-none mt-1 fw-bold">
+                            Please select a teacher from the list.
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -242,58 +249,115 @@
     const examIdInput = document.getElementById('shareTeacherExamId');
     const quizNameElement = document.getElementById('shareTeacherQuizName');
     const programSelect = document.getElementById('shareProgramSelect');
-    const teacherSelect = document.getElementById('shareTeacherSelect');
+    const teacherEmailInput = document.getElementById('shareTeacherEmail');
     const teacherSearchInput = document.getElementById('teacherSearchInput');
+    const teacherListContainer = document.getElementById('teacherListContainer');
+    const requiredFeedback = document.getElementById('teacherRequiredFeedback');
+    const shareTeacherForm = document.getElementById('shareTeacherForm');
+
+    if (shareTeacherForm) {
+        shareTeacherForm.addEventListener('submit', (e) => {
+            if (!teacherEmailInput.value) {
+                e.preventDefault();
+                requiredFeedback.classList.remove('d-none');
+                requiredFeedback.classList.add('d-block');
+            }
+        });
+    }
+
+    let currentQuizOwnerEmail = '';
 
     function setTeacherOptions(programName, selectedTeacherEmail, searchQuery = '') {
         const targetProgram = (programName || '').trim();
         let teacherRows = Array.isArray(teachersByProgram[targetProgram]) ? teachersByProgram[targetProgram] : [];
-        const selectedEmail = (selectedTeacherEmail || '').trim().toLowerCase();
+        let selectedEmail = (selectedTeacherEmail || '').trim().toLowerCase();
 
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            teacherRows = teacherRows.filter(t => 
-                (t.email && t.email.toLowerCase().includes(query)) ||
-                (t.label && t.label.toLowerCase().includes(query))
-            );
+        if (teacherEmailInput.value && !selectedEmail) {
+            selectedEmail = teacherEmailInput.value;
         }
 
-        teacherSelect.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = teacherRows.length > 0 ? 'Select teacher' : 'No teachers found';
-        placeholder.selected = true;
-        placeholder.disabled = teacherRows.length === 0;
-        teacherSelect.appendChild(placeholder);
+        if (currentQuizOwnerEmail) {
+            teacherRows = teacherRows.filter(t => {
+                const rowEmail = (t.email || '').trim().toLowerCase();
+                return rowEmail !== currentQuizOwnerEmail;
+            });
+        }
+
+        if (searchQuery) {
+            const queryTerms = searchQuery.toLowerCase().trim().split(/\s+/);
+            teacherRows = teacherRows.filter(t => {
+                const targetStr = ((t.label || '') + ' ' + (t.email || '')).toLowerCase();
+                return queryTerms.every(term => targetStr.includes(term));
+            });
+        }
+
+        teacherListContainer.innerHTML = '';
+        requiredFeedback.classList.remove('d-block');
+        requiredFeedback.classList.add('d-none');
+
+        if (!targetProgram) {
+            teacherListContainer.innerHTML = '<div class="p-3 text-center text-muted small">Select a program first</div>';
+            return;
+        }
+
+        if (teacherRows.length === 0) {
+            teacherListContainer.innerHTML = '<div class="p-4 text-center text-muted small"><i class="bi bi-person-x fs-3 d-block mb-2 opacity-50"></i>No teachers found matching your search.</div>';
+            return;
+        }
 
         teacherRows.forEach((teacherRow) => {
             const teacherEmail = teacherRow && teacherRow.email ? String(teacherRow.email).trim().toLowerCase() : '';
-            if (!teacherEmail) {
-                return;
+            if (!teacherEmail) return;
+
+            const label = teacherRow && teacherRow.label ? String(teacherRow.label) : teacherEmail;
+            const isSelected = selectedEmail === teacherEmail;
+            
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action py-2 px-3 d-flex align-items-center gap-3 border-0 border-bottom';
+            
+            let iconHtml = '';
+            if (isSelected) {
+                btn.style.backgroundColor = '#fbf3e6';
+                iconHtml = `<i class="bi bi-check-circle-fill fs-5 ms-auto" style="color: #7a1022;"></i>`;
+            } else {
+                iconHtml = `<i class="bi bi-circle text-muted opacity-25 fs-5 ms-auto"></i>`;
             }
 
-            const option = document.createElement('option');
-            option.value = teacherEmail;
-            option.textContent = teacherRow && teacherRow.label ? String(teacherRow.label) : teacherEmail;
-            option.selected = selectedEmail && selectedEmail === teacherEmail;
-            teacherSelect.appendChild(option);
-        });
+            const initials = label.substring(0, 2).toUpperCase();
+            
+            btn.innerHTML = `
+                <div class="rounded-circle d-flex flex-shrink-0 align-items-center justify-content-center shadow-sm" 
+                     style="width: 38px; height: 38px; font-size: 0.9rem; font-weight: bold; background: linear-gradient(135deg, #8f1228, #6f0e20); color: #fff;">
+                    ${initials}
+                </div>
+                <div class="min-w-0 flex-grow-1 text-start" style="min-width: 0;">
+                    <div class="fw-bold text-truncate" style="font-size: 0.9rem; line-height: 1.2; color: #4f2f21;">${label}</div>
+                    <div class="text-truncate mt-1" style="font-size: 0.75rem; line-height: 1.2; color: #8a6528;">${teacherEmail}</div>
+                </div>
+                ${iconHtml}
+            `;
 
-        if (selectedEmail) {
-            teacherSelect.value = selectedEmail;
-        }
+            btn.addEventListener('click', () => {
+                teacherEmailInput.value = teacherEmail;
+                setTeacherOptions(programName, teacherEmail, searchQuery || (teacherSearchInput ? teacherSearchInput.value : ''));
+            });
+
+            teacherListContainer.appendChild(btn);
+        });
     }
 
     if (programSelect) {
         programSelect.addEventListener('change', () => {
             if (teacherSearchInput) teacherSearchInput.value = '';
+            teacherEmailInput.value = '';
             setTeacherOptions(programSelect.value, '');
         });
     }
 
     if (teacherSearchInput) {
         teacherSearchInput.addEventListener('input', (e) => {
-            setTeacherOptions(programSelect.value, teacherSelect.value, e.target.value);
+            setTeacherOptions(programSelect.value, teacherEmailInput.value, e.target.value);
         });
         teacherSearchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -312,6 +376,8 @@
         const quizName = trigger.getAttribute('data-quiz-name') || 'Selected quiz';
         const currentProgram = trigger.getAttribute('data-current-program') || '';
         const currentTeacher = trigger.getAttribute('data-current-teacher') || '';
+        
+        currentQuizOwnerEmail = (trigger.getAttribute('data-owner-email') || '').trim().toLowerCase();
 
         examIdInput.value = examId.trim();
         quizNameElement.textContent = quizName;
@@ -327,6 +393,8 @@
         if (teacherSearchInput) {
             teacherSearchInput.value = '';
         }
+        
+        teacherEmailInput.value = currentTeacher.toLowerCase();
 
         setTeacherOptions(programSelect.value, currentTeacher);
     });
