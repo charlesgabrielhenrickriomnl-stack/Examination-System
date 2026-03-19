@@ -1324,7 +1324,63 @@ public class TeacherController {
         model.addAttribute("questionDisplay", reversedQuestionDisplay);
         model.addAttribute("questionOriginalIndexes", questionOriginalIndexes);
         model.addAttribute("returnTo", returnTo == null || returnTo.isBlank() ? "/teacher/processed-papers" : returnTo);
+
+        String storedOwner = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+        String originalOwner = paper.getOriginalTeacherEmail() == null || paper.getOriginalTeacherEmail().isBlank()
+            ? storedOwner
+            : paper.getOriginalTeacherEmail().trim();
+        boolean isPulled = !originalOwner.equalsIgnoreCase(storedOwner);
+        model.addAttribute("isPulledPaper", isPulled);
+        if (isPulled) {
+            User origUser = userRepository.findByEmail(originalOwner).orElse(null);
+            String pulledFromName = origUser != null && origUser.getFullName() != null && !origUser.getFullName().isBlank()
+                ? origUser.getFullName().trim()
+                : originalOwner;
+            model.addAttribute("pulledFromName", pulledFromName);
+        } else {
+            model.addAttribute("pulledFromName", "");
+        }
+
         return "manage-questions";
+    }
+
+    @PostMapping("/rename-exam")
+    public String renameExam(@RequestParam("examId") String examId,
+                             @RequestParam("newExamName") String newExamName,
+                             @RequestParam(name = "returnTo", required = false) String returnTo,
+                             Principal principal,
+                             RedirectAttributes redirectAttributes) {
+        Optional<OriginalProcessedPaper> paperOpt = originalProcessedPaperRepository.findByExamId(examId);
+        if (paperOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Exam not found.");
+            return "redirect:/teacher/processed-papers";
+        }
+
+        OriginalProcessedPaper paper = paperOpt.get();
+        String teacherEmail = principal != null ? principal.getName() : "";
+        if (!teacherEmail.equalsIgnoreCase(paper.getTeacherEmail())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You do not own this paper.");
+            return "redirect:/teacher/processed-papers";
+        }
+
+        String originalOwner = paper.getOriginalTeacherEmail() == null || paper.getOriginalTeacherEmail().isBlank()
+            ? paper.getTeacherEmail()
+            : paper.getOriginalTeacherEmail().trim();
+        if (originalOwner.equalsIgnoreCase(paper.getTeacherEmail())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Rename is only available for pulled papers.");
+            return "redirect:/teacher/manage-questions/" + examId;
+        }
+
+        String trimmedName = newExamName == null ? "" : newExamName.trim();
+        if (trimmedName.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Exam name cannot be empty.");
+            return "redirect:/teacher/manage-questions/" + examId;
+        }
+
+        paper.setExamName(trimmedName);
+        originalProcessedPaperRepository.save(paper);
+        redirectAttributes.addFlashAttribute("successMessage", "Exam renamed to \"" + trimmedName + "\" successfully.");
+        return "redirect:/teacher/manage-questions/" + examId + buildReturnToQuery(returnTo);
     }
 
     @PostMapping("/add-question")

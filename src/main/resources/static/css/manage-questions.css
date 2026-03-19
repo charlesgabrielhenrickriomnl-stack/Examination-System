@@ -56,6 +56,178 @@
     margin-bottom: 0;
 }
 
+/* ── New Exam Details grid ── */
+.mq-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.75rem;
+}
+
+.mq-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fffdf9 0%, #faf5ed 100%);
+    border: 1px solid #ede4d5;
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.mq-detail-item:hover {
+    box-shadow: 0 4px 14px rgba(127, 16, 37, 0.08);
+    transform: translateY(-1px);
+}
+
+.mq-detail-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #7f1025 0%, #b3243f 100%);
+    color: #fff;
+    font-size: 1.1rem;
+    box-shadow: 0 3px 8px rgba(127, 16, 37, 0.18);
+}
+
+.mq-detail-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.mq-detail-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9b8e7e;
+}
+
+.mq-detail-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #7f1025;
+    word-break: break-word;
+}
+
+.mq-detail-value-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.mq-badge-subject {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.mq-badge-type {
+    background: #f3e8ff;
+    color: #7e22ce;
+}
+
+.mq-badge-count {
+    background: #ecfdf5;
+    color: #166534;
+}
+
+/* ── Pulled From badge ── */
+.mq-pulled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffe6a8;
+    font-size: 0.82rem;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+}
+
+.mq-pulled-badge i {
+    font-size: 0.9rem;
+}
+
+.mq-pulled-badge strong {
+    color: #fff;
+}
+
+/* ── Rename section ── */
+.mq-rename-section {
+    margin-top: 0.85rem;
+    padding: 0.75rem;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fffef6 0%, #fef9ec 100%);
+    border: 1px solid #e8dcc6;
+}
+
+.mq-rename-form .input-group {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.mq-rename-form .input-group-text {
+    background: #fff;
+    border-color: #d7cfbf;
+    color: #7f1025;
+}
+
+.mq-rename-form .form-control {
+    border-color: #d7cfbf;
+}
+
+.mq-rename-form .form-control:focus {
+    border-color: #bd8f31;
+    box-shadow: 0 0 0 0.2rem rgba(189, 143, 49, 0.18);
+}
+
+.mq-rename-save-btn {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+}
+
+.mq-rename-save-btn:hover {
+    background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+    color: #fff;
+}
+
+.mq-rename-cancel-btn {
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+.mq-rename-cancel-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* ── Rename button ── */
+.mq-rename-btn {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 0.42rem 0.9rem;
+}
+
+.mq-rename-btn:hover {
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+    color: #fff;
+}
+
 .mq-exam-actions {
     padding-top: 0.9rem;
 }

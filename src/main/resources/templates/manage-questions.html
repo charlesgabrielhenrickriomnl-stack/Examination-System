@@ -38,30 +38,71 @@
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card mq-card">
-                <div class="card-header mq-header">
+                <div class="card-header mq-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <h4 class="mb-0"><i class="bi bi-file-earmark-text"></i> Exam Details</h4>
+                    <div class="d-flex align-items-center gap-2 flex-wrap" th:if="${isPulledPaper}">
+                        <span class="mq-pulled-badge">
+                            <i class="bi bi-arrow-down-right"></i>
+                            Pulled From: <strong th:text="${pulledFromName}">Teacher</strong>
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3 mq-exam-meta">
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Exam Name:</strong></p>
-                            <h5 class="text-primary" th:text="${exam.examName}">Midterm Exam</h5>
+                    <div class="mq-detail-grid">
+                        <div class="mq-detail-item">
+                            <div class="mq-detail-icon"><i class="bi bi-journal-bookmark"></i></div>
+                            <div class="mq-detail-info">
+                                <span class="mq-detail-label">Exam Name</span>
+                                <span class="mq-detail-value" id="examNameDisplay" th:text="${exam.examName}">Midterm Exam</span>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Subject:</strong></p>
-                            <h5><span class="badge bg-info" th:text="${exam.subject}">Mathematics</span></h5>
+                        <div class="mq-detail-item">
+                            <div class="mq-detail-icon"><i class="bi bi-book"></i></div>
+                            <div class="mq-detail-info">
+                                <span class="mq-detail-label">Subject</span>
+                                <span class="mq-detail-value-badge mq-badge-subject" th:text="${exam.subject}">Mathematics</span>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Type:</strong></p>
-                            <h5><span class="badge bg-secondary" th:text="${exam.activityType}">Exam</span></h5>
+                        <div class="mq-detail-item">
+                            <div class="mq-detail-icon"><i class="bi bi-tag"></i></div>
+                            <div class="mq-detail-info">
+                                <span class="mq-detail-label">Type</span>
+                                <span class="mq-detail-value-badge mq-badge-type" th:text="${exam.activityType}">Exam</span>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Total Questions:</strong></p>
-                            <h5><span class="badge bg-success" th:text="${#lists.size(exam.questions)}">100</span></h5>
+                        <div class="mq-detail-item">
+                            <div class="mq-detail-icon"><i class="bi bi-hash"></i></div>
+                            <div class="mq-detail-info">
+                                <span class="mq-detail-label">Total Questions</span>
+                                <span class="mq-detail-value-badge mq-badge-count" th:text="${#lists.size(exam.questions)}">20</span>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Inline Rename (only for pulled papers) -->
+                    <div th:if="${isPulledPaper}" class="mq-rename-section" id="renameSection" style="display:none;">
+                        <form th:action="@{/teacher/rename-exam}" method="post" class="mq-rename-form">
+                            <input type="hidden" name="examId" th:value="${exam.examId}">
+                            <input type="hidden" name="returnTo" th:value="${returnTo}">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                                <input type="text" name="newExamName" class="form-control" placeholder="Enter new exam name..."
+                                       th:value="${exam.examName}" required>
+                                <button type="submit" class="btn mq-rename-save-btn">
+                                    <i class="bi bi-check-lg me-1"></i>Save
+                                </button>
+                                <button type="button" class="btn mq-rename-cancel-btn" onclick="toggleRename(false)">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
                     <hr class="my-3">
-                    <div class="d-flex justify-content-end gap-2 mq-exam-actions">
+                    <div class="d-flex justify-content-end gap-2 mq-exam-actions flex-wrap">
+                        <button type="button" class="btn mq-rename-btn" th:if="${isPulledPaper}" onclick="toggleRename(true)">
+                            <i class="bi bi-pencil-square me-1"></i>Rename
+                        </button>
                         <div class="dropdown">
                             <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-download"></i> Export Exam with Answers
@@ -94,6 +135,19 @@
             </div>
         </div>
     </div>
+
+    <script th:inline="none">
+        function toggleRename(show) {
+            var section = document.getElementById('renameSection');
+            if (section) {
+                section.style.display = show ? 'block' : 'none';
+                if (show) {
+                    var input = section.querySelector('input[name="newExamName"]');
+                    if (input) { input.focus(); input.select(); }
+                }
+            }
+        }
+    </script>
 
     <div class="row mb-4" id="addQuestionSection">
         <div class="col-md-12">
