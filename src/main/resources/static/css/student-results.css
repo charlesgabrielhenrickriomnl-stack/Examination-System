@@ -216,6 +216,35 @@ body.bg-light::after {
     justify-content: center;
     padding: 0.52rem 0.9rem;
     text-align: center;
+    border: none;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(95, 13, 26, 0.18);
+}
+
+.performance-badge:disabled {
+    opacity: 1;
+    cursor: default;
+    pointer-events: none;
+}
+
+.performance-badge--excellent {
+    background: linear-gradient(135deg, #178b58 0%, #0f6d44 100%);
+    color: #fff;
+}
+
+.performance-badge--good {
+    background: linear-gradient(135deg, #0f8aa9 0%, #0b6f88 100%);
+    color: #fff;
+}
+
+.performance-badge--fair {
+    background: linear-gradient(135deg, #d4a32a 0%, #b8891f 100%);
+    color: #3d2a05;
+}
+
+.performance-badge--needs-improvement {
+    background: linear-gradient(135deg, #b02a37 0%, #8c1f2a 100%);
+    color: #fff;
 }
 
 .analytics-chart-btn,

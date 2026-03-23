@@ -117,11 +117,6 @@
                     <div class="analytics-panel h-100 p-4">
                         <h3>Performance Analysis</h3>
                         <div class="analytics-toolbar">
-                            <span class="badge performance-badge"
-                                  th:classappend="${analytics.performanceCategory == 'Excellent' ? 'bg-success' : 
-                                                  analytics.performanceCategory == 'Good' ? 'bg-info' : 
-                                                  analytics.performanceCategory == 'Fair' ? 'bg-warning' : 'bg-danger'}"
-                                  th:text="${analytics.performanceCategory}"></span>
                             <button id="renderRadarBtn" class="btn analytics-chart-btn" type="button">
                                 <i class="bi bi-bar-chart-line me-1"></i>View Detailed Performance Chart
                             </button>
