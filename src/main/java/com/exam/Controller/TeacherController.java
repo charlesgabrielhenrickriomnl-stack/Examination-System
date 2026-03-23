@@ -961,6 +961,23 @@ public class TeacherController {
         model.addAttribute("questionRows", questionRows);
         model.addAttribute("questionSearch", questionSearch == null ? "" : questionSearch);
         model.addAttribute("backToDepartmentPapers", backToDepartmentPapers);
+
+        String storedOwner = paper.getTeacherEmail() == null ? "" : paper.getTeacherEmail().trim();
+        String originalOwner = paper.getOriginalTeacherEmail() == null || paper.getOriginalTeacherEmail().isBlank()
+            ? storedOwner
+            : paper.getOriginalTeacherEmail().trim();
+        boolean isPulled = !originalOwner.equalsIgnoreCase(storedOwner);
+        model.addAttribute("isPulledPaper", isPulled);
+        if (isPulled) {
+            User origUser = userRepository.findByEmail(originalOwner).orElse(null);
+            String pulledFromName = origUser != null && origUser.getFullName() != null && !origUser.getFullName().isBlank()
+                ? origUser.getFullName().trim()
+                : originalOwner;
+            model.addAttribute("pulledFromName", pulledFromName);
+        } else {
+            model.addAttribute("pulledFromName", "");
+        }
+
         return "teacher-processed-paper-detail";
     }
 

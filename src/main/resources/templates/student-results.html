@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -137,31 +137,14 @@
                         <input type="hidden" id="timeEfficiency" th:value="${analytics.timeEfficiency}"/>
                         <input type="hidden" id="confidence" th:value="${analytics.confidence}"/>
                         <input type="hidden" id="performanceCategory" th:value="${analytics.performanceCategory}"/>
-                        <input type="hidden" id="overallPercentage" th:value="${percentage}"/>
+                        <input type="hidden" id="overallPercentage" th:value="${submission != null && submission.isGraded() ? submission.finalPercentage : percentage}"/>
                         
                         <div id="chartSection" class="hidden mt-4">
                             <div id="performanceSummary"></div>
                             <canvas id="radarChartCanvas" width="400" height="400"></canvas>
                         </div>
-                        
-                        <!-- Performance Summary Box -->
-                        <div class="alert alert-light mt-4 text-start performance-summary-box">
-                            <h5 class="alert-heading">Performance Summary</h5>
-                            <p><strong>Overall Score:</strong> <span th:text="${percentage != null ? #numbers.formatDecimal(percentage, 1, 2) + '%' : '0%'}"></span> - <span th:text="${analytics.performanceCategory}"></span></p>
-                            <hr>
-                            <p class="mb-2"><strong>Strengths:</strong> 
-                                <span th:if="${analytics.topicMastery >= 70}">topic Mastery, </span>
-                                <span th:if="${analytics.difficultyResilience >= 70}">difficulty Resilience, </span>
-                                <span th:if="${analytics.timeEfficiency >= 70}">time Efficiency, </span>
-                                <span th:if="${analytics.confidence >= 70}">confidence</span>
-                            </p>
-                            <p class="mb-0"><strong>Areas for Improvement:</strong> 
-                                <span th:if="${analytics.topicMastery < 70}">topic Mastery, </span>
-                                <span th:if="${analytics.difficultyResilience < 70}">difficulty Resilience, </span>
-                                <span th:if="${analytics.timeEfficiency < 70}">time Efficiency, </span>
-                                <span th:if="${analytics.confidence < 70}">confidence</span>
-                            </p>
-                        </div>
+
+
                     </div>
                 </div>
 

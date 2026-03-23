@@ -72,11 +72,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     confidence: analytics.confidence || 0
                 };
                 
-                // Calculate overall performance score
+                // Metrics average for chart coloring
                 const overallScore = Object.values(metricsData).reduce((a, b) => a + b, 0) / Object.keys(metricsData).length;
+                // Actual exam percentage for summary display
+                const actualPercentage = parseFloat(document.getElementById('overallPercentage')?.value || 0);
                 
-                // Display performance summary
-                displayPerformanceSummary(metricsData, overallScore, analytics.performanceCategory);
+                // Display performance summary using actual exam percentage
+                displayPerformanceSummary(metricsData, actualPercentage, analytics.performanceCategory);
                 
                 // Render or update chart
                 const ctx = document.getElementById('radarChartCanvas').getContext('2d');
@@ -216,19 +218,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                 overallScore >= 60 ? 'Good' : 
                                 overallScore >= 40 ? 'Fair' : 'Needs Improvement');
         
-        // Find strengths and weaknesses
-        const sortedMetrics = Object.entries(metrics).sort((a, b) => b[1] - a[1]);
-        const strengths = sortedMetrics.slice(0, 2).map(m => m[0]);
-        const weaknesses = sortedMetrics.slice(-2).map(m => m[0]);
+        // Find strengths (>= 50%) and weaknesses (< 50%) based on threshold
+        const strengths = Object.entries(metrics).filter(m => m[1] >= 50).map(m => m[0]);
+        const weaknesses = Object.entries(metrics).filter(m => m[1] < 50).map(m => m[0]);
+        
+        const strengthsText = strengths.length > 0 ? formatMetricNames(strengths).join(', ') : 'None identified';
+        const weaknessesText = weaknesses.length > 0 ? formatMetricNames(weaknesses).join(', ') : 'None identified';
         
         summaryDiv.innerHTML = `
             <div class="alert alert-${getAlertClass(overallScore)}" role="alert">
                 <h4 class="alert-heading">Performance Summary</h4>
                 <p><strong>Overall Score:</strong> ${overallScore.toFixed(2)}% - ${performanceLevel}</p>
                 <hr>
+                <p class="mb-2">
+                    <strong>Strengths:</strong> ${strengthsText}
+                </p>
                 <p class="mb-0">
-                    <strong>Strengths:</strong> ${formatMetricNames(strengths).join(', ')}<br>
-                    <strong>Areas for Improvement:</strong> ${formatMetricNames(weaknesses).join(', ')}
+                    <strong>Areas for Improvement:</strong> ${weaknessesText}
                 </p>
             </div>
         `;
@@ -254,7 +260,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function formatMetricNames(names) {
-        return names.map(name => name.replace(/([A-Z])/g, ' $1').trim());
+        return names.map(name => {
+            // Convert camelCase to spaced words with proper capitalization
+            const spaced = name.replace(/([A-Z])/g, ' $1').trim();
+            return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+        });
     }
     
     // Render comparison chart for historical performance

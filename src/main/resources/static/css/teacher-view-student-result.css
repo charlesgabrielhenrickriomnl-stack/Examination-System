@@ -328,6 +328,14 @@
     margin-bottom: 0.45rem;
 }
 
+.teacher-result-details-page .radar-chart-card {
+    background: #fff;
+    border: 1px solid #e7dbcb;
+    border-radius: 16px;
+    padding: 1.2rem;
+    box-shadow: 0 4px 14px rgba(62, 39, 18, 0.06);
+}
+
 .teacher-result-details-page .progress {
     border-radius: 10px;
     background-color: #e9ecef;

@@ -37,6 +37,10 @@
                         &nbsp;&bull;&nbsp;
                         Processed: <strong th:text="${exam.uploadedAt != null ? #temporals.format(exam.uploadedAt, 'MMM dd, yyyy hh:mm a') : '-'}">-</strong>
                     </p>
+                    <p class="paper-detail-meta mb-0" th:if="${isPulledPaper}">
+                        <i class="bi bi-arrow-down-right me-1" style="color:#d97706;"></i>
+                        <strong style="color:#d97706;">Pulled From:</strong> <strong th:text="${pulledFromName}">Original Teacher</strong>
+                    </p>
                     <div class="paper-detail-stats">
                         <span class="paper-detail-chip">
                             <i class="bi bi-list-ol"></i>
